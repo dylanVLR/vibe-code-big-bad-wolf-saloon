@@ -282,6 +282,7 @@ async function wolfEndGameReveal() {
     narrator.onWolfBlow(tier);
 
     cellEl.classList.add('bonus-shake');
+    synth.houseBreak(tier);          // straw scatters / sticks crash / bricks hold
     if (tier === 3) shake(600);
     await sleep(800);
     cellEl.classList.remove('bonus-shake');

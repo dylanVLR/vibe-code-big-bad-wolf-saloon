@@ -29,6 +29,7 @@ class Synth {
   _oneShot(filename, vol = 1.0) { return this._play(filename, vol, false); }
 
   // ── reels ──
+  spinLever() { this._oneShot('spin_lever.mp3', 0.45); }
   startSpin() { if (this.enabled) { this.stopSpin(); this._spinAudio = this._play('reel_spin.mp3', 0.3, true); } }
   stopSpin() {
     if (this._spinAudio) { this._spinAudio.pause(); this._spinAudio.currentTime = 0; this._spinAudio = null; }
@@ -50,6 +51,8 @@ class Synth {
   }
   bonusSiren()  { this._oneShot('bonus_siren.mp3', 0.7); }
   bigWinAlarm() { this._oneShot('win_big.mp3', 0.9); }
+  wildExpand()  { this._oneShot('wild_expand.mp3', 0.85); }
+  boltLock()    { this._oneShot('bolt_lock.mp3', 0.7); }
 
   // ── wolf & houses ──
   wolfHuff()    { this._oneShot('wolf_huff.mp3', 0.8); }
@@ -58,6 +61,12 @@ class Synth {
   stickBreak()  { this._oneShot('stick_break.mp3', 0.7); }
   brickImpact() { this._oneShot('brick_impact.mp3', 0.7); }
   brickLay()    { this._oneShot('brick_lay.mp3', 0.5); }
+  /** The gust hitting a house: straw scatters, sticks crash, bricks hold firm. */
+  houseBreak(tier) {
+    if (!this.enabled) return;
+    const files = { 1: 'straw_break.mp3', 2: 'stick_break.mp3', 3: 'brick_impact.mp3' };
+    this._oneShot(files[tier] || files[1], 0.75);
+  }
   houseAward(tier) {
     if (!this.enabled) return;
     const files = { 1: 'house_award_1.mp3', 2: 'house_award_2.mp3', 3: 'house_award_3.mp3' };

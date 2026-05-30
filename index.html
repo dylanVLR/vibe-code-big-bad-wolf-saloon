@@ -714,11 +714,11 @@
     <symbol id="sym-royal-10" viewBox="0 0 200 200">
 
       <text x="108" y="160" text-anchor="middle" font-family="Rye, serif"
-            font-size="106" fill="#5A0000" opacity="0.95">10</text>
+            font-size="115" fill="#5A0000" opacity="0.95">10</text>
       <text x="106" y="158" text-anchor="middle" font-family="Rye, serif"
-            font-size="106" fill="#3A0000">10</text>
+            font-size="115" fill="#3A0000">10</text>
       <text x="100" y="152" text-anchor="middle" font-family="Rye, serif"
-            font-size="106" fill="url(#g-logo-red)" stroke="#FFE88A" stroke-width="3" filter="url(#f-shadow)">10</text>
+            font-size="115" fill="url(#g-logo-red)" stroke="#FFE88A" stroke-width="3" filter="url(#f-shadow)">10</text>
     </symbol>
 
     <!-- ══════════════════════════════════════════
@@ -950,7 +950,7 @@
         <circle r="47" fill="#241A0E" stroke="#E6CF9A" stroke-width="3"/>
         <circle r="47" fill="none" stroke="#5A4422" stroke-width="1" transform="scale(1.08)"/>
         <!-- WILD text -->
-        <text x="0" y="13" text-anchor="middle" font-family="Rye, serif" font-size="33"
+        <text x="0" y="11" text-anchor="middle" font-family="Rye, serif" font-size="28"
               fill="#F0DCAE" stroke="#3A2A12" stroke-width="1.4" paint-order="stroke">WILD</text>
       </g>
     </symbol>
@@ -1080,7 +1080,7 @@
         </div>
         
         <div class="logo-clovers">
-          <img src="assets/vlr_medallion.png" alt="VLR Medallion" class="logo-medallion-img">
+          <img src="assets/vlr_medallion.png" alt="VLR Medallion" class="logo-medallion-img" id="vlr-medallion">
         </div>
       </div>
       
@@ -1670,7 +1670,7 @@
   <div id="options-panel">
 
     <!-- Auto spin -->
-    <button id="btn-auto" class="drawer-btn" title="Auto Spin">AUTO SPIN</button>
+    <button id="btn-auto" class="drawer-btn" title="Auto Spin">🔄 AUTO SPIN</button>
 
     <!-- Turbo toggle -->
     <div class="drawer-btn drawer-toggle">
@@ -1705,8 +1705,8 @@
       <span>PAYTABLE</span>
     </button>
 
-    <!-- ══ GAFF MODE — dev/admin tools, only shown with ?dev=1 ══ -->
-    <div class="drawer-gaff-header dev-tool">GAFF MODE</div>
+    <!-- ══ DEV MODE — dev/admin tools, only shown with ?dev=1 ══ -->
+    <div class="drawer-gaff-header dev-tool">DEV MODE</div>
     <div id="time-control-wrap" class="drawer-sub dev-tool">
       <button id="btn-time" class="drawer-btn" title="Time of day" aria-label="Time of day">
         <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm0 18a8 8 0 110-16 8 8 0 010 16zM12.5 7H11v6l5.25 3.15.75-1.23-4.5-2.67V7z"/></svg>
@@ -1723,9 +1723,10 @@
     <button id="btn-rtp" class="drawer-btn drawer-rtp dev-tool" title="Choose the RTP / math model">🎚️ RTP</button>
     <button id="btn-size" class="drawer-btn drawer-size dev-tool" title="See how many megabytes the game uses">📦 GAME SIZE</button>
     <button id="btn-deposit" class="drawer-btn drawer-deposit dev-tool" title="Add credit to the machine">💵 ADD CREDIT</button>
-    <button id="btn-force-extreme" class="drawer-btn dev-tool" title="Force Extreme Anticipation">Anticipation</button>
-    <button id="btn-force-wild" class="drawer-btn drawer-wild dev-tool" title="Spin and land an expanding Wolf Wild">Expanding Wild</button>
-    <button id="btn-show-animations" class="drawer-btn dev-tool" title="Show animation names">Animations</button>
+    <button id="btn-force-extreme" class="drawer-btn dev-tool" title="Force Extreme Anticipation">🔮 Anticipation</button>
+    <button id="btn-force-wild" class="drawer-btn drawer-wild dev-tool" title="Spin and land an expanding Wolf Wild">🐺 Expanding Wild</button>
+    <button id="btn-show-animations" class="drawer-btn dev-tool" title="Show animation names">🎬 Animations</button>
+    <button id="btn-web-push" class="drawer-btn dev-tool" title="Web Push">🔔 Web Push</button>
     <!-- Developer simulation and math buttons moved to hidden debug panel -->
 
   </div>

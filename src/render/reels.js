@@ -154,11 +154,15 @@ export function expandWildReel(reelIndex, expandedCol) {
   renderReel(reelIndex, expandedCol);   // wild cells underneath (data + highlight)
   col.classList.add('wild-reel');        // hide per-cell emblems; show the unified panel
 
-  // one full-reel plaque carrying the WILD emblem
+  // one full-reel plaque: weathered texture + 4 corner bolts + the WILD emblem
   let panel = col.querySelector('.wild-panel');
   if (!panel) {
     panel = document.createElement('div');
     panel.className = 'wild-panel';
+    panel.innerHTML =
+      '<div class="wild-texture"></div>' +
+      '<div class="wild-bolt tl"></div><div class="wild-bolt tr"></div>' +
+      '<div class="wild-bolt bl"></div><div class="wild-bolt br"></div>';
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
     use.setAttribute('href', '#sym-wild');
@@ -171,12 +175,66 @@ export function expandWildReel(reelIndex, expandedCol) {
   void panel.offsetWidth;                // reflow so the entrance animation restarts
   panel.classList.add('expand');
 
-  // sparkle burst down the unified reel
-  const rect = col.getBoundingClientRect();
-  const cr = particleContainer.getBoundingClientRect();
-  const cx = rect.left + rect.width / 2 - cr.left;
-  for (let i = 0; i < 3; i++) {
-    setTimeout(() => spawnSparkles(cx, rect.top + rect.height * (0.22 + i * 0.28) - cr.top, 9), i * 110);
+  // celebrate inside the frame as it opens: cowboy SFX + coins + dust + sparks
+  synth.wildExpand();
+  setTimeout(() => wildBurst(panel), 230);
+
+  // hammer the four corner bolts in, one at a time, each with a clank
+  const bolts = panel.querySelectorAll('.wild-bolt');
+  bolts.forEach(b => b.classList.remove('locked'));
+  bolts.forEach((b, i) => setTimeout(() => { b.classList.add('locked'); synth.boltLock(); }, 430 + i * 150));
+}
+
+/**
+ * Inject a one-off celebration inside an expanded-wild panel: a flash, a swirling
+ * dust whirlwind, a burst of gold coins that rain down, and golden sparks. All
+ * elements live inside the panel (overflow:hidden), so they stay in the frame and
+ * remove themselves when their animation ends.
+ */
+function wildBurst(panel) {
+  const add = (cls, style, life) => {
+    const el = document.createElement('div');
+    el.className = cls;
+    if (style) for (const k in style) el.style.setProperty(k, style[k]);
+    panel.appendChild(el);
+    setTimeout(() => el.remove(), life);
+    return el;
+  };
+
+  add('wild-flash', null, 700);                                  // bright pop
+  add('wild-dust', { 'animation-delay': '0s' }, 2300);          // whirlwind
+  add('wild-dust', { 'animation-delay': '0.18s' }, 2400);
+
+  // flying dust specks for the dust-storm feel
+  for (let i = 0; i < 16; i++) {
+    const ang = Math.random() * Math.PI * 2;
+    const dist = 30 + Math.random() * 110;
+    add('wild-mote', {
+      '--mx': (Math.cos(ang) * dist * 1.2).toFixed(0) + 'px',
+      '--my': (Math.sin(ang) * dist).toFixed(0) + 'px',
+      'animation-delay': (Math.random() * 0.4).toFixed(2) + 's',
+    }, 1700);
+  }
+
+  // gold coins burst out from the badge then rain down
+  for (let i = 0; i < 16; i++) {
+    const ang = Math.random() * Math.PI * 2;
+    const dist = 22 + Math.random() * 62;
+    add('wild-coin', {
+      '--tx': (Math.cos(ang) * dist).toFixed(0) + 'px',
+      '--ty': (Math.sin(ang) * dist - 50 - Math.random() * 45).toFixed(0) + 'px',
+      'animation-delay': (Math.random() * 0.22).toFixed(2) + 's',
+    }, 1700);
+  }
+  // firework-style sparks shooting out from the centre
+  for (let i = 0; i < 18; i++) {
+    const ang = Math.random() * Math.PI * 2;
+    const dist = 30 + Math.random() * 95;
+    add('wild-spark', {
+      '--sx': (Math.cos(ang) * dist).toFixed(0) + 'px',
+      '--sy': (Math.sin(ang) * dist).toFixed(0) + 'px',
+      'animation-delay': (Math.random() * 0.15).toFixed(2) + 's',
+    }, 1000);
   }
 }
 

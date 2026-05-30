@@ -17,7 +17,7 @@ import { generateGrid, evaluateGrid, countHats, shouldAnticipate, shouldExtremeA
 import { animateReel, getReelStrips, highlightWinners, clearHighlights, animateWinCount, expandWildReel } from '../render/reels.js';
 import {
   spawnStarbursts, spawnSideWaterfall, spawnWinVignette, spawnWinPopText,
-  playWinPresentation
+  playWinPresentation, spawnSparkles
 } from '../render/particles.js';
 import { setStatus, updateDisplays, elWin, buttons, stopAuto } from '../render/readouts.js';
 import { startBonus, isBonusActive } from './bonus.js';
@@ -65,6 +65,7 @@ export function triggerSpin() {
 
   buttons.spin.disabled = buttons.betUp.disabled = buttons.betDown.disabled = true;
 
+  synth.spinLever();
   synth.startSpin();
   playSpinBadge();
   narrator.onSpin();
@@ -214,6 +215,7 @@ buttons.betUp.addEventListener('click', () => {
   if (state.spinning || isBonusActive()) return;
   state.betIndex = Math.min(BET_LEVELS.length - 1, state.betIndex + 1);
   updateDisplays();
+  synth.betChange();
   narrator.onBetChange('up');
 });
 
@@ -221,6 +223,7 @@ buttons.betDown.addEventListener('click', () => {
   if (state.spinning || isBonusActive()) return;
   state.betIndex = Math.max(0, state.betIndex - 1);
   updateDisplays();
+  synth.betChange();
   narrator.onBetChange('down');
 });
 
@@ -244,8 +247,9 @@ document.addEventListener('keydown', (e) => {
 const btnForceExtreme = document.getElementById('btn-force-extreme');
 if (btnForceExtreme) {
   btnForceExtreme.addEventListener('click', () => {
+    if (state.spinning || isBonusActive()) return;
     state.forceExtremeNextSpin = true;
-    setStatus('EXTREME ANTICIPATION FORCED NEXT SPIN', 'win');
+    triggerSpin();
   });
 }
 
@@ -256,5 +260,26 @@ if (btnForceWild) {
     if (state.spinning || isBonusActive()) return;
     state.forceWildNextSpin = true;
     triggerSpin();
+  });
+}
+
+const vlrMedallion = document.getElementById('vlr-medallion');
+if (vlrMedallion) {
+  vlrMedallion.addEventListener('click', () => {
+    // Jump animation
+    vlrMedallion.classList.remove('medallion-jump');
+    void vlrMedallion.offsetWidth; // trigger reflow
+    vlrMedallion.classList.add('medallion-jump');
+    
+    // Sparks
+    const rect = vlrMedallion.getBoundingClientRect();
+    const particleContainer = document.getElementById('particle-container');
+    const cRect = particleContainer.getBoundingClientRect();
+    const x = rect.left + rect.width / 2 - cRect.left;
+    const y = rect.top + rect.height / 2 - cRect.top;
+    spawnSparkles(x, y, 15);
+    
+    // Sound
+    synth.buttonClick();
   });
 }
