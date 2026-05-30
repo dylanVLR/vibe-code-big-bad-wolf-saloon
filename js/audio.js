@@ -1,0 +1,187 @@
+/**
+ * @module audio
+ * @description Sound for Huff N' More Puff. Exports two ready-to-use singletons:
+ *   `synth` – one-shot sound effects (pre-rendered MP3s in assets/audio/sfx/)
+ *   `bgm`   – looping background music (base-game + bonus tracks, crossfaded)
+ * Both are created once here and shared via ES-module caching.
+ */
+'use strict';
+
+/* ── Sound effects ── */
+class Synth {
+  constructor() {
+    this.enabled = true;
+    this._volume = 0.7;       // 0..1
+    this._spinAudio = null;   // the looping reel-spin sound
+  }
+
+  /** Play an MP3 from assets/audio/sfx/. Returns the Audio element. */
+  _play(filename, vol = 1.0, loop = false) {
+    if (!this.enabled) return null;
+    const audio = new Audio(`assets/audio/sfx/${filename}`);
+    audio.volume = this._volume * vol;
+    audio.loop = loop;
+    audio.play().catch(() => {});
+    return audio;
+  }
+
+  /** Play a one-shot SFX that may overlap others. */
+  _oneShot(filename, vol = 1.0) { return this._play(filename, vol, false); }
+
+  // ── reels ──
+  startSpin() { if (this.enabled) { this.stopSpin(); this._spinAudio = this._play('reel_spin.mp3', 0.3, true); } }
+  stopSpin() {
+    if (this._spinAudio) { this._spinAudio.pause(); this._spinAudio.currentTime = 0; this._spinAudio = null; }
+  }
+  reelStop(index) {
+    if (!this.enabled) return;
+    const files = ['reel_stop_1.mp3','reel_stop_2.mp3','reel_stop_3.mp3','reel_stop_4.mp3','reel_stop_5.mp3'];
+    this._oneShot(files[index] || files[0], 0.6);
+  }
+  anticipation() { this._oneShot('anticipation.mp3', 0.5); }
+
+  // ── wins ──
+  win(totalWin, bet) {
+    if (!this.enabled) return;
+    const ratio = totalWin / bet;
+    if (ratio >= 8)      this._oneShot('win_big.mp3', 0.8);
+    else if (ratio >= 3) this._oneShot('win_medium.mp3', 0.7);
+    else                 this._oneShot('win_small.mp3', 0.6);
+  }
+  bonusSiren()  { this._oneShot('bonus_siren.mp3', 0.7); }
+  bigWinAlarm() { this._oneShot('win_big.mp3', 0.9); }
+
+  // ── wolf & houses ──
+  wolfHuff()    { this._oneShot('wolf_huff.mp3', 0.8); }
+  wolfHowl()    { this._oneShot('wolf_howl.mp3', 0.6); }
+  strawBreak()  { this._oneShot('straw_break.mp3', 0.7); }
+  stickBreak()  { this._oneShot('stick_break.mp3', 0.7); }
+  brickImpact() { this._oneShot('brick_impact.mp3', 0.7); }
+  brickLay()    { this._oneShot('brick_lay.mp3', 0.5); }
+  houseAward(tier) {
+    if (!this.enabled) return;
+    const files = { 1: 'house_award_1.mp3', 2: 'house_award_2.mp3', 3: 'house_award_3.mp3' };
+    this._oneShot(files[tier] || files[1], 0.6);
+  }
+  retriggerChime() { this._oneShot('retrigger_chime.mp3', 0.6); }
+  mansionFanfare() { this._oneShot('mansion_fanfare.mp3', 0.8); }
+
+  // ── coins ──
+  coinTick() {
+    if (!this.enabled) return;
+    const files = ['coin_clink_1.mp3', 'coin_clink_2.mp3'];
+    this._oneShot(files[Math.floor(Math.random() * files.length)], 0.25);
+  }
+  coinClink() {
+    if (!this.enabled) return;
+    const files = ['coin_clink_1.mp3', 'coin_clink_2.mp3', 'coin_clink_3.mp3'];
+    this._oneShot(files[Math.floor(Math.random() * files.length)], 0.35);
+  }
+  coinShower() { this._oneShot('coin_shower.mp3', 0.6); }
+
+  // ── ui ──
+  buttonClick() { this._oneShot('button_click.mp3', 0.3); }
+  betChange()   { this._oneShot('bet_change.mp3', 0.3); }
+
+  // ── volume ──
+  toggle() { this.enabled = !this.enabled; return this.enabled; }
+  setVolume(v) {
+    this._volume = Math.max(0, Math.min(1, v));
+    if (this._spinAudio) this._spinAudio.volume = this._volume * 0.3;
+  }
+  getVolume() { return this._volume; }
+}
+
+/* ── Background music ──
+   Two looping tracks that crossfade: a whimsical Western score for the base game
+   and a bigger, more epic cinematic piece during the bonus. The bonus feature
+   calls switchToBonus()/switchToBase(); everything else uses the same start/stop/
+   setVolume API as before. */
+class BGMusic {
+  constructor() {
+    this.tracks = {
+      base:  new Audio('assets/audio/music/bgm_base.mp3'),
+      bonus: new Audio('assets/audio/music/bgm_bonus.mp3'),
+    };
+    for (const a of Object.values(this.tracks)) { a.loop = true; a.preload = 'auto'; a.volume = 0; }
+    this.current = 'base';
+    this.playing = false;
+    this._volume = 0.5;        // 0..1 (user-facing)
+    this._fadeTimer = null;
+  }
+
+  get audio() { return this.tracks[this.current]; }   // back-compat accessor
+
+  // 0.5 multiplier keeps music under the SFX
+  _effective() { return Math.max(0, Math.min(1, this._volume * 0.5)); }
+
+  /** Crossfade: ramp `targetName` up to volume, everything else down to 0. */
+  _fadeTo(targetName, ms = 800) {
+    if (this._fadeTimer) clearInterval(this._fadeTimer);
+    const target = this._effective();
+    const steps = Math.max(1, Math.round(ms / 40));
+    const start = {};
+    for (const [name, a] of Object.entries(this.tracks)) start[name] = a.volume;
+    let i = 0;
+    this._fadeTimer = setInterval(() => {
+      const t = ++i / steps;
+      for (const [name, a] of Object.entries(this.tracks))
+        a.volume = start[name] + ((name === targetName ? target : 0) - start[name]) * t;
+      if (i >= steps) {
+        clearInterval(this._fadeTimer); this._fadeTimer = null;
+        for (const [name, a] of Object.entries(this.tracks)) if (name !== targetName) a.pause();
+      }
+    }, 40);
+  }
+
+  /**
+   * Try to start playback of the current track.
+   * @returns {Promise<boolean>} true if it actually started, false if the
+   *   browser blocked autoplay (caller keeps the gesture fallback armed).
+   */
+  start() {
+    if (this.playing) return Promise.resolve(true);
+    this.playing = true;                 // optimistic guard against re-entrancy
+    const a = this.tracks[this.current];
+    a.volume = 0;
+    const p = a.play();
+    if (p) {
+      return p.then(() => { this._fadeTo(this.current); return true; }).catch(err => {
+        console.warn('[BGM] Play blocked:', err.message, '— will retry on next interaction');
+        this.playing = false;
+        return false;
+      });
+    }
+    this._fadeTo(this.current);
+    return Promise.resolve(true);
+  }
+
+  /** Crossfade to a different track (base ⇄ bonus). */
+  switchTo(name, ms = 1200) {
+    if (!this.tracks[name] || this.current === name) { this.current = name; return; }
+    this.current = name;
+    if (!this.playing) return;           // start() will pick up the new current track
+    const a = this.tracks[name];
+    try { a.currentTime = 0; } catch (e) {}
+    a.volume = 0;
+    a.play().catch(() => {});
+    this._fadeTo(name, ms);
+  }
+  switchToBonus(ms) { this.switchTo('bonus', ms); }
+  switchToBase(ms)  { this.switchTo('base', ms); }
+
+  stop() {
+    this.playing = false;
+    if (this._fadeTimer) { clearInterval(this._fadeTimer); this._fadeTimer = null; }
+    for (const a of Object.values(this.tracks)) { a.pause(); a.currentTime = 0; a.volume = 0; }
+  }
+  setVolume(v) {
+    this._volume = Math.max(0, Math.min(1, v));
+    if (!this._fadeTimer && this.playing) this.tracks[this.current].volume = this._effective();
+  }
+  getVolume() { return this._volume; }
+  isPlaying() { return this.playing; }
+}
+
+export const synth = new Synth();
+export const bgm = new BGMusic();

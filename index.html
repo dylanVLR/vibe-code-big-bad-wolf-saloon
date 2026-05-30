@@ -1,0 +1,1778 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Big Bad Wolf – Slot Machine</title>
+  <meta name="description" content="Huff N' More Puff slot machine clone – 5 reels, 243 ways to win, vibrant clover theme with 3D pig characters and glossy hard hat symbols.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Rye&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<!-- Looping background video -->
+<video id="bg-video" src="assets/webm/bg.webm" autoplay loop muted playsinline preload="auto"></video>
+
+<!-- Ambient gold dust particle container -->
+<div id="ambient-particles"></div>
+
+<!-- ═══════════════════════════════════════════════════════
+     HIDDEN SVG ASSET LIBRARY
+     All game symbols defined as <g> elements with unique IDs
+═══════════════════════════════════════════════════════ -->
+<svg id="svg-defs" aria-hidden="true">
+  <defs>
+
+    <!-- ── FILTERS ── -->
+    <filter id="f-shadow" x="-15%" y="-15%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#000" flood-opacity="0.5"/>
+    </filter>
+    <filter id="f-glow-gold" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="f-glow-green" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0.13  0 0 0 0 0.77  0 0 0 0 0.37  0 0 0 1 0" result="colored"/>
+      <feMerge><feMergeNode in="colored"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+
+    <!-- ── GRADIENTS ── -->
+    <!-- Hard hat yellow 3D dome -->
+    <radialGradient id="g-hat-dome" cx="35%" cy="28%" r="65%">
+      <stop offset="0%"   stop-color="#FFE066"/>
+      <stop offset="40%"  stop-color="#F5C400"/>
+      <stop offset="80%"  stop-color="#D4980A"/>
+      <stop offset="100%" stop-color="#A06800"/>
+    </radialGradient>
+    <!-- Hat brim -->
+    <linearGradient id="g-hat-brim" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#F5C400"/>
+      <stop offset="100%" stop-color="#A06800"/>
+    </linearGradient>
+    <!-- Hat belt/band -->
+    <linearGradient id="g-hat-band" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#C8860A"/>
+      <stop offset="100%" stop-color="#8B5C00"/>
+    </linearGradient>
+    <!-- Gold coin/medallion -->
+    <radialGradient id="g-medallion" cx="35%" cy="30%" r="70%">
+      <stop offset="0%"   stop-color="#FFF0A0"/>
+      <stop offset="50%"  stop-color="#F0B800"/>
+      <stop offset="100%" stop-color="#A06800"/>
+    </radialGradient>
+    <!-- Logo Style Gradients for Royals -->
+    <linearGradient id="g-logo-red" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FF8888"/>
+      <stop offset="100%" stop-color="#CC0000"/>
+    </linearGradient>
+    <linearGradient id="g-logo-gold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFF0AA"/>
+      <stop offset="100%" stop-color="#D48800"/>
+    </linearGradient>
+    <!-- Pig skin -->
+    <radialGradient id="g-pig-skin" cx="40%" cy="35%" r="65%">
+      <stop offset="0%"   stop-color="#FFC4B0"/>
+      <stop offset="100%" stop-color="#E87060"/>
+    </radialGradient>
+    <!-- Pig snout -->
+    <radialGradient id="g-pig-snout" cx="50%" cy="40%" r="60%">
+      <stop offset="0%"   stop-color="#F0908A"/>
+      <stop offset="100%" stop-color="#C04050"/>
+    </radialGradient>
+    <!-- Blue suit -->
+    <linearGradient id="g-suit" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#1A3A7A"/>
+      <stop offset="100%" stop-color="#0D2050"/>
+    </linearGradient>
+    <!-- Contractor overalls -->
+    <linearGradient id="g-overalls" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#1A5BBF"/>
+      <stop offset="100%" stop-color="#0D3A8A"/>
+    </linearGradient>
+    <!-- Red shirt -->
+    <linearGradient id="g-shirt-red" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#E03030"/>
+      <stop offset="100%" stop-color="#901010"/>
+    </linearGradient>
+    <!-- Toolbox wood -->
+    <linearGradient id="g-wood" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#C88030"/>
+      <stop offset="100%" stop-color="#7A4810"/>
+    </linearGradient>
+    <!-- Toolbox gold coins -->
+    <radialGradient id="g-coins" cx="50%" cy="30%" r="70%">
+      <stop offset="0%"   stop-color="#FFE880"/>
+      <stop offset="100%" stop-color="#C89000"/>
+    </radialGradient>
+    <!-- Teal metallic royal letter — 5-stop gloss gradient -->
+    <linearGradient id="g-teal" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#CCFFF0"/>
+      <stop offset="18%"  stop-color="#5AFFD4"/>
+      <stop offset="45%"  stop-color="#22C898"/>
+      <stop offset="78%"  stop-color="#0E8A66"/>
+      <stop offset="100%" stop-color="#065040"/>
+    </linearGradient>
+    <!-- Teal letter deep shadow extrusion -->
+    <linearGradient id="g-teal-shadow" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#083830"/>
+      <stop offset="100%" stop-color="#021810"/>
+    </linearGradient>
+    <!-- Teal letter mid-depth layer -->
+    <linearGradient id="g-teal-mid" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#1A7860"/>
+      <stop offset="100%" stop-color="#0A4030"/>
+    </linearGradient>
+    <!-- Gloss white overlay for metallic sheen -->
+    <linearGradient id="g-teal-gloss" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="white" stop-opacity="0.55"/>
+      <stop offset="45%"  stop-color="white" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="white" stop-opacity="0"/>
+    </linearGradient>
+    <!-- Teal inner shadow (bottom of letter feels pressed) -->
+    <linearGradient id="g-teal-inner" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="black" stop-opacity="0"/>
+      <stop offset="100%" stop-color="black" stop-opacity="0.35"/>
+    </linearGradient>
+    <!-- Gloss filter for royal letter symbols -->
+    <filter id="f-royal-glow" x="-15%" y="-15%" width="130%" height="130%">
+      <feGaussianBlur stdDeviation="5" result="blur"/>
+      <feColorMatrix in="blur" type="matrix"
+        values="0 0 0 0 0.1   0 0 0 0 0.85  0 0 0 0 0.65  0 0 0 0.7 0" result="glow"/>
+      <feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="f-royal-inner-shadow" x="-5%" y="-5%" width="110%" height="110%" color-interpolation-filters="sRGB">
+      <feFlood flood-color="#000" flood-opacity="0.45" result="flood"/>
+      <feComposite in="flood" in2="SourceAlpha" operator="in" result="shadow"/>
+      <feOffset dx="0" dy="3" result="offset"/>
+      <feMerge><feMergeNode in="SourceGraphic"/><feMergeNode in="offset"/></feMerge>
+    </filter>
+    <!-- Wolf grey fur -->
+    <radialGradient id="g-wolf" cx="40%" cy="30%" r="70%">
+      <stop offset="0%"   stop-color="#B0BEC5"/>
+      <stop offset="100%" stop-color="#546E7A"/>
+    </radialGradient>
+    <!-- Buzzard purple bg -->
+    <radialGradient id="g-buzzard-bg" cx="50%" cy="30%" r="70%">
+      <stop offset="0%"   stop-color="#6A1A9A"/>
+      <stop offset="100%" stop-color="#2A0050"/>
+    </radialGradient>
+    <!-- Green cell bg -->
+    <linearGradient id="g-cell-bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="rgba(0,30,10,0.7)"/>
+      <stop offset="100%" stop-color="rgba(0,15,5,0.9)"/>
+    </linearGradient>
+    <!-- Nature pig wheat/grass -->
+    <linearGradient id="g-grass" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#80E040"/>
+      <stop offset="100%" stop-color="#3A8000"/>
+    </linearGradient>
+
+
+
+    <!-- ══════════════════════════════════════════
+         SYMBOL: YELLOW HARD HAT (sym-hat-yellow)
+         Large tall 3D glossy dome with pig medallion
+    ══════════════════════════════════════════ -->
+    <symbol id="sym-hat-yellow" viewBox="0 0 200 200">
+      <!-- Cell background -->
+      <rect width="200" height="200" rx="12" fill="url(#g-cell-bg)"/>
+      <!-- Outer glow when winning (controlled by JS class) -->
+
+      <!-- Shadow under hat -->
+      <ellipse cx="100" cy="175" rx="70" ry="12" fill="#000" opacity="0.4"/>
+
+      <!-- Hat DOME — tall, bulbous, high-gloss -->
+      <!-- Outer glow ring -->
+      <ellipse cx="100" cy="100" rx="82" ry="76" fill="#FFD700" opacity="0.08"/>
+      <!-- Main dome shape: tall and rounded -->
+      <path d="M 22 128 C 20 55, 42 20, 100 14 C 158 20, 180 55, 178 128 Z"
+            fill="url(#g-hat-dome)" filter="url(#f-shadow)"/>
+      <!-- Primary specular highlight (large top-left oval) -->
+      <ellipse cx="68" cy="52" rx="35" ry="22" fill="white" opacity="0.30" transform="rotate(-28 68 52)"/>
+      <!-- Secondary micro-glint -->
+      <ellipse cx="56" cy="42" rx="14" ry="7" fill="white" opacity="0.45" transform="rotate(-28 56 42)"/>
+      <!-- Dome rim edge darkening -->
+      <path d="M 22 128 C 20 55, 42 20, 100 14 C 158 20, 180 55, 178 128"
+            fill="none" stroke="#8B5800" stroke-width="2" opacity="0.5"/>
+
+      <!-- Hat BRIM (wide, thick ellipse) -->
+      <path d="M 10 130 Q 100 114 190 130 L 188 144 Q 100 158 12 144 Z"
+            fill="url(#g-hat-brim)"/>
+      <!-- Brim top-face highlight -->
+      <path d="M 12 131 Q 100 117 188 131" fill="none" stroke="white" stroke-width="2" opacity="0.28"/>
+      <!-- Brim underside shadow -->
+      <path d="M 12 144 Q 100 158 188 144" fill="none" stroke="#4A2A00" stroke-width="2" opacity="0.4"/>
+
+      <!-- Hat BAND -->
+      <path d="M 26 126 Q 100 116 174 126 L 172 134 Q 100 124 28 134 Z"
+            fill="url(#g-hat-band)"/>
+
+      <!-- MEDALLION — bigger and bolder -->
+      <!-- Outer gold ring with embossed edge -->
+      <circle cx="100" cy="96" r="34" fill="url(#g-medallion)" stroke="#6A3A00" stroke-width="3" filter="url(#f-shadow)"/>
+      <circle cx="100" cy="96" r="30" fill="none" stroke="#FFE880" stroke-width="1.5" opacity="0.6"/>
+      <circle cx="100" cy="96" r="27" fill="none" stroke="#C88800" stroke-width="1" opacity="0.5"/>
+
+      <!-- PIG FACE inside medallion (bigger) -->
+      <circle cx="100" cy="94" r="20" fill="url(#g-pig-skin)"/>
+      <!-- Ears -->
+      <ellipse cx="83" cy="80" rx="8" ry="10" fill="#D86050" transform="rotate(-12 83 80)"/>
+      <ellipse cx="117" cy="80" rx="8" ry="10" fill="#D86050" transform="rotate(12 117 80)"/>
+      <ellipse cx="83" cy="80" rx="5" ry="6.5" fill="#F0A090" transform="rotate(-12 83 80)"/>
+      <ellipse cx="117" cy="80" rx="5" ry="6.5" fill="#F0A090" transform="rotate(12 117 80)"/>
+      <!-- Eyes -->
+      <circle cx="91" cy="90" r="3.5" fill="#1A0A00"/>
+      <circle cx="109" cy="90" r="3.5" fill="#1A0A00"/>
+      <circle cx="92.5" cy="88.5" r="1.5" fill="white" opacity="0.85"/>
+      <circle cx="110.5" cy="88.5" r="1.5" fill="white" opacity="0.85"/>
+      <!-- Snout -->
+      <ellipse cx="100" cy="100" rx="11" ry="8" fill="url(#g-pig-snout)"/>
+      <circle cx="95.5" cy="101" r="2.8" fill="#8B2030" opacity="0.8"/>
+      <circle cx="104.5" cy="101" r="2.8" fill="#8B2030" opacity="0.8"/>
+      <!-- Smile -->
+      <path d="M 90 108 Q 100 114 110 108" fill="none" stroke="#8B2030" stroke-width="2" stroke-linecap="round"/>
+    </symbol>
+
+    <!-- ══════════════════════════════════════════
+         SYMBOL: GREEN HARD HAT (sym-hat-green)
+    ══════════════════════════════════════════ -->
+    <symbol id="sym-hat-green" viewBox="0 0 200 200">
+      <rect width="200" height="200" rx="12" fill="url(#g-cell-bg)"/>
+      <ellipse cx="100" cy="178" rx="68" ry="9" fill="#000" opacity="0.35"/>
+      <defs>
+        <radialGradient id="g-hat-dome-gr" cx="35%" cy="22%" r="70%">
+          <stop offset="0%"   stop-color="#AAFFA0"/>
+          <stop offset="40%"  stop-color="#38C038"/>
+          <stop offset="80%"  stop-color="#1A7020"/>
+          <stop offset="100%" stop-color="#083808"/>
+        </radialGradient>
+        <linearGradient id="g-hat-brim-gr" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%"   stop-color="#38C038"/>
+          <stop offset="100%" stop-color="#083808"/>
+        </linearGradient>
+      </defs>
+      <!-- Tall dome -->
+      <path d="M 22 128 C 20 55, 42 20, 100 14 C 158 20, 180 55, 178 128 Z"
+            fill="url(#g-hat-dome-gr)" filter="url(#f-shadow)"/>
+      <ellipse cx="68" cy="52" rx="35" ry="22" fill="white" opacity="0.30" transform="rotate(-28 68 52)"/>
+      <ellipse cx="56" cy="42" rx="14" ry="7" fill="white" opacity="0.42" transform="rotate(-28 56 42)"/>
+      <path d="M 22 128 C 20 55, 42 20, 100 14 C 158 20, 180 55, 178 128"
+            fill="none" stroke="#0A5010" stroke-width="2" opacity="0.5"/>
+      <!-- Brim -->
+      <path d="M 10 130 Q 100 114 190 130 L 188 144 Q 100 158 12 144 Z" fill="url(#g-hat-brim-gr)"/>
+      <path d="M 12 131 Q 100 117 188 131" fill="none" stroke="white" stroke-width="2" opacity="0.25"/>
+      <!-- Band -->
+      <path d="M 26 126 Q 100 116 174 126 L 172 134 Q 100 124 28 134 Z" fill="#5A3A00"/>
+      <!-- Medallion -->
+      <circle cx="100" cy="96" r="34" fill="url(#g-medallion)" stroke="#6A3A00" stroke-width="3" filter="url(#f-shadow)"/>
+      <circle cx="100" cy="96" r="30" fill="none" stroke="#FFE880" stroke-width="1.5" opacity="0.6"/>
+      <!-- Pig face -->
+      <circle cx="100" cy="94" r="20" fill="url(#g-pig-skin)"/>
+      <ellipse cx="83" cy="80" rx="8" ry="10" fill="#D86050" transform="rotate(-12 83 80)"/>
+      <ellipse cx="117" cy="80" rx="8" ry="10" fill="#D86050" transform="rotate(12 117 80)"/>
+      <ellipse cx="83" cy="80" rx="5" ry="6.5" fill="#F0A090" transform="rotate(-12 83 80)"/>
+      <ellipse cx="117" cy="80" rx="5" ry="6.5" fill="#F0A090" transform="rotate(12 117 80)"/>
+      <circle cx="91" cy="90" r="3.5" fill="#1A0A00"/>
+      <circle cx="109" cy="90" r="3.5" fill="#1A0A00"/>
+      <circle cx="92.5" cy="88.5" r="1.5" fill="white" opacity="0.85"/>
+      <circle cx="110.5" cy="88.5" r="1.5" fill="white" opacity="0.85"/>
+      <ellipse cx="100" cy="100" rx="11" ry="8" fill="url(#g-pig-snout)"/>
+      <circle cx="95.5" cy="101" r="2.8" fill="#8B2030" opacity="0.8"/>
+      <circle cx="104.5" cy="101" r="2.8" fill="#8B2030" opacity="0.8"/>
+      <path d="M 90 108 Q 100 114 110 108" fill="none" stroke="#8B2030" stroke-width="2" stroke-linecap="round"/>
+    </symbol>
+
+    <!-- ══════════════════════════════════════════
+         SYMBOL: RED HARD HAT (sym-hat-red)
+    ══════════════════════════════════════════ -->
+    <symbol id="sym-hat-red" viewBox="0 0 200 200">
+      <rect width="200" height="200" rx="12" fill="url(#g-cell-bg)"/>
+      <ellipse cx="100" cy="178" rx="68" ry="9" fill="#000" opacity="0.35"/>
+      <defs>
+        <radialGradient id="g-hat-dome-rd" cx="35%" cy="22%" r="70%">
+          <stop offset="0%"   stop-color="#FFA0A0"/>
+          <stop offset="40%"  stop-color="#CC2828"/>
+          <stop offset="80%"  stop-color="#8A0808"/>
+          <stop offset="100%" stop-color="#420000"/>
+        </radialGradient>
+        <linearGradient id="g-hat-brim-rd" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%"   stop-color="#CC2828"/>
+          <stop offset="100%" stop-color="#420000"/>
+        </linearGradient>
+      </defs>
+      <!-- Tall dome -->
+      <path d="M 22 128 C 20 55, 42 20, 100 14 C 158 20, 180 55, 178 128 Z"
+            fill="url(#g-hat-dome-rd)" filter="url(#f-shadow)"/>
+      <ellipse cx="68" cy="52" rx="35" ry="22" fill="white" opacity="0.30" transform="rotate(-28 68 52)"/>
+      <ellipse cx="56" cy="42" rx="14" ry="7" fill="white" opacity="0.42" transform="rotate(-28 56 42)"/>
+      <path d="M 22 128 C 20 55, 42 20, 100 14 C 158 20, 180 55, 178 128"
+            fill="none" stroke="#5A0000" stroke-width="2" opacity="0.5"/>
+      <!-- Brim -->
+      <path d="M 10 130 Q 100 114 190 130 L 188 144 Q 100 158 12 144 Z" fill="url(#g-hat-brim-rd)"/>
+      <path d="M 12 131 Q 100 117 188 131" fill="none" stroke="white" stroke-width="2" opacity="0.25"/>
+      <!-- Band (black) -->
+      <path d="M 26 126 Q 100 116 174 126 L 172 134 Q 100 124 28 134 Z" fill="#222"/>
+      <!-- Medallion -->
+      <circle cx="100" cy="96" r="34" fill="url(#g-medallion)" stroke="#6A3A00" stroke-width="3" filter="url(#f-shadow)"/>
+      <circle cx="100" cy="96" r="30" fill="none" stroke="#FFE880" stroke-width="1.5" opacity="0.6"/>
+      <!-- Pig face -->
+      <circle cx="100" cy="94" r="20" fill="url(#g-pig-skin)"/>
+      <ellipse cx="83" cy="80" rx="8" ry="10" fill="#D86050" transform="rotate(-12 83 80)"/>
+      <ellipse cx="117" cy="80" rx="8" ry="10" fill="#D86050" transform="rotate(12 117 80)"/>
+      <ellipse cx="83" cy="80" rx="5" ry="6.5" fill="#F0A090" transform="rotate(-12 83 80)"/>
+      <ellipse cx="117" cy="80" rx="5" ry="6.5" fill="#F0A090" transform="rotate(12 117 80)"/>
+      <circle cx="91" cy="90" r="3.5" fill="#1A0A00"/>
+      <circle cx="109" cy="90" r="3.5" fill="#1A0A00"/>
+      <circle cx="92.5" cy="88.5" r="1.5" fill="white" opacity="0.85"/>
+      <circle cx="110.5" cy="88.5" r="1.5" fill="white" opacity="0.85"/>
+      <ellipse cx="100" cy="100" rx="11" ry="8" fill="url(#g-pig-snout)"/>
+      <circle cx="95.5" cy="101" r="2.8" fill="#8B2030" opacity="0.8"/>
+      <circle cx="104.5" cy="101" r="2.8" fill="#8B2030" opacity="0.8"/>
+      <path d="M 90 108 Q 100 114 110 108" fill="none" stroke="#8B2030" stroke-width="2" stroke-linecap="round"/>
+    </symbol>
+
+    <!-- ══════════════════════════════════════════
+         SYMBOL: SUIT PIG – business pig head (sym-pig-suit)
+         Close-up of pig face wearing white collar and red tie
+    ══════════════════════════════════════════ -->
+    <symbol id="sym-pig-suit" viewBox="0 0 200 200">
+      <rect width="200" height="200" rx="12" fill="url(#g-cell-bg)"/>
+      <!-- Suit body (bottom portion) -->
+      <rect x="55" y="145" width="90" height="60" rx="8" fill="url(#g-suit)"/>
+      <!-- White shirt collar V -->
+      <polygon points="85,145 100,165 115,145 110,145 100,158 90,145" fill="white"/>
+      <!-- Red tie -->
+      <polygon points="97,158 103,158 105,195 100,198 95,195" fill="#CC1010"/>
+      <polygon points="95,156 105,156 103,162 97,162" fill="#EE2020"/>
+      <!-- Suit lapels -->
+      <path d="M 85 145 L 60 165 L 60 145 Z" fill="#0D1E50"/>
+      <path d="M 115 145 L 140 165 L 140 145 Z" fill="#0D1E50"/>
+      <!-- Neck -->
+      <rect x="88" y="128" width="24" height="22" rx="5" fill="url(#g-pig-skin)"/>
+      <!-- Big pig head -->
+      <circle cx="100" cy="105" r="58" fill="url(#g-pig-skin)" filter="url(#f-shadow)"/>
+      <!-- Ears -->
+      <ellipse cx="52" cy="70" rx="20" ry="28" fill="#E87060" transform="rotate(-20 52 70)"/>
+      <ellipse cx="148" cy="70" rx="20" ry="28" fill="#E87060" transform="rotate(20 148 70)"/>
+      <ellipse cx="52" cy="70" rx="12" ry="18" fill="#F5A090" transform="rotate(-20 52 70)"/>
+      <ellipse cx="148" cy="70" rx="12" ry="18" fill="#F5A090" transform="rotate(20 148 70)"/>
+      <!-- Eyes -->
+      <circle cx="78" cy="90" r="10" fill="white"/>
+      <circle cx="122" cy="90" r="10" fill="white"/>
+      <circle cx="80" cy="92" r="6" fill="#1A0800"/>
+      <circle cx="124" cy="92" r="6" fill="#1A0800"/>
+      <!-- Eye shine -->
+      <circle cx="82" cy="88" r="2.5" fill="white" opacity="0.9"/>
+      <circle cx="126" cy="88" r="2.5" fill="white" opacity="0.9"/>
+      <!-- Snout -->
+      <ellipse cx="100" cy="118" rx="26" ry="20" fill="url(#g-pig-snout)"/>
+      <!-- Nostrils -->
+      <circle cx="91" cy="120" r="6" fill="#8B1828" opacity="0.85"/>
+      <circle cx="109" cy="120" r="6" fill="#8B1828" opacity="0.85"/>
+      <!-- Smile -->
+      <path d="M 78 136 Q 100 148 122 136" fill="none" stroke="#8B1828" stroke-width="3" stroke-linecap="round"/>
+      <!-- Cheek blush -->
+      <ellipse cx="62" cy="115" rx="14" ry="9" fill="#FF8080" opacity="0.35"/>
+      <ellipse cx="138" cy="115" rx="14" ry="9" fill="#FF8080" opacity="0.35"/>
+    </symbol>
+
+    <!-- ══════════════════════════════════════════
+         SYMBOL: CONTRACTOR PIG (sym-pig-contractor)
+         Pig in blue overalls and red shirt holding tools
+    ══════════════════════════════════════════ -->
+    <symbol id="sym-pig-contractor" viewBox="0 0 200 200">
+      <rect width="200" height="200" rx="12" fill="url(#g-cell-bg)"/>
+      <!-- Body / Overalls -->
+      <rect x="50" y="120" width="100" height="85" rx="10" fill="url(#g-overalls)"/>
+      <!-- Red shirt showing at sides -->
+      <rect x="35" y="118" width="25" height="50" rx="6" fill="url(#g-shirt-red)"/>
+      <rect x="140" y="118" width="25" height="50" rx="6" fill="url(#g-shirt-red)"/>
+      <!-- Overalls bib -->
+      <rect x="72" y="105" width="56" height="40" rx="6" fill="url(#g-overalls)"/>
+      <!-- Overalls straps -->
+      <rect x="76" y="105" width="12" height="45" rx="4" fill="#1A5BBF"/>
+      <rect x="112" y="105" width="12" height="45" rx="4" fill="#1A5BBF"/>
+
+      <!-- Tool: wrench / axe held in right hand -->
+      <line x1="148" y1="130" x2="175" y2="90" stroke="#888" stroke-width="8" stroke-linecap="round"/>
+      <rect x="166" y="78" width="18" height="28" rx="3" fill="#999" transform="rotate(25 175 90)"/>
+      <!-- Left arm holding something -->
+      <line x1="52" y1="130" x2="30" y2="100" stroke="#E87060" stroke-width="8" stroke-linecap="round"/>
+
+      <!-- Neck -->
+      <rect x="85" y="95" width="30" height="28" rx="6" fill="url(#g-pig-skin)"/>
+      <!-- Head -->
+      <circle cx="100" cy="80" r="48" fill="url(#g-pig-skin)" filter="url(#f-shadow)"/>
+      <!-- Ears -->
+      <ellipse cx="58" cy="52" rx="16" ry="22" fill="#E87060" transform="rotate(-15 58 52)"/>
+      <ellipse cx="142" cy="52" rx="16" ry="22" fill="#E87060" transform="rotate(15 142 52)"/>
+      <ellipse cx="58" cy="52" rx="9" ry="14" fill="#F5A090" transform="rotate(-15 58 52)"/>
+      <ellipse cx="142" cy="52" rx="9" ry="14" fill="#F5A090" transform="rotate(15 142 52)"/>
+      <!-- Eyes -->
+      <circle cx="82" cy="68" r="9" fill="white"/>
+      <circle cx="118" cy="68" r="9" fill="white"/>
+      <circle cx="84" cy="70" r="5.5" fill="#1A0800"/>
+      <circle cx="120" cy="70" r="5.5" fill="#1A0800"/>
+      <circle cx="85" cy="67" r="2" fill="white" opacity="0.9"/>
+      <circle cx="121" cy="67" r="2" fill="white" opacity="0.9"/>
+      <!-- Snout -->
+      <ellipse cx="100" cy="90" rx="22" ry="17" fill="url(#g-pig-snout)"/>
+      <circle cx="92" cy="92" r="5" fill="#8B1828" opacity="0.8"/>
+      <circle cx="108" cy="92" r="5" fill="#8B1828" opacity="0.8"/>
+      <!-- Smile -->
+      <path d="M 82 104 Q 100 114 118 104" fill="none" stroke="#8B1828" stroke-width="2.5" stroke-linecap="round"/>
+      <!-- Cheeks -->
+      <ellipse cx="66" cy="88" rx="12" ry="8" fill="#FF8080" opacity="0.35"/>
+      <ellipse cx="134" cy="88" rx="12" ry="8" fill="#FF8080" opacity="0.35"/>
+      <!-- Cap / hat on pig -->
+      <path d="M 55 46 Q 100 18 145 46 L 148 60 Q 100 38 52 60 Z" fill="#1A3A8A"/>
+      <rect x="44" y="58" width="112" height="14" rx="7" fill="#0D2060"/>
+    </symbol>
+
+    <!-- ══════════════════════════════════════════
+         SYMBOL: NATURE PIG – small pig with wheat/grass (sym-pig-nature)
+         Small chubby pig sitting in grass with wheat ears
+    ══════════════════════════════════════════ -->
+    <symbol id="sym-pig-nature" viewBox="0 0 200 200">
+      <rect width="200" height="200" rx="12" fill="url(#g-cell-bg)"/>
+      <!-- Ground / grass patch -->
+      <ellipse cx="100" cy="185" rx="75" ry="18" fill="#2A6800" opacity="0.6"/>
+      <!-- Grass blades -->
+      <path d="M 35 168 Q 30 148 40 138 Q 42 155 35 168 Z" fill="#4AA820"/>
+      <path d="M 48 170 Q 40 148 52 135 Q 56 152 48 170 Z" fill="#5AC030"/>
+      <path d="M 150 168 Q 158 148 148 138 Q 146 155 150 168 Z" fill="#4AA820"/>
+      <path d="M 162 170 Q 168 148 156 135 Q 152 152 162 170 Z" fill="#5AC030"/>
+      <!-- Wheat / grain stalks -->
+      <line x1="158" y1="120" x2="158" y2="165" stroke="#C8A040" stroke-width="2.5"/>
+      <ellipse cx="158" cy="112" rx="8" ry="14" fill="#D4A040"/>
+      <path d="M 155 118 Q 145 110 148 100" fill="none" stroke="#C8A040" stroke-width="2"/>
+      <path d="M 160 115 Q 170 106 168 96" fill="none" stroke="#C8A040" stroke-width="2"/>
+      <line x1="40" y1="125" x2="40" y2="165" stroke="#C8A040" stroke-width="2"/>
+      <ellipse cx="40" cy="117" rx="7" ry="12" fill="#D4A040"/>
+      <!-- Pig body – chubby round -->
+      <ellipse cx="100" cy="148" rx="55" ry="42" fill="url(#g-pig-skin)" filter="url(#f-shadow)"/>
+      <!-- Front legs -->
+      <ellipse cx="68" cy="175" rx="18" ry="12" fill="url(#g-pig-skin)"/>
+      <ellipse cx="132" cy="175" rx="18" ry="12" fill="url(#g-pig-skin)"/>
+      <!-- Tummy lighter patch -->
+      <ellipse cx="100" cy="152" rx="35" ry="27" fill="#FFCCB0" opacity="0.6"/>
+      <!-- Head -->
+      <circle cx="100" cy="105" r="42" fill="url(#g-pig-skin)" filter="url(#f-shadow)"/>
+      <!-- Ears -->
+      <ellipse cx="66" cy="76" rx="14" ry="20" fill="#E87060" transform="rotate(-18 66 76)"/>
+      <ellipse cx="134" cy="76" rx="14" ry="20" fill="#E87060" transform="rotate(18 134 76)"/>
+      <ellipse cx="66" cy="76" rx="8" ry="12" fill="#F5A090" transform="rotate(-18 66 76)"/>
+      <ellipse cx="134" cy="76" rx="8" ry="12" fill="#F5A090" transform="rotate(18 134 76)"/>
+      <!-- Eyes – sleepy/relaxed (half closed) -->
+      <circle cx="84" cy="96" r="7" fill="white"/>
+      <circle cx="116" cy="96" r="7" fill="white"/>
+      <circle cx="85" cy="98" r="4.5" fill="#1A0800"/>
+      <circle cx="117" cy="98" r="4.5" fill="#1A0800"/>
+      <path d="M 77 93 Q 84 88 91 93" fill="none" stroke="#C05050" stroke-width="2"/>
+      <path d="M 109 93 Q 116 88 123 93" fill="none" stroke="#C05050" stroke-width="2"/>
+      <!-- Snout -->
+      <ellipse cx="100" cy="110" rx="20" ry="15" fill="url(#g-pig-snout)"/>
+      <circle cx="93" cy="112" r="4.5" fill="#8B1828" opacity="0.8"/>
+      <circle cx="107" cy="112" r="4.5" fill="#8B1828" opacity="0.8"/>
+      <!-- Smile -->
+      <path d="M 84 122 Q 100 132 116 122" fill="none" stroke="#8B1828" stroke-width="2.5" stroke-linecap="round"/>
+      <!-- Cheeks -->
+      <ellipse cx="70" cy="108" rx="11" ry="7" fill="#FF8080" opacity="0.4"/>
+      <ellipse cx="130" cy="108" rx="11" ry="7" fill="#FF8080" opacity="0.4"/>
+    </symbol>
+
+    <!-- ══════════════════════════════════════════
+         SYMBOL: TOOLBOX (sym-toolbox)
+         Wooden treasure-chest style box overflowing with gold coins and tools
+    ══════════════════════════════════════════ -->
+    <symbol id="sym-toolbox" viewBox="0 0 200 200">
+      <rect width="200" height="200" rx="12" fill="url(#g-cell-bg)"/>
+      <!-- Shadow -->
+      <ellipse cx="100" cy="185" rx="72" ry="10" fill="#000" opacity="0.4"/>
+
+      <!-- Coins/gold spilling out the top -->
+      <circle cx="80" cy="95" r="16" fill="url(#g-coins)" filter="url(#f-shadow)"/>
+      <circle cx="100" cy="88" r="18" fill="url(#g-coins)" filter="url(#f-shadow)"/>
+      <circle cx="120" cy="93" r="15" fill="url(#g-coins)" filter="url(#f-shadow)"/>
+      <circle cx="88" cy="82" r="13" fill="url(#g-coins)"/>
+      <circle cx="112" cy="80" r="12" fill="url(#g-coins)"/>
+      <!-- Coin glints -->
+      <ellipse cx="100" cy="82" rx="9" ry="5" fill="white" opacity="0.3" transform="rotate(-20 100 82)"/>
+      <ellipse cx="80" cy="90" rx="7" ry="4" fill="white" opacity="0.25" transform="rotate(-15 80 90)"/>
+
+      <!-- Tools sticking out (wrenches / saws) -->
+      <!-- Wrench left -->
+      <line x1="70" y1="88" x2="50" y2="50" stroke="#888" stroke-width="7" stroke-linecap="round"/>
+      <circle cx="50" cy="46" r="10" fill="none" stroke="#888" stroke-width="5"/>
+      <!-- Saw / ruler right -->
+      <line x1="130" y1="85" x2="162" y2="52" stroke="#AAA" stroke-width="6" stroke-linecap="round"/>
+      <rect x="155" y="36" width="24" height="30" rx="3" fill="#999" transform="rotate(30 167 51)"/>
+      <!-- Hammer middle-left -->
+      <line x1="82" y1="90" x2="60" y2="62" stroke="#8B4A00" stroke-width="6" stroke-linecap="round"/>
+      <rect x="46" y="50" width="28" height="14" rx="3" fill="#777" transform="rotate(-40 60 57)"/>
+
+      <!-- BOX BODY -->
+      <rect x="22" y="120" width="156" height="72" rx="10" fill="url(#g-wood)" filter="url(#f-shadow)"/>
+      <!-- Box wood grain lines -->
+      <line x1="22" y1="138" x2="178" y2="138" stroke="#6A3A00" stroke-width="1.5" opacity="0.5"/>
+      <line x1="22" y1="155" x2="178" y2="155" stroke="#6A3A00" stroke-width="1.5" opacity="0.5"/>
+      <line x1="22" y1="172" x2="178" y2="172" stroke="#6A3A00" stroke-width="1.5" opacity="0.5"/>
+
+      <!-- Box lid rim -->
+      <rect x="20" y="112" width="160" height="18" rx="6" fill="#D49040"/>
+      <!-- Lid highlight -->
+      <rect x="22" y="113" width="156" height="6" rx="3" fill="white" opacity="0.2"/>
+
+      <!-- Gold clasp / latch -->
+      <rect x="84" y="115" width="32" height="20" rx="5" fill="#F0B000"/>
+      <rect x="88" y="118" width="24" height="14" rx="3" fill="#D49000"/>
+      <rect x="93" y="122" width="14" height="6" rx="2" fill="#A06000"/>
+
+      <!-- Side handles -->
+      <path d="M 25 138 Q 15 145 25 152" fill="none" stroke="#D49040" stroke-width="5" stroke-linecap="round"/>
+      <path d="M 175 138 Q 185 145 175 152" fill="none" stroke="#D49040" stroke-width="5" stroke-linecap="round"/>
+
+      <!-- Brand label on box -->
+      <rect x="50" y="142" width="100" height="22" rx="4" fill="#A06000" opacity="0.7"/>
+      <text x="100" y="157" text-anchor="middle" font-family="Rye, serif" font-size="12" fill="#FFE080" letter-spacing="1">HUFF N' PUFF</text>
+    </symbol>
+
+    <!-- ══════════════════════════════════════════
+         SYMBOL: WOLF (sym-wolf)
+    ══════════════════════════════════════════ -->
+    <symbol id="sym-wolf-old" viewBox="0 0 200 200">
+      <rect width="200" height="200" rx="12" fill="url(#g-cell-bg)"/>
+
+      <!-- Body / chest fur (lower half showing) -->
+      <ellipse cx="100" cy="175" rx="58" ry="38" fill="#78909C"/>
+      <!-- Chest/belly lighter fur -->
+      <ellipse cx="100" cy="178" rx="36" ry="28" fill="#CFD8DC" opacity="0.8"/>
+
+      <!-- Neck area -->
+      <rect x="80" y="130" width="40" height="36" rx="12" fill="url(#g-wolf)"/>
+
+      <!-- Ears (pointy, layered for depth) -->
+      <!-- Left ear outer -->
+      <path d="M 52 75 L 28 18 L 72 52 Z" fill="#607D8B"/>
+      <!-- Left ear inner (pink) -->
+      <path d="M 55 72 L 38 32 L 68 56 Z" fill="#D09090"/>
+      <!-- Right ear outer -->
+      <path d="M 148 75 L 172 18 L 128 52 Z" fill="#607D8B"/>
+      <!-- Right ear inner (pink) -->
+      <path d="M 145 72 L 162 32 L 132 56 Z" fill="#D09090"/>
+
+      <!-- Main head circle -->
+      <circle cx="100" cy="98" r="60" fill="url(#g-wolf)" filter="url(#f-shadow)"/>
+
+      <!-- Forehead darker fur patch -->
+      <ellipse cx="100" cy="68" rx="44" ry="24" fill="#546E7A" opacity="0.5"/>
+
+      <!-- Eye sockets (darker surround) -->
+      <ellipse cx="78" cy="88" rx="18" ry="14" fill="#37474F" opacity="0.7"/>
+      <ellipse cx="122" cy="88" rx="18" ry="14" fill="#37474F" opacity="0.7"/>
+
+      <!-- Eyes — amber/yellow with slit pupil -->
+      <circle cx="78" cy="88" r="11" fill="#D4A000"/>
+      <circle cx="122" cy="88" r="11" fill="#D4A000"/>
+      <!-- Slit pupils -->
+      <ellipse cx="78" cy="88" rx="4" ry="8" fill="#111"/>
+      <ellipse cx="122" cy="88" rx="4" ry="8" fill="#111"/>
+      <!-- Eye shine -->
+      <circle cx="81" cy="84" r="3.5" fill="white" opacity="0.7"/>
+      <circle cx="125" cy="84" r="3.5" fill="white" opacity="0.7"/>
+      <!-- Eyelid rim -->
+      <path d="M 67 83 Q 78 78 89 83" fill="none" stroke="#263238" stroke-width="2"/>
+      <path d="M 111 83 Q 122 78 133 83" fill="none" stroke="#263238" stroke-width="2"/>
+
+      <!-- Muzzle (lighter snout area) -->
+      <ellipse cx="100" cy="118" rx="34" ry="26" fill="#ECEFF1"/>
+      <!-- Muzzle side shading -->
+      <ellipse cx="82" cy="116" rx="12" ry="10" fill="#B0BEC5" opacity="0.5"/>
+      <ellipse cx="118" cy="116" rx="12" ry="10" fill="#B0BEC5" opacity="0.5"/>
+
+      <!-- Nose (glossy black) -->
+      <ellipse cx="100" cy="107" rx="14" ry="9" fill="#1A1A1A"/>
+      <!-- Nose bridge fur line -->
+      <line x1="100" y1="118" x2="100" y2="110" stroke="#1A1A1A" stroke-width="2.5"/>
+      <!-- Nose highlight -->
+      <ellipse cx="96" cy="104" rx="5" ry="3" fill="white" opacity="0.35"/>
+
+      <!-- Snarling mouth with teeth -->
+      <path d="M 68 128 C 76 142 90 148 100 146 C 110 148 124 142 132 128"
+            fill="white"/>
+      <path d="M 68 128 C 76 142 90 148 100 146 C 110 148 124 142 132 128"
+            fill="none" stroke="#263238" stroke-width="2"/>
+      <!-- Individual teeth -->
+      <polygon points="76,130 80,130 78,142" fill="white"/>
+      <polygon points="86,133 90,133 88,145" fill="white"/>
+      <polygon points="110,133 114,133 112,145" fill="white"/>
+      <polygon points="120,130 124,130 122,142" fill="white"/>
+      <!-- Tongue -->
+      <path d="M 88 144 Q 100 154 112 144 Q 112 158 100 162 Q 88 158 88 144 Z"
+            fill="#D43050"/>
+      <!-- Tongue center line -->
+      <line x1="100" y1="144" x2="100" y2="162" stroke="#A01030" stroke-width="1.5" opacity="0.5"/>
+
+      <!-- Whisker dots -->
+      <circle cx="74" cy="122" r="2" fill="#263238" opacity="0.5"/>
+      <circle cx="68" cy="118" r="2" fill="#263238" opacity="0.4"/>
+      <circle cx="126" cy="122" r="2" fill="#263238" opacity="0.5"/>
+      <circle cx="132" cy="118" r="2" fill="#263238" opacity="0.4"/>
+    </symbol>
+
+    <!-- ══════════════════════════════════════════
+         SYMBOL: BUZZARD (sym-buzzard)
+    ══════════════════════════════════════════ -->
+    <symbol id="sym-buzzard" viewBox="0 0 200 200">
+      <rect width="200" height="200" rx="12" fill="url(#g-cell-bg)"/>
+      <!-- Body -->
+      <ellipse cx="100" cy="140" rx="55" ry="48" fill="#4A5568" filter="url(#f-shadow)"/>
+      <!-- Wings spread -->
+      <path d="M 45 130 Q 10 100 8 65 Q 30 80 45 110 Q 50 118 55 125 Z" fill="#374151"/>
+      <path d="M 155 130 Q 190 100 192 65 Q 170 80 155 110 Q 150 118 145 125 Z" fill="#374151"/>
+      <!-- Neck -->
+      <rect x="82" y="75" width="36" height="55" rx="10" fill="#F0A0A0"/>
+      <!-- Head (bald pink) -->
+      <circle cx="100" cy="68" r="35" fill="#F0A0A0" filter="url(#f-shadow)"/>
+      <!-- Beak -->
+      <path d="M 90 82 Q 80 92 92 96 L 100 88 L 108 96 Q 120 92 110 82 Z" fill="#D4A000"/>
+      <!-- Eyes -->
+      <circle cx="84" cy="60" r="10" fill="white"/>
+      <circle cx="116" cy="60" r="10" fill="white"/>
+      <circle cx="85" cy="61" r="6" fill="#111"/>
+      <circle cx="117" cy="61" r="6" fill="#111"/>
+      <circle cx="87" cy="58" r="2" fill="white" opacity="0.8"/>
+      <circle cx="119" cy="58" r="2" fill="white" opacity="0.8"/>
+      <!-- Gold coin in beak -->
+      <circle cx="100" cy="98" r="12" fill="url(#g-coins)" filter="url(#f-shadow)"/>
+      <circle cx="100" cy="98" r="9" fill="none" stroke="#A06000" stroke-width="1.5"/>
+      <!-- Tail feathers -->
+      <path d="M 70 175 Q 100 188 130 175 L 120 162 Q 100 172 80 162 Z" fill="#374151"/>
+    </symbol>
+
+    <!-- ══════════════════════════════════════════
+         SYMBOL: ROYAL J — Metallic 3D teal letter + fleur shield
+    ══════════════════════════════════════════ -->
+    <symbol id="sym-royal-j" viewBox="0 0 200 200">
+
+
+      <text x="108" y="162" text-anchor="middle" font-family="Rye, serif"
+            font-size="132" fill="#5A0000" opacity="0.95">J</text>
+      <text x="106" y="160" text-anchor="middle" font-family="Rye, serif"
+            font-size="132" fill="#3A0000">J</text>
+      <text x="100" y="154" text-anchor="middle" font-family="Rye, serif"
+            font-size="132" fill="url(#g-logo-gold)" stroke="#FFE88A" stroke-width="3" filter="url(#f-shadow)">J</text>
+    </symbol>
+
+    <!-- ══════════════════════════════════════════
+         SYMBOL: ROYAL Q — Metallic 3D teal letter + crown
+    ══════════════════════════════════════════ -->
+    <symbol id="sym-royal-q" viewBox="0 0 200 200">
+
+
+      <text x="108" y="162" text-anchor="middle" font-family="Rye, serif"
+            font-size="132" fill="#5A0000" opacity="0.95">Q</text>
+      <text x="106" y="160" text-anchor="middle" font-family="Rye, serif"
+            font-size="132" fill="#3A0000">Q</text>
+      <text x="100" y="154" text-anchor="middle" font-family="Rye, serif"
+            font-size="132" fill="url(#g-logo-red)" stroke="#FFE88A" stroke-width="3" filter="url(#f-shadow)">Q</text>
+    </symbol>
+
+    <!-- ══════════════════════════════════════════
+         SYMBOL: ROYAL A — Metallic 3D teal letter + gem diamond
+    ══════════════════════════════════════════ -->
+    <symbol id="sym-royal-a" viewBox="0 0 200 200">
+
+
+      <text x="108" y="162" text-anchor="middle" font-family="Rye, serif"
+            font-size="132" fill="#5A0000" opacity="0.95">A</text>
+      <text x="106" y="160" text-anchor="middle" font-family="Rye, serif"
+            font-size="132" fill="#3A0000">A</text>
+      <text x="100" y="154" text-anchor="middle" font-family="Rye, serif"
+            font-size="132" fill="url(#g-logo-red)" stroke="#FFE88A" stroke-width="3" filter="url(#f-shadow)">A</text>
+    </symbol>
+
+    <!-- ══════════════════════════════════════════
+         SYMBOL: ROYAL K — Metallic 3D teal letter + crown
+    ══════════════════════════════════════════ -->
+    <symbol id="sym-royal-k" viewBox="0 0 200 200">
+
+
+      <text x="108" y="162" text-anchor="middle" font-family="Rye, serif"
+            font-size="132" fill="#5A0000" opacity="0.95">K</text>
+      <text x="106" y="160" text-anchor="middle" font-family="Rye, serif"
+            font-size="132" fill="#3A0000">K</text>
+      <text x="100" y="154" text-anchor="middle" font-family="Rye, serif"
+            font-size="132" fill="url(#g-logo-gold)" stroke="#FFE88A" stroke-width="3" filter="url(#f-shadow)">K</text>
+    </symbol>
+
+    <!-- ══════════════════════════════════════════
+         SYMBOL: ROYAL 10 — Metallic 3D teal numeral
+    ══════════════════════════════════════════ -->
+    <symbol id="sym-royal-10" viewBox="0 0 200 200">
+
+      <text x="108" y="160" text-anchor="middle" font-family="Rye, serif"
+            font-size="106" fill="#5A0000" opacity="0.95">10</text>
+      <text x="106" y="158" text-anchor="middle" font-family="Rye, serif"
+            font-size="106" fill="#3A0000">10</text>
+      <text x="100" y="152" text-anchor="middle" font-family="Rye, serif"
+            font-size="106" fill="url(#g-logo-red)" stroke="#FFE88A" stroke-width="3" filter="url(#f-shadow)">10</text>
+    </symbol>
+
+    <!-- ══════════════════════════════════════════
+         SYMBOL: MANSION (sym-mansion)
+         Red brick mansion house for Mansions Feature overlay
+    ══════════════════════════════════════════ -->
+    <symbol id="sym-mansion" viewBox="0 0 300 280">
+      <!-- Light rays behind mansion -->
+      <g opacity="0.35">
+        <line x1="150" y1="40" x2="150" y2="-30" stroke="#FFE880" stroke-width="4"/>
+        <line x1="150" y1="40" x2="80" y2="-20" stroke="#FFE880" stroke-width="3"/>
+        <line x1="150" y1="40" x2="220" y2="-20" stroke="#FFE880" stroke-width="3"/>
+        <line x1="150" y1="40" x2="40" y2="10" stroke="#FFD040" stroke-width="2"/>
+        <line x1="150" y1="40" x2="260" y2="10" stroke="#FFD040" stroke-width="2"/>
+      </g>
+      <!-- Foundation shadow -->
+      <ellipse cx="150" cy="268" rx="120" ry="10" fill="#000" opacity="0.4"/>
+      <!-- Main building body -->
+      <rect x="50" y="100" width="200" height="168" rx="4" fill="#CC3030"/>
+      <!-- Brick pattern -->
+      <g stroke="#AA2020" stroke-width="1" opacity="0.5">
+        <line x1="50" y1="120" x2="250" y2="120"/>
+        <line x1="50" y1="140" x2="250" y2="140"/>
+        <line x1="50" y1="160" x2="250" y2="160"/>
+        <line x1="50" y1="180" x2="250" y2="180"/>
+        <line x1="50" y1="200" x2="250" y2="200"/>
+        <line x1="50" y1="220" x2="250" y2="220"/>
+        <line x1="50" y1="240" x2="250" y2="240"/>
+        <line x1="50" y1="260" x2="250" y2="260"/>
+        <!-- Vertical brick offsets -->
+        <line x1="90" y1="100" x2="90" y2="120"/>
+        <line x1="130" y1="100" x2="130" y2="120"/>
+        <line x1="170" y1="100" x2="170" y2="120"/>
+        <line x1="210" y1="100" x2="210" y2="120"/>
+        <line x1="70" y1="120" x2="70" y2="140"/>
+        <line x1="110" y1="120" x2="110" y2="140"/>
+        <line x1="150" y1="120" x2="150" y2="140"/>
+        <line x1="190" y1="120" x2="190" y2="140"/>
+        <line x1="230" y1="120" x2="230" y2="140"/>
+        <line x1="90" y1="140" x2="90" y2="160"/>
+        <line x1="130" y1="140" x2="130" y2="160"/>
+        <line x1="170" y1="140" x2="170" y2="160"/>
+        <line x1="210" y1="140" x2="210" y2="160"/>
+      </g>
+      <!-- Building highlight -->
+      <rect x="50" y="100" width="200" height="168" rx="4" fill="url(#g-teal-gloss)" opacity="0.15"/>
+      <!-- Roof -->
+      <polygon points="40,102 150,30 260,102" fill="#556677"/>
+      <polygon points="40,102 150,30 260,102" fill="none" stroke="#AABBCC" stroke-width="2"/>
+      <!-- Roof highlight -->
+      <polygon points="80,95 150,42 220,95" fill="white" opacity="0.1"/>
+      <!-- Roof ridge -->
+      <line x1="150" y1="30" x2="150" y2="26" stroke="#AABBCC" stroke-width="3" stroke-linecap="round"/>
+      <!-- Chimney -->
+      <rect x="195" y="38" width="24" height="50" rx="2" fill="#BB2828"/>
+      <rect x="191" y="34" width="32" height="8" rx="2" fill="#992020"/>
+      <!-- Chimney brick lines -->
+      <line x1="195" y1="52" x2="219" y2="52" stroke="#991818" stroke-width="1"/>
+      <line x1="195" y1="66" x2="219" y2="66" stroke="#991818" stroke-width="1"/>
+      <!-- Windows - top row -->
+      <rect x="75" y="115" width="34" height="40" rx="3" fill="#1A2A50"/>
+      <rect x="133" y="115" width="34" height="40" rx="3" fill="#1A2A50"/>
+      <rect x="191" y="115" width="34" height="40" rx="3" fill="#1A2A50"/>
+      <!-- Window glow -->
+      <rect x="77" y="117" width="30" height="36" rx="2" fill="#FFD040" opacity="0.7"/>
+      <rect x="135" y="117" width="30" height="36" rx="2" fill="#FFD040" opacity="0.7"/>
+      <rect x="193" y="117" width="30" height="36" rx="2" fill="#FFD040" opacity="0.7"/>
+      <!-- Window panes -->
+      <line x1="92" y1="115" x2="92" y2="155" stroke="#1A2A50" stroke-width="2"/>
+      <line x1="75" y1="135" x2="109" y2="135" stroke="#1A2A50" stroke-width="2"/>
+      <line x1="150" y1="115" x2="150" y2="155" stroke="#1A2A50" stroke-width="2"/>
+      <line x1="133" y1="135" x2="167" y2="135" stroke="#1A2A50" stroke-width="2"/>
+      <line x1="208" y1="115" x2="208" y2="155" stroke="#1A2A50" stroke-width="2"/>
+      <line x1="191" y1="135" x2="225" y2="135" stroke="#1A2A50" stroke-width="2"/>
+      <!-- Windows - bottom row -->
+      <rect x="75" y="185" width="34" height="40" rx="3" fill="#1A2A50"/>
+      <rect x="191" y="185" width="34" height="40" rx="3" fill="#1A2A50"/>
+      <!-- Bottom window glow -->
+      <rect x="77" y="187" width="30" height="36" rx="2" fill="#FFD040" opacity="0.5"/>
+      <rect x="193" y="187" width="30" height="36" rx="2" fill="#FFD040" opacity="0.5"/>
+      <!-- Door -->
+      <rect x="128" y="195" width="44" height="73" rx="4" fill="#1A2A6A"/>
+      <rect x="130" y="197" width="40" height="69" rx="3" fill="#2A3A8A"/>
+      <!-- Door panels -->
+      <rect x="134" y="201" width="15" height="28" rx="2" fill="#1A2A6A"/>
+      <rect x="153" y="201" width="15" height="28" rx="2" fill="#1A2A6A"/>
+      <rect x="134" y="235" width="15" height="28" rx="2" fill="#1A2A6A"/>
+      <rect x="153" y="235" width="15" height="28" rx="2" fill="#1A2A6A"/>
+      <!-- Door handle -->
+      <circle cx="163" cy="238" r="3" fill="#F5C400"/>
+      <!-- Door light -->
+      <rect x="138" y="172" width="24" height="18" rx="10" fill="#1A2A50"/>
+      <rect x="140" y="174" width="20" height="14" rx="8" fill="#FFD040" opacity="0.6"/>
+      <!-- Steps -->
+      <rect x="118" y="268" width="64" height="8" rx="2" fill="#AA6040"/>
+      <rect x="122" y="262" width="56" height="8" rx="2" fill="#BB7050"/>
+      <!-- Corner sparkles -->
+      <circle cx="55" cy="105" r="4" fill="#FFE880" opacity="0.8">
+        <animate attributeName="opacity" values="0.4;1;0.4" dur="2s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="245" cy="105" r="4" fill="#FFE880" opacity="0.8">
+        <animate attributeName="opacity" values="0.4;1;0.4" dur="2s" begin="0.5s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="150" cy="28" r="5" fill="#FFFFFF" opacity="0.9">
+        <animate attributeName="opacity" values="0.3;1;0.3" dur="1.5s" repeatCount="indefinite"/>
+      </circle>
+    </symbol>
+
+    <!-- ══════════════════════════════════════════
+         SYMBOL: WOLF (sym-wolf)
+         Big Bad Wolf character for Huff N' Puff reveal
+    ══════════════════════════════════════════ -->
+    <symbol id="sym-wolf" viewBox="0 0 240 280">
+      <!-- Body shadow -->
+      <ellipse cx="120" cy="270" rx="70" ry="8" fill="#000" opacity="0.3"/>
+
+      <!-- Body / torso -->
+      <ellipse cx="120" cy="210" rx="65" ry="60" fill="#6B6B90"/>
+      <ellipse cx="120" cy="210" rx="60" ry="55" fill="#7A7AAA"/>
+      <!-- Chest white fur patch -->
+      <ellipse cx="120" cy="215" rx="35" ry="40" fill="#D0D0E8"/>
+      <ellipse cx="120" cy="220" rx="28" ry="32" fill="#E0E0F0"/>
+      <!-- Chest fur texture lines -->
+      <path d="M 110 195 Q 112 210 108 230" stroke="#C0C0D0" stroke-width="1" fill="none" opacity="0.5"/>
+      <path d="M 120 190 Q 120 210 120 235" stroke="#C0C0D0" stroke-width="1" fill="none" opacity="0.5"/>
+      <path d="M 130 195 Q 128 210 132 230" stroke="#C0C0D0" stroke-width="1" fill="none" opacity="0.5"/>
+
+      <!-- Neck -->
+      <rect x="95" y="140" width="50" height="50" rx="20" fill="#7A7AAA"/>
+
+      <!-- Head main shape -->
+      <ellipse cx="120" cy="110" rx="55" ry="50" fill="#7A7AAA"/>
+      <!-- Head highlight -->
+      <ellipse cx="115" cy="100" rx="40" ry="35" fill="#8585B8" opacity="0.5"/>
+
+      <!-- LEFT EAR -->
+      <polygon points="75,80 58,25 95,65" fill="#6B6B90"/>
+      <polygon points="78,75 65,35 90,65" fill="#8585B8"/>
+      <!-- Inner ear -->
+      <polygon points="80,72 68,42 88,64" fill="#9999CC" opacity="0.6"/>
+
+      <!-- RIGHT EAR -->
+      <polygon points="165,80 182,25 145,65" fill="#6B6B90"/>
+      <polygon points="162,75 175,35 150,65" fill="#8585B8"/>
+      <!-- Inner ear -->
+      <polygon points="160,72 172,42 152,64" fill="#9999CC" opacity="0.6"/>
+
+      <!-- Face fur / cheek details -->
+      <!-- Left cheek fur -->
+      <path d="M 70 110 Q 60 120 65 135 Q 75 130 80 120" fill="#D0D0E8" opacity="0.7"/>
+      <path d="M 68 115 Q 55 125 62 140 Q 72 135 78 122" fill="#E0E0F0" opacity="0.4"/>
+      <!-- Right cheek fur -->
+      <path d="M 170 110 Q 180 120 175 135 Q 165 130 160 120" fill="#D0D0E8" opacity="0.7"/>
+      <path d="M 172 115 Q 185 125 178 140 Q 168 135 162 122" fill="#E0E0F0" opacity="0.4"/>
+
+      <!-- Forehead marking -->
+      <path d="M 100 75 Q 120 65 140 75 Q 130 80 120 78 Q 110 80 100 75" fill="#8585B8" opacity="0.4"/>
+
+      <!-- EYES -->
+      <!-- Left eye -->
+      <ellipse cx="98" cy="100" rx="13" ry="11" fill="#FFFFFF"/>
+      <ellipse cx="100" cy="100" rx="8" ry="9" fill="#3388DD"/>
+      <ellipse cx="100" cy="100" rx="5" ry="6" fill="#1155AA"/>
+      <circle cx="96" cy="97" r="3" fill="#FFFFFF" opacity="0.8"/>
+      <!-- Left eyelid / brow -->
+      <path d="M 83 92 Q 98 82 114 90" stroke="#5A5A80" stroke-width="3" fill="none" stroke-linecap="round"/>
+
+      <!-- Right eye -->
+      <ellipse cx="142" cy="100" rx="13" ry="11" fill="#FFFFFF"/>
+      <ellipse cx="140" cy="100" rx="8" ry="9" fill="#3388DD"/>
+      <ellipse cx="140" cy="100" rx="5" ry="6" fill="#1155AA"/>
+      <circle cx="136" cy="97" r="3" fill="#FFFFFF" opacity="0.8"/>
+      <!-- Right eyelid / brow -->
+      <path d="M 157 92 Q 142 82 126 90" stroke="#5A5A80" stroke-width="3" fill="none" stroke-linecap="round"/>
+
+      <!-- SNOUT -->
+      <ellipse cx="120" cy="125" rx="25" ry="18" fill="#8888BB"/>
+      <ellipse cx="120" cy="122" rx="22" ry="14" fill="#9999CC"/>
+      <!-- Nose -->
+      <ellipse cx="120" cy="115" rx="10" ry="7" fill="#2A2A40"/>
+      <ellipse cx="118" cy="113" rx="4" ry="3" fill="#4A4A60" opacity="0.5"/>
+
+      <!-- MOUTH (open, showing teeth) -->
+      <path d="M 100 132 Q 110 142 120 140 Q 130 142 140 132" stroke="#2A2A40" stroke-width="2" fill="#3A1520"/>
+      <!-- Teeth -->
+      <polygon points="105,132 108,138 111,132" fill="#FFFFFF"/>
+      <polygon points="114,133 117,139 120,133" fill="#FFFFFF"/>
+      <polygon points="120,133 123,139 126,133" fill="#FFFFFF"/>
+      <polygon points="129,132 132,138 135,132" fill="#FFFFFF"/>
+
+      <!-- Chin tuft -->
+      <path d="M 110 145 Q 115 155 120 152 Q 125 155 130 145" fill="#D0D0E8" opacity="0.6"/>
+
+      <!-- Arms / paws (positioned for blowing pose) -->
+      <!-- Left arm -->
+      <path d="M 65 200 Q 40 210 35 235 Q 38 245 50 240 Q 55 230 60 220" fill="#7A7AAA" stroke="#6B6B90" stroke-width="1"/>
+      <!-- Right arm -->
+      <path d="M 175 200 Q 200 210 205 235 Q 202 245 190 240 Q 185 230 180 220" fill="#7A7AAA" stroke="#6B6B90" stroke-width="1"/>
+
+      <!-- Eye glow (animated) -->
+      <circle cx="100" cy="100" r="12" fill="none" stroke="#55AAFF" stroke-width="1" opacity="0">
+        <animate attributeName="opacity" values="0;0.6;0" dur="2s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="140" cy="100" r="12" fill="none" stroke="#55AAFF" stroke-width="1" opacity="0">
+        <animate attributeName="opacity" values="0;0.6;0" dur="2s" begin="0.3s" repeatCount="indefinite"/>
+      </circle>
+    </symbol>
+
+
+  </defs>
+</svg>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     MAIN GAME LAYOUT
+═══════════════════════════════════════════════════════ -->
+<div id="game-root">
+
+  <!-- CABINET FRAME -->
+  <div id="cabinet">
+
+    <!-- WOLF CHARACTER ON PLATFORM -->
+    <div id="wolf-container">
+      <div id="wolf-platform"></div>
+      <video id="side-wolf" src="assets/Wolf-422.webm" autoplay loop muted playsinline preload="auto"></video>
+    </div>
+
+    <!-- ═══ ORNATE ART DECO CABINET DECORATIONS ═══ -->
+
+    <!-- Gold Filigree Corner Ornaments -->
+    <svg class="corner-filigree top-left" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="cg1" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#FFE88A"/><stop offset="50%" stop-color="#F5C400"/><stop offset="100%" stop-color="#A67C00"/>
+        </linearGradient>
+      </defs>
+      <!-- L-bracket frame -->
+      <path d="M0,0 L80,0 L80,8 L8,8 L8,80 L0,80 Z" fill="url(#cg1)" opacity="0.9"/>
+      <!-- Inner accent line -->
+      <path d="M4,4 L76,4 L76,6 L6,6 L6,76 L4,76 Z" fill="#FFE88A" opacity="0.3"/>
+      <!-- Scrollwork -->
+      <path d="M12,12 C20,12 22,20 22,26 C22,18 28,14 34,14" fill="none" stroke="#F5C400" stroke-width="2" stroke-linecap="round"/>
+      <path d="M14,14 C14,22 20,28 26,28 C18,28 14,34 14,40" fill="none" stroke="#F5C400" stroke-width="2" stroke-linecap="round"/>
+      <!-- Fan burst -->
+      <path d="M10,10 L26,14" stroke="#D4A000" stroke-width="1" opacity="0.6"/>
+      <path d="M10,10 L22,20" stroke="#D4A000" stroke-width="1" opacity="0.6"/>
+      <path d="M10,10 L14,26" stroke="#D4A000" stroke-width="1" opacity="0.6"/>
+      <!-- Emerald dot -->
+      <circle cx="18" cy="18" r="3" fill="#1DB954" stroke="#0A6828" stroke-width="0.8"/>
+      <circle cx="18" cy="18" r="1.5" fill="#2EE85A" opacity="0.4"/>
+      <!-- Outer curls -->
+      <path d="M40,6 C44,6 46,10 44,14" fill="none" stroke="#D4A000" stroke-width="1.5" stroke-linecap="round"/>
+      <path d="M6,40 C6,44 10,46 14,44" fill="none" stroke="#D4A000" stroke-width="1.5" stroke-linecap="round"/>
+      <circle cx="52" cy="5" r="1.5" fill="#FFE88A" opacity="0.5"/>
+      <circle cx="5" cy="52" r="1.5" fill="#FFE88A" opacity="0.5"/>
+    </svg>
+
+    <svg class="corner-filigree top-right" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="cg2" x1="1" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#FFE88A"/><stop offset="50%" stop-color="#F5C400"/><stop offset="100%" stop-color="#A67C00"/>
+        </linearGradient>
+      </defs>
+      <path d="M80,0 L0,0 L0,8 L72,8 L72,80 L80,80 Z" fill="url(#cg2)" opacity="0.9"/>
+      <path d="M76,4 L4,4 L4,6 L74,6 L74,76 L76,76 Z" fill="#FFE88A" opacity="0.3"/>
+      <path d="M68,12 C60,12 58,20 58,26 C58,18 52,14 46,14" fill="none" stroke="#F5C400" stroke-width="2" stroke-linecap="round"/>
+      <path d="M66,14 C66,22 60,28 54,28 C62,28 66,34 66,40" fill="none" stroke="#F5C400" stroke-width="2" stroke-linecap="round"/>
+      <path d="M70,10 L54,14" stroke="#D4A000" stroke-width="1" opacity="0.6"/>
+      <path d="M70,10 L58,20" stroke="#D4A000" stroke-width="1" opacity="0.6"/>
+      <path d="M70,10 L66,26" stroke="#D4A000" stroke-width="1" opacity="0.6"/>
+      <circle cx="62" cy="18" r="3" fill="#1DB954" stroke="#0A6828" stroke-width="0.8"/>
+      <circle cx="62" cy="18" r="1.5" fill="#2EE85A" opacity="0.4"/>
+      <path d="M40,6 C36,6 34,10 36,14" fill="none" stroke="#D4A000" stroke-width="1.5" stroke-linecap="round"/>
+      <path d="M74,40 C74,44 70,46 66,44" fill="none" stroke="#D4A000" stroke-width="1.5" stroke-linecap="round"/>
+      <circle cx="28" cy="5" r="1.5" fill="#FFE88A" opacity="0.5"/>
+      <circle cx="75" cy="52" r="1.5" fill="#FFE88A" opacity="0.5"/>
+    </svg>
+
+    <svg class="corner-filigree bottom-left" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="cg3" x1="0" y1="1" x2="1" y2="0">
+          <stop offset="0%" stop-color="#FFE88A"/><stop offset="50%" stop-color="#F5C400"/><stop offset="100%" stop-color="#A67C00"/>
+        </linearGradient>
+      </defs>
+      <path d="M0,80 L80,80 L80,72 L8,72 L8,0 L0,0 Z" fill="url(#cg3)" opacity="0.9"/>
+      <path d="M4,76 L76,76 L76,74 L6,74 L6,4 L4,4 Z" fill="#FFE88A" opacity="0.3"/>
+      <path d="M12,68 C20,68 22,60 22,54 C22,62 28,66 34,66" fill="none" stroke="#F5C400" stroke-width="2" stroke-linecap="round"/>
+      <path d="M14,66 C14,58 20,52 26,52 C18,52 14,46 14,40" fill="none" stroke="#F5C400" stroke-width="2" stroke-linecap="round"/>
+      <path d="M10,70 L26,66" stroke="#D4A000" stroke-width="1" opacity="0.6"/>
+      <path d="M10,70 L22,60" stroke="#D4A000" stroke-width="1" opacity="0.6"/>
+      <path d="M10,70 L14,54" stroke="#D4A000" stroke-width="1" opacity="0.6"/>
+      <circle cx="18" cy="62" r="3" fill="#1DB954" stroke="#0A6828" stroke-width="0.8"/>
+      <circle cx="18" cy="62" r="1.5" fill="#2EE85A" opacity="0.4"/>
+    </svg>
+
+    <svg class="corner-filigree bottom-right" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="cg4" x1="1" y1="1" x2="0" y2="0">
+          <stop offset="0%" stop-color="#FFE88A"/><stop offset="50%" stop-color="#F5C400"/><stop offset="100%" stop-color="#A67C00"/>
+        </linearGradient>
+      </defs>
+      <path d="M80,80 L0,80 L0,72 L72,72 L72,0 L80,0 Z" fill="url(#cg4)" opacity="0.9"/>
+      <path d="M76,76 L4,76 L4,74 L74,74 L74,4 L76,4 Z" fill="#FFE88A" opacity="0.3"/>
+      <path d="M68,68 C60,68 58,60 58,54 C58,62 52,66 46,66" fill="none" stroke="#F5C400" stroke-width="2" stroke-linecap="round"/>
+      <path d="M66,66 C66,58 60,52 54,52 C62,52 66,46 66,40" fill="none" stroke="#F5C400" stroke-width="2" stroke-linecap="round"/>
+      <path d="M70,70 L54,66" stroke="#D4A000" stroke-width="1" opacity="0.6"/>
+      <path d="M70,70 L58,60" stroke="#D4A000" stroke-width="1" opacity="0.6"/>
+      <path d="M70,70 L66,54" stroke="#D4A000" stroke-width="1" opacity="0.6"/>
+      <circle cx="62" cy="62" r="3" fill="#1DB954" stroke="#0A6828" stroke-width="0.8"/>
+      <circle cx="62" cy="62" r="1.5" fill="#2EE85A" opacity="0.4"/>
+    </svg>
+
+    <!-- Side border accent strips -->
+    <div class="cabinet-side-border left"></div>
+    <div class="cabinet-side-border right"></div>
+    <div class="cabinet-bottom-border"></div>
+
+
+    <!-- TOP LOGO BAR -->
+    <div id="logo-bar" class="custom-logo-banner">
+      <div class="logo-bg-stripes"></div>
+      <div class="logo-border-top"></div>
+      
+      <div class="logo-content">
+        <div class="logo-badge">
+          <svg viewBox="0 0 100 100">
+            <!-- Sheriff Badge -->
+            <defs>
+              <linearGradient id="badge-gold" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#FFE88A"/>
+                <stop offset="50%" stop-color="#D4A000"/>
+                <stop offset="100%" stop-color="#8B6914"/>
+              </linearGradient>
+              <linearGradient id="badge-inner" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#D4A000"/>
+                <stop offset="100%" stop-color="#FFE88A"/>
+              </linearGradient>
+            </defs>
+            <polygon points="50,5 61,35 95,35 68,55 78,85 50,68 22,85 32,55 5,35 39,35" fill="url(#badge-gold)" stroke="#3A2A00" stroke-width="2"/>
+            <polygon points="50,12 58,37 85,37 63,53 71,77 50,62 29,77 37,53 15,37 42,37" fill="url(#badge-inner)" stroke="#5A4000" stroke-width="1"/>
+            <circle cx="50" cy="48" r="18" fill="url(#badge-gold)" stroke="#5A4000" stroke-width="2"/>
+            <circle cx="50" cy="48" r="14" fill="none" stroke="#5A4000" stroke-width="1" stroke-dasharray="2,2"/>
+            <text x="50" y="60" text-anchor="middle" font-family="Rye, serif" font-size="34" fill="#3A2A00" style="text-shadow: 1px 1px 0 rgba(255,255,255,0.5)">B</text>
+            <circle cx="50" cy="15" r="2" fill="#5A4000"/>
+            <circle cx="80" cy="38" r="2" fill="#5A4000"/>
+            <circle cx="68" cy="74" r="2" fill="#5A4000"/>
+            <circle cx="32" cy="74" r="2" fill="#5A4000"/>
+            <circle cx="20" cy="38" r="2" fill="#5A4000"/>
+          </svg>
+        </div>
+        
+        <div id="logo-text">
+          <span class="logo-red">BIG BAD</span>
+          <span class="logo-gold">WOLF</span>
+        </div>
+        
+        <div class="logo-clovers">
+          <svg viewBox="0 0 100 100">
+            <!-- Clovers -->
+            <defs>
+              <radialGradient id="clover-grad" cx="30%" cy="30%" r="70%">
+                <stop offset="0%" stop-color="#5AFF5A"/>
+                <stop offset="100%" stop-color="#0E6B0E"/>
+              </radialGradient>
+              <filter id="clover-shadow">
+                <feDropShadow dx="1" dy="2" stdDeviation="2" flood-color="#000" flood-opacity="0.6"/>
+              </filter>
+            </defs>
+            <g filter="url(#clover-shadow)">
+              <!-- Large Clover Bottom -->
+              <g transform="translate(60, 65) scale(1.2)">
+                <path d="M 0,0 C -15,-20 -25,0 0,5 C 25,0 15,-20 0,0" fill="url(#clover-grad)" transform="rotate(45)"/>
+                <path d="M 0,0 C -15,-20 -25,0 0,5 C 25,0 15,-20 0,0" fill="url(#clover-grad)" transform="rotate(135)"/>
+                <path d="M 0,0 C -15,-20 -25,0 0,5 C 25,0 15,-20 0,0" fill="url(#clover-grad)" transform="rotate(225)"/>
+                <path d="M 0,0 C -15,-20 -25,0 0,5 C 25,0 15,-20 0,0" fill="url(#clover-grad)" transform="rotate(315)"/>
+                <path d="M 0,0 Q 5,15 15,20" fill="none" stroke="#0E6B0E" stroke-width="2"/>
+              </g>
+              <!-- Medium Clover Top Right -->
+              <g transform="translate(75, 25) scale(0.9) rotate(-20)">
+                <path d="M 0,0 C -15,-20 -25,0 0,5 C 25,0 15,-20 0,0" fill="url(#clover-grad)" transform="rotate(45)"/>
+                <path d="M 0,0 C -15,-20 -25,0 0,5 C 25,0 15,-20 0,0" fill="url(#clover-grad)" transform="rotate(135)"/>
+                <path d="M 0,0 C -15,-20 -25,0 0,5 C 25,0 15,-20 0,0" fill="url(#clover-grad)" transform="rotate(225)"/>
+                <path d="M 0,0 C -15,-20 -25,0 0,5 C 25,0 15,-20 0,0" fill="url(#clover-grad)" transform="rotate(315)"/>
+                <path d="M 0,0 Q -5,15 -10,20" fill="none" stroke="#0E6B0E" stroke-width="2"/>
+              </g>
+              <!-- Small Clover Top Left -->
+              <g transform="translate(35, 25) scale(0.6) rotate(30)">
+                <path d="M 0,0 C -15,-20 -25,0 0,5 C 25,0 15,-20 0,0" fill="url(#clover-grad)" transform="rotate(45)"/>
+                <path d="M 0,0 C -15,-20 -25,0 0,5 C 25,0 15,-20 0,0" fill="url(#clover-grad)" transform="rotate(135)"/>
+                <path d="M 0,0 C -15,-20 -25,0 0,5 C 25,0 15,-20 0,0" fill="url(#clover-grad)" transform="rotate(225)"/>
+                <path d="M 0,0 C -15,-20 -25,0 0,5 C 25,0 15,-20 0,0" fill="url(#clover-grad)" transform="rotate(315)"/>
+                <path d="M 0,0 Q 5,15 10,20" fill="none" stroke="#0E6B0E" stroke-width="2"/>
+              </g>
+            </g>
+          </svg>
+        </div>
+      </div>
+      
+      <div class="logo-border-bottom"></div>
+    </div>
+
+    <!-- STATUS MESSAGE TICKER -->
+    <div id="status-msg">GOOD LUCK – PRESS SPIN!</div>
+
+    <!-- REEL AREA (pills + window) -->
+    <div id="reel-area">
+
+      <!-- Left REEL WAYS pill -->
+      <div class="reel-ways-pill" id="pill-left">
+        <span>R</span><span>E</span><span>E</span><span>L</span>
+        <span class="pill-gap"> </span>
+        <span>W</span><span>A</span><span>Y</span><span>S</span>
+      </div>
+
+      <!-- REEL WINDOW with 5 columns -->
+      <div id="reel-window">
+        <!-- Background motion texture -->
+        <video id="reel-bg-video" src="assets/webm/Wanted_poster.webm" autoplay loop muted playsinline preload="auto"></video>
+        <!-- Neon dividers (4 lines between 5 reels) -->
+        <div class="reel-sep" id="sep-1"></div>
+        <div class="reel-sep" id="sep-2"></div>
+        <div class="reel-sep" id="sep-3"></div>
+        <div class="reel-sep" id="sep-4"></div>
+
+        <!-- 5 Reel columns -->
+        <div class="reel-col" id="reel-0"><div class="reel-strip" id="strip-0"></div></div>
+        <div class="reel-col" id="reel-1"><div class="reel-strip" id="strip-1"></div></div>
+        <div class="reel-col" id="reel-2"><div class="reel-strip" id="strip-2"></div></div>
+        <div class="reel-col" id="reel-3"><div class="reel-strip" id="strip-3"></div></div>
+        <div class="reel-col" id="reel-4"><div class="reel-strip" id="strip-4"></div></div>
+
+        <!-- Win overlay flash -->
+        <div id="win-flash" class="hidden"></div>
+
+        <!-- Particle container for coins/sparkles -->
+        <div id="particle-container"></div>
+
+        <!-- BONUS OVERLAY (inside reel window) -->
+        <div id="bonus-overlay" class="hidden">
+          <div id="bonus-overlay-box">
+            <div id="bonus-title">BONUS REEL FEATURE!</div>
+            <div id="bonus-phase-label">FREE SPINS STARTING</div>
+          </div>
+        </div>
+
+        <!-- MANSIONS FEATURE OVERLAY -->
+        <div id="mansion-overlay" class="hidden">
+          <div id="mansion-overlay-content">
+            <!-- Light rays background -->
+            <div id="mansion-rays"></div>
+            <!-- Mansion graphic -->
+            <div id="mansion-graphic">
+              <svg viewBox="0 0 300 280"><use href="#sym-mansion"/></svg>
+            </div>
+            <!-- Title text -->
+            <div id="mansion-title">MANSIONS FEATURE</div>
+            <div id="mansion-subtitle">6 FREE GAMES REMAINING</div>
+            <div id="mansion-press">PRESS PLAY!</div>
+          </div>
+        </div>
+
+        <!-- WOLF BLOW video (the wolf huffing & puffing — plays contained inside the reel window) -->
+        <div id="wolf-tornado-overlay" class="hidden">
+          <video id="wolf-tornado-video" src="assets/webm/Wolf_blowing_tornado.webm" muted playsinline preload="auto"></video>
+        </div>
+
+        <!-- BONUS INTRO video (plays contained inside the reel window) -->
+        <div id="bonus-intro-overlay" class="hidden">
+          <video id="bonus-intro-video" src="assets/webm/Three_pigs_bonus_intro.webm" playsinline preload="auto"></video>
+          <div id="bonus-intro-skip">CLICK TO SKIP</div>
+        </div>
+      </div>
+
+      <!-- Right REEL WAYS pill -->
+      <div class="reel-ways-pill" id="pill-right">
+        <span>R</span><span>E</span><span>E</span><span>L</span>
+        <span class="pill-gap"> </span>
+        <span>W</span><span>A</span><span>Y</span><span>S</span>
+      </div>
+
+    </div><!-- /reel-area -->
+
+    <!-- BONUS HUD BAR (visible during bonus rounds) -->
+    <div id="bonus-hud" class="hidden">
+      <div class="bonus-hud-item">
+        <span class="bonus-hud-label">FREE SPINS</span>
+        <span class="bonus-hud-value" id="bonus-spins-left">0</span>
+      </div>
+      <div class="bonus-hud-item">
+        <span class="bonus-hud-label">BONUS WIN</span>
+        <span class="bonus-hud-value" id="bonus-win-display">$0.00</span>
+      </div>
+    </div>
+
+    <!-- BIG WIN OVERLAY -->
+    <div id="big-win-overlay" class="hidden">
+      <div id="big-win-box">
+        <div id="big-win-label">BIG WIN!</div>
+        <div id="big-win-amount">$0.00</div>
+      </div>
+    </div>
+
+    <!-- BOTTOM CONSOLE BAR (matches the reference image) -->
+    <div id="console-bar">
+
+      <!-- Left controls (info & turbo now live in the right-side options drawer) -->
+      <div class="console-left"></div>
+
+      <!-- Center displays -->
+      <div class="console-center">
+        <!-- CASH display -->
+        <div class="console-group">
+          <div class="console-label">CASH</div>
+          <div class="console-value" id="display-balance">$1,000.00</div>
+        </div>
+
+        <!-- BET controls -->
+        <div class="console-group bet-group">
+          <div class="console-label">BET</div>
+          <div class="bet-row">
+            <button id="btn-bet-down" class="bet-adj-btn">−</button>
+            <div class="console-value" id="display-bet">$1.00</div>
+            <button id="btn-bet-up" class="bet-adj-btn">+</button>
+          </div>
+        </div>
+
+        <!-- WIN display -->
+        <div class="console-group">
+          <div class="console-label">WIN</div>
+          <div class="console-value" id="display-win">$0.00</div>
+        </div>
+      </div>
+
+      <!-- Right controls -->
+      <div class="console-right">
+        <!-- SPIN button (AUTO now lives in the right-side options drawer) -->
+      <button id="btn-spin" class="spin-btn">
+        <!-- Animated sheriff-star badge (plays on press; rests on its first frame) -->
+        <video id="spin-video" class="spin-badge-svg" src="assets/webm/Spin.webm" muted playsinline preload="auto"></video>
+      </button>
+
+      </div>
+
+    </div><!-- /console-bar -->
+
+<!-- ═══════════════════════════════════════════════════════════
+     SIMULATION DASHBOARD MODAL — Professional Analytics Suite
+═══════════════════════════════════════════════════════════ -->
+<div id="sim-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="sim-title">
+  <div class="sim-modal-box">
+
+    <!-- Header -->
+    <div class="sim-header">
+      <div class="sim-header-left">
+        <h2 id="sim-title">MONTE CARLO SIMULATION</h2>
+        <span class="sim-subtitle">Mathematical Analysis Engine</span>
+      </div>
+      <button id="btn-close-sim" class="sim-close-btn" aria-label="Close simulation">&times;</button>
+    </div>
+
+    <!-- Controls row -->
+    <div class="sim-controls">
+      <div class="sim-control-group">
+        <label class="sim-label" for="sim-spins">SAMPLE SIZE</label>
+        <select id="sim-spins" class="sim-select">
+          <option value="1000">1,000</option>
+          <option value="5000">5,000</option>
+          <option value="10000" selected>10,000</option>
+          <option value="50000">50,000</option>
+          <option value="100000">100,000</option>
+        </select>
+      </div>
+      <div class="sim-control-group">
+        <label class="sim-label" for="sim-bet">BET SIZE</label>
+        <select id="sim-bet" class="sim-select">
+          <option value="0.20">$0.20</option>
+          <option value="0.50">$0.50</option>
+          <option value="1.00" selected>$1.00</option>
+          <option value="2.00">$2.00</option>
+          <option value="5.00">$5.00</option>
+        </select>
+      </div>
+      <div class="sim-control-group">
+        <label class="sim-label" for="sim-bankroll">START BANKROLL</label>
+        <select id="sim-bankroll" class="sim-select">
+          <option value="100">$100</option>
+          <option value="500">$500</option>
+          <option value="1000" selected>$1,000</option>
+          <option value="5000">$5,000</option>
+          <option value="10000">$10,000</option>
+        </select>
+      </div>
+      <button id="btn-run-sim" class="sim-run-btn">
+        <span class="sim-run-icon">▶</span>
+        <span id="sim-run-label">RUN SIMULATION</span>
+      </button>
+    </div>
+
+    <!-- Progress bar -->
+    <div id="sim-progress-wrap" class="sim-progress-wrap hidden">
+      <div class="sim-progress-bar"><div id="sim-progress-fill" class="sim-progress-fill"></div></div>
+      <span id="sim-progress-text" class="sim-progress-text">0 / 10,000 spins</span>
+      <span id="sim-elapsed" class="sim-elapsed"></span>
+    </div>
+
+    <!-- ═══ Dashboard Content ═══ -->
+    <div id="sim-dashboard" class="sim-dashboard hidden">
+
+      <!-- ── PRIMARY KPI ROW ── -->
+      <div class="sim-section-label">KEY PERFORMANCE INDICATORS</div>
+      <div class="sim-kpi-row">
+        <div class="sim-kpi-card kpi-featured">
+          <div class="sim-kpi-label">RETURN TO PLAYER</div>
+          <div class="sim-kpi-value" id="kpi-rtp">—</div>
+          <div class="sim-kpi-sub" id="kpi-rtp-sub"></div>
+          <div class="sim-kpi-ci" id="kpi-rtp-ci"></div>
+        </div>
+        <div class="sim-kpi-card">
+          <div class="sim-kpi-label">HIT FREQUENCY</div>
+          <div class="sim-kpi-value" id="kpi-hitrate">—</div>
+          <div class="sim-kpi-sub" id="kpi-hitrate-sub"></div>
+        </div>
+        <div class="sim-kpi-card">
+          <div class="sim-kpi-label">BONUS FREQUENCY</div>
+          <div class="sim-kpi-value" id="kpi-bonus">—</div>
+          <div class="sim-kpi-sub" id="kpi-bonus-sub"></div>
+        </div>
+        <div class="sim-kpi-card">
+          <div class="sim-kpi-label">VOLATILITY INDEX</div>
+          <div class="sim-kpi-value" id="kpi-volatility">—</div>
+          <div class="sim-kpi-sub" id="kpi-volatility-sub"></div>
+        </div>
+      </div>
+
+      <!-- ── SECONDARY KPI ROW ── -->
+      <div class="sim-kpi-row sim-kpi-row-secondary">
+        <div class="sim-kpi-card-sm">
+          <div class="sim-kpi-label">MAX WIN</div>
+          <div class="sim-kpi-value-sm" id="kpi-maxwin">—</div>
+          <div class="sim-kpi-sub" id="kpi-maxwin-sub"></div>
+        </div>
+        <div class="sim-kpi-card-sm">
+          <div class="sim-kpi-label">AVG WIN</div>
+          <div class="sim-kpi-value-sm" id="kpi-avgwin">—</div>
+          <div class="sim-kpi-sub" id="kpi-avgwin-sub"></div>
+        </div>
+        <div class="sim-kpi-card-sm">
+          <div class="sim-kpi-label">MEDIAN WIN</div>
+          <div class="sim-kpi-value-sm" id="kpi-medwin">—</div>
+          <div class="sim-kpi-sub" id="kpi-medwin-sub"></div>
+        </div>
+        <div class="sim-kpi-card-sm">
+          <div class="sim-kpi-label">BASE GAME RTP</div>
+          <div class="sim-kpi-value-sm" id="kpi-base-rtp">—</div>
+          <div class="sim-kpi-sub" id="kpi-base-rtp-sub"></div>
+        </div>
+        <div class="sim-kpi-card-sm">
+          <div class="sim-kpi-label">BONUS RTP</div>
+          <div class="sim-kpi-value-sm" id="kpi-bonus-rtp">—</div>
+          <div class="sim-kpi-sub" id="kpi-bonus-rtp-sub"></div>
+        </div>
+        <div class="sim-kpi-card-sm">
+          <div class="sim-kpi-label">MAX LOSS STREAK</div>
+          <div class="sim-kpi-value-sm" id="kpi-maxloss">—</div>
+          <div class="sim-kpi-sub" id="kpi-maxloss-sub"></div>
+        </div>
+        <div class="sim-kpi-card-sm">
+          <div class="sim-kpi-label">MAX WIN STREAK</div>
+          <div class="sim-kpi-value-sm" id="kpi-maxwinstreak">—</div>
+          <div class="sim-kpi-sub" id="kpi-maxwinstreak-sub"></div>
+        </div>
+        <div class="sim-kpi-card-sm">
+          <div class="sim-kpi-label">BANKROLL SURVIVED</div>
+          <div class="sim-kpi-value-sm" id="kpi-survived">—</div>
+          <div class="sim-kpi-sub" id="kpi-survived-sub"></div>
+        </div>
+      </div>
+
+      <!-- ── INSIGHTS PANEL ── -->
+      <div class="sim-insights" id="sim-insights"></div>
+
+      <!-- ── CHARTS GRID ── -->
+      <div class="sim-section-label">DISTRIBUTION ANALYSIS</div>
+      <div class="sim-charts-grid">
+        <div class="sim-chart-card sim-chart-wide">
+          <div class="sim-chart-header">
+            <div class="sim-chart-title">BALANCE TRAJECTORY</div>
+            <div class="sim-chart-meta" id="chart-balance-meta"></div>
+          </div>
+          <div class="sim-chart-body"><canvas id="chart-balance"></canvas></div>
+        </div>
+        <div class="sim-chart-card sim-chart-wide">
+          <div class="sim-chart-header">
+            <div class="sim-chart-title">WIN DISTRIBUTION — Multiplier Histogram</div>
+            <div class="sim-chart-meta" id="chart-dist-meta"></div>
+          </div>
+          <div class="sim-chart-body"><canvas id="chart-win-dist"></canvas></div>
+        </div>
+        <div class="sim-chart-card">
+          <div class="sim-chart-header">
+            <div class="sim-chart-title">SYMBOL CONTRIBUTION TO RTP</div>
+          </div>
+          <div class="sim-chart-body sim-chart-tall"><canvas id="chart-sym-freq"></canvas></div>
+        </div>
+        <div class="sim-chart-card">
+          <div class="sim-chart-header">
+            <div class="sim-chart-title">SPIN OUTCOME BREAKDOWN</div>
+          </div>
+          <div class="sim-chart-body sim-chart-tall"><canvas id="chart-win-type"></canvas></div>
+        </div>
+      </div>
+
+      <!-- ── TABLES ── -->
+      <div class="sim-section-label">DETAILED STATISTICS</div>
+      <div class="sim-tables-grid">
+        <div class="sim-table-card">
+          <div class="sim-chart-title">SYMBOL PAYS ANALYSIS</div>
+          <div class="sim-table-wrap">
+            <table id="table-symbol-stats" class="sim-table">
+              <thead><tr><th>Symbol</th><th>Hits</th><th>Total Paid</th><th>% of RTP</th><th>Avg Pay</th><th>Max Span</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="sim-table-card">
+          <div class="sim-chart-title">WIN TIER ANALYSIS</div>
+          <div class="sim-table-wrap">
+            <table id="table-win-tiers" class="sim-table">
+              <thead><tr><th>Tier</th><th>Count</th><th>% of Spins</th><th>Total Paid</th><th>% of RTP</th><th>Avg Pay</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="sim-table-card">
+          <div class="sim-chart-title">PERCENTILE ANALYSIS</div>
+          <div class="sim-table-wrap">
+            <table id="table-percentiles" class="sim-table">
+              <thead><tr><th>Percentile</th><th>Win ×</th><th>Amount</th><th>Interpretation</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="sim-table-card">
+          <div class="sim-chart-title">BONUS ROUND DEEP DIVE</div>
+          <div class="sim-table-wrap">
+            <table id="table-bonus-stats" class="sim-table">
+              <thead><tr><th>Metric</th><th>Value</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /sim-dashboard -->
+
+  </div><!-- /sim-modal-box -->
+</div>
+
+  </div><!-- /cabinet -->
+
+</div><!-- /game-root -->
+
+
+<!-- PAYTABLE MODAL -->
+<div id="paytable-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="paytable-title">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2 id="paytable-title">PAYTABLE — 243 WAYS TO WIN</h2>
+      <button id="btn-close-paytable" class="modal-close" aria-label="Close paytable">&times;</button>
+    </div>
+    <p class="modal-intro">Wins pay left-to-right on adjacent reels starting from the leftmost. Pays multiply your total bet.</p>
+    <div class="pt-grid">
+      <div class="pt-item">
+        <img src="assets/hat_yellow.png" alt="Yellow Hat" class="pt-img">
+        <div class="pt-name">Yellow Hat</div>
+        <div class="pt-pays">5★ × 10.0 &nbsp;|&nbsp; 4★ × 3.5 &nbsp;|&nbsp; 3★ × 1.5</div>
+      </div>
+      <div class="pt-item">
+        <img src="assets/hat_green.png" alt="Green Hat" class="pt-img">
+        <div class="pt-name">Green Hat</div>
+        <div class="pt-pays">5&#9733; &times; 6.0 &nbsp;|&nbsp; 4&#9733; &times; 2.0 &nbsp;|&nbsp; 3&#9733; &times; 0.8</div>
+      </div>
+      <div class="pt-item">
+        <img src="assets/hat_red.png" alt="Red Hat" class="pt-img">
+        <div class="pt-name">Red Hat</div>
+        <div class="pt-pays">5&#9733; &times; 4.0 &nbsp;|&nbsp; 4&#9733; &times; 1.5 &nbsp;|&nbsp; 3&#9733; &times; 0.6</div>
+      </div>
+      <div class="pt-item">
+        <img src="assets/pig_suit.png" alt="Suit Pig" class="pt-img">
+        <div class="pt-name">Suit Pig</div>
+        <div class="pt-pays">5&#9733; &times; 8.0 &nbsp;|&nbsp; 4&#9733; &times; 3.0 &nbsp;|&nbsp; 3&#9733; &times; 1.2</div>
+      </div>
+      <div class="pt-item">
+        <img src="assets/pig_builder.png" alt="Builder Pig" class="pt-img">
+        <div class="pt-name">Builder Pig</div>
+        <div class="pt-pays">5&#9733; &times; 7.0 &nbsp;|&nbsp; 4&#9733; &times; 2.5 &nbsp;|&nbsp; 3&#9733; &times; 1.0</div>
+      </div>
+      <div class="pt-item">
+        <img src="assets/pig_blueprint.png" alt="Blueprint Pig" class="pt-img">
+        <div class="pt-name">Blueprint Pig</div>
+        <div class="pt-pays">5&#9733; &times; 5.0 &nbsp;|&nbsp; 4&#9733; &times; 2.0 &nbsp;|&nbsp; 3&#9733; &times; 0.8</div>
+      </div>
+      <div class="pt-item">
+        <img src="assets/toolbox.png" alt="Toolbox" class="pt-img">
+        <div class="pt-name">Toolbox</div>
+        <div class="pt-pays">5&#9733; &times; 5.0 &nbsp;|&nbsp; 4&#9733; &times; 2.0 &nbsp;|&nbsp; 3&#9733; &times; 0.8</div>
+      </div>
+      <div class="pt-item">
+        <img src="assets/wolf.png" alt="Wolf" class="pt-img">
+        <div class="pt-name">Wolf</div>
+        <div class="pt-pays">5&#9733; &times; 3.0 &nbsp;|&nbsp; 4&#9733; &times; 1.2 &nbsp;|&nbsp; 3&#9733; &times; 0.5</div>
+      </div>
+      <div class="pt-item">
+        <img src="assets/buzzard.png" alt="Buzzard" class="pt-img">
+        <div class="pt-name">Buzzard</div>
+        <div class="pt-pays">5&#9733; &times; 2.0 &nbsp;|&nbsp; 4&#9733; &times; 0.8 &nbsp;|&nbsp; 3&#9733; &times; 0.3</div>
+      </div>
+      <div class="pt-item pt-royals">
+        <div class="royals-row">
+          <svg viewBox="0 0 200 200"><use href="#sym-royal-a"/></svg>
+          <svg viewBox="0 0 200 200"><use href="#sym-royal-k"/></svg>
+          <svg viewBox="0 0 200 200"><use href="#sym-royal-q"/></svg>
+          <svg viewBox="0 0 200 200"><use href="#sym-royal-j"/></svg>
+          <svg viewBox="0 0 200 200"><use href="#sym-royal-10"/></svg>
+        </div>
+        <div class="pt-name">Royal Cards (A K Q J 10)</div>
+        <div class="pt-pays">5★ × 1.5 &nbsp;|&nbsp; 4★ × 0.6 &nbsp;|&nbsp; 3★ × 0.3</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     MATH BREAKDOWN MODAL — plain-English "how the math works"
+═══════════════════════════════════════════════════════════ -->
+<div id="math-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="math-title">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2 id="math-title">🧮 HOW THE MATH WORKS</h2>
+      <button id="btn-close-math" class="modal-close" aria-label="Close math breakdown">&times;</button>
+    </div>
+    <p class="modal-intro">A look under the hood — what's on the reels, how often the bonus hits, and where your money comes back from.</p>
+
+    <!-- RTP -->
+    <div class="math-section">
+      <h3 class="math-h3">Return To Player (RTP)</h3>
+      <p class="math-sub">How much of every dollar wagered comes back to players over the long run.</p>
+      <div id="math-rtp-total" class="math-bignum">…</div>
+      <div class="math-rtp-bar">
+        <span id="math-bar-base"  class="math-bar-seg seg-base"></span>
+        <span id="math-bar-bonus" class="math-bar-seg seg-bonus"></span>
+      </div>
+      <div class="math-legend">
+        <span class="math-leg"><span class="math-dot seg-base"></span>Base game&nbsp;<b id="math-rtp-base">…</b></span>
+        <span class="math-leg"><span class="math-dot seg-bonus"></span>Bonus feature&nbsp;<b id="math-rtp-bonus">…</b></span>
+      </div>
+      <p id="math-rtp-note" class="math-note">Crunching simulated spins…</p>
+    </div>
+
+    <!-- Bonus -->
+    <div class="math-section">
+      <h3 class="math-h3">The Bonus Feature</h3>
+      <p class="math-sub">Land <b>6 or more hard hats</b> to start the free spins. It triggers <b id="math-trigger-rate">…</b>.</p>
+      <ul class="math-rules">
+        <li>🦺 Start with <b>6 free spins</b>; collect <b>3+ hats</b> in a spin to win <b>+1 spin</b>.</li>
+        <li>🏚️ Hats build houses on the grid: <b>straw → stick → brick</b>. Bigger houses are worth more.</li>
+        <li>🐺 At the end, the wolf huffs every house down to reveal a cash prize.</li>
+        <li>🏰 Stack <b>3+ brick houses</b> to fire the <b>Mansion Jackpot</b>.</li>
+      </ul>
+    </div>
+
+    <!-- Reel composition -->
+    <div class="math-section">
+      <h3 class="math-h3">What's On The Reels</h3>
+      <p class="math-sub">All 5 reels together hold <b id="math-total-positions">…</b> symbol positions. Rarer symbols pay more.</p>
+      <div id="math-hat-callout" class="math-callout">…</div>
+      <table class="math-table">
+        <thead><tr><th>Symbol</th><th>Count</th><th>Share of reels</th><th></th></tr></thead>
+        <tbody id="math-comp-body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     BUY BONUS CONFIRMATION MODAL
+═══════════════════════════════════════════════════════════ -->
+<div id="buy-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="buy-title">
+  <div class="modal-box buy-box">
+    <div class="modal-header">
+      <h2 id="buy-title">💰 BUY BONUS</h2>
+      <button id="btn-close-buy" class="modal-close" aria-label="Close">&times;</button>
+    </div>
+    <div class="buy-body">
+      <p class="buy-lead">Skip the base game and jump straight into the <b>Hard Hat Free Spins</b> feature.</p>
+      <div class="buy-price">
+        <span class="buy-price-label">COST</span>
+        <span id="buy-cost" class="buy-price-amt">$80.00</span>
+        <span class="buy-price-sub">for a <span id="buy-bet">$1.00</span> bet</span>
+      </div>
+      <p class="buy-note">The bonus is worth about the same as it costs — buying it has the same long-run payback (~97%) as spinning for it normally.</p>
+      <div class="buy-actions">
+        <button id="btn-cancel-buy" class="buy-cancel">CANCEL</button>
+        <button id="btn-confirm-buy" class="buy-confirm">BUY BONUS</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ADD CREDIT (deposit) MODAL -->
+<div id="deposit-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="deposit-title">
+  <div class="modal-box buy-box">
+    <div class="modal-header">
+      <h2 id="deposit-title">💵 ADD CREDIT</h2>
+      <button id="btn-close-deposit" class="modal-close" aria-label="Close">&times;</button>
+    </div>
+    <div class="buy-body">
+      <div class="buy-price">
+        <span class="buy-price-label">BALANCE</span>
+        <span id="deposit-balance" class="buy-price-amt">$1,000.00</span>
+      </div>
+      <p class="buy-lead">Choose an amount to add to the machine:</p>
+      <div class="deposit-grid">
+        <button class="deposit-amt" data-amt="1">+$1</button>
+        <button class="deposit-amt" data-amt="20">+$20</button>
+        <button class="deposit-amt" data-amt="50">+$50</button>
+        <button class="deposit-amt" data-amt="100">+$100</button>
+      </div>
+      <div class="buy-actions">
+        <button id="btn-deposit-done" class="buy-confirm">DONE</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- RTP / MATH MODEL PICKER MODAL -->
+<div id="rtp-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="rtp-title">
+  <div class="modal-box buy-box">
+    <div class="modal-header">
+      <h2 id="rtp-title">🎚️ RTP MODEL</h2>
+      <button id="btn-close-rtp" class="modal-close" aria-label="Close">&times;</button>
+    </div>
+    <div class="buy-body">
+      <p class="buy-lead">Choose the math model that decides how the game pays:</p>
+      <!-- One .rtp-option card per RTP_MODELS entry — rendered by js/rtp.js -->
+      <div id="rtp-options"></div>
+      <div class="buy-actions">
+        <button id="btn-rtp-done" class="buy-confirm">DONE</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- GAME SIZE breakdown MODAL -->
+<div id="size-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="size-modal-title">
+  <div class="modal-box buy-box">
+    <div class="modal-header">
+      <h2 id="size-modal-title">📦 GAME SIZE</h2>
+      <button id="btn-close-size" class="modal-close" aria-label="Close">&times;</button>
+    </div>
+    <div class="buy-body">
+      <div id="size-total" class="size-total"></div>
+      <div id="size-bar" class="size-bar"></div>
+      <div id="size-legend" class="size-legend"></div>
+      <p class="size-foot">Total disk footprint of the game folder, by file type.</p>
+      <div class="buy-actions">
+        <button id="btn-size-done" class="buy-confirm">DONE</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Day/night overlay — darkens the background image based on time of day -->
+<div id="day-night-overlay"></div>
+
+<!-- RIGHT-SIDE OPTIONS DRAWER — a handle that slides open to reveal game options -->
+<div id="options-drawer">
+  <div id="options-panel">
+
+    <!-- Auto spin -->
+    <button id="btn-auto" class="drawer-btn" title="Auto Spin">AUTO SPIN</button>
+
+    <!-- Turbo toggle -->
+    <div class="drawer-btn drawer-toggle">
+      <label class="turbo-label" for="chk-turbo">⚡ TURBO</label>
+      <label class="toggle-switch">
+        <input type="checkbox" id="chk-turbo">
+        <span class="toggle-track"></span>
+      </label>
+    </div>
+
+    <div id="time-control-wrap" class="drawer-sub">
+      <button id="btn-time" class="drawer-btn" title="Time of day" aria-label="Time of day">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm0 18a8 8 0 110-16 8 8 0 010 16zM12.5 7H11v6l5.25 3.15.75-1.23-4.5-2.67V7z"/></svg>
+        <span>TIME</span>
+      </button>
+      <div id="time-panel" class="hidden">
+        <div class="vol-panel-title">TIME OF DAY</div>
+        <input type="range" id="time-slider" class="vol-slider" min="0" max="1439" value="720" step="5">
+        <div id="time-readout"><span id="time-label">12:00 PM</span></div>
+        <button id="time-auto" class="time-auto-btn">USE REAL TIME</button>
+      </div>
+    </div>
+
+    <div id="volume-control-wrap" class="drawer-sub">
+      <button id="btn-sound" class="drawer-btn sound-on" title="Volume" aria-label="Volume controls">
+        <svg id="icon-sound-on" viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.06c1.48-.73 2.5-2.25 2.5-4.03zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+        <svg id="icon-sound-off" viewBox="0 0 24 24" width="18" height="18" fill="currentColor" class="hidden"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.21.05-.42.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>
+        <span>VOLUME</span>
+      </button>
+      <div id="volume-panel" class="hidden">
+        <div class="vol-panel-title">VOLUME</div>
+        <div class="vol-row"><span class="vol-label">SFX</span><input type="range" id="slider-sfx" class="vol-slider" min="0" max="100" value="100" step="1"><span class="vol-pct" id="sfx-pct">100%</span></div>
+        <div class="vol-row"><span class="vol-label">MUSIC</span><input type="range" id="slider-music" class="vol-slider" min="0" max="100" value="50" step="1"><span class="vol-pct" id="music-pct">50%</span></div>
+        <div class="vol-row"><span class="vol-label">VOICE</span><input type="range" id="slider-narrator" class="vol-slider narrator-slider" min="0" max="100" value="80" step="1"><span class="vol-pct" id="narrator-pct">80%</span></div>
+      </div>
+    </div>
+
+    <button id="btn-rtp" class="drawer-btn drawer-rtp" title="Choose the RTP / math model">🎚️ RTP</button>
+
+    <button id="btn-size" class="drawer-btn drawer-size" title="See how many megabytes the game uses">📦 GAME SIZE</button>
+
+    <button id="btn-deposit" class="drawer-btn drawer-deposit" title="Add credit to the machine">💵 ADD CREDIT</button>
+
+    <button id="btn-buy-bonus" class="drawer-btn drawer-buy" title="Buy the bonus and skip to free spins">💰 BUY BONUS</button>
+
+    <!-- Paytable -->
+    <button id="btn-info" class="drawer-btn" title="Paytable" aria-label="Open Paytable">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M11 7h2v2h-2zm0 4h2v6h-2zm1-9C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
+      <span>PAYTABLE</span>
+    </button>
+    <!-- Developer simulation and math buttons moved to hidden debug panel -->
+
+  </div>
+  <button id="options-tab" aria-label="Show or hide options" title="Options">
+    <span class="opt-chevron">‹</span>
+  </button>
+</div>
+
+<!-- Removed side-wolf -->
+
+<!-- Full-screen intro splash (covers everything on load, then fades into the game) -->
+<div id="intro-overlay">
+  <video id="intro-video" src="assets/webm/Big_Bad_Wolf_intro.webm" muted playsinline preload="auto"></video>
+  <div id="intro-skip">CLICK TO SKIP</div>
+</div>
+
+<!-- HIDDEN DEBUG PANEL for developer tools -->
+<div id="debug-panel" class="hidden">
+  <button id="btn-simulate" class="debug-btn" title="Run Monte Carlo Simulation">📊 SIM</button>
+  <button id="btn-math" class="debug-btn" title="How the math works">🧮 MATH</button>
+</div>
+
+<!-- Bundled from js/*.js by tools/build.js (classic script so it runs from file://). -->
+<script src="app.js"></script>
+</body>
+</html>

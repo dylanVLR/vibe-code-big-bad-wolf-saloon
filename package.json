@@ -1,0 +1,10 @@
+{
+  "name": "huff-n-more-puff",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Local slot machine. package.json exists only so Node treats js/*.js and tools/*.js as ES modules for the par-sheet verifier (node tools/sim.js). The browser loads app.js directly and ignores this file.",
+  "scripts": {
+    "sim": "node tools/sim.js"
+  }
+}

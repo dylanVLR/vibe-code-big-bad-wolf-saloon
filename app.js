@@ -1,0 +1,3933 @@
+/* ════════════════════════════════════════════════════════════════
+   AUTO-GENERATED — do not edit by hand.
+   Bundled from js/*.js by tools/build.js so the game runs from a
+   double-clicked file:// page. Edit the modules in js/, then rebuild:
+       node tools/build.js
+════════════════════════════════════════════════════════════════ */
+(function () {
+  'use strict';
+  const __cache = {};
+  const __mods = {};
+  function require(name) {
+    if (__cache[name]) return __cache[name];
+    const exports = {};
+    __cache[name] = exports;       // set before running, to tolerate cycles
+    __mods[name](exports, require);
+    return __cache[name];
+  }
+
+  __mods["audio"] = function (exports, require) {
+/**
+ * @module audio
+ * @description Sound for Huff N' More Puff. Exports two ready-to-use singletons:
+ *   `synth` – one-shot sound effects (pre-rendered MP3s in assets/audio/sfx/)
+ *   `bgm`   – looping background music (base-game + bonus tracks, crossfaded)
+ * Both are created once here and shared via ES-module caching.
+ */
+
+/* ── Sound effects ── */
+class Synth {
+  constructor() {
+    this.enabled = true;
+    this._volume = 0.7;       // 0..1
+    this._spinAudio = null;   // the looping reel-spin sound
+  }
+
+  /** Play an MP3 from assets/audio/sfx/. Returns the Audio element. */
+  _play(filename, vol = 1.0, loop = false) {
+    if (!this.enabled) return null;
+    const audio = new Audio(`assets/audio/sfx/${filename}`);
+    audio.volume = this._volume * vol;
+    audio.loop = loop;
+    audio.play().catch(() => {});
+    return audio;
+  }
+
+  /** Play a one-shot SFX that may overlap others. */
+  _oneShot(filename, vol = 1.0) { return this._play(filename, vol, false); }
+
+  // ── reels ──
+  startSpin() { if (this.enabled) { this.stopSpin(); this._spinAudio = this._play('reel_spin.mp3', 0.3, true); } }
+  stopSpin() {
+    if (this._spinAudio) { this._spinAudio.pause(); this._spinAudio.currentTime = 0; this._spinAudio = null; }
+  }
+  reelStop(index) {
+    if (!this.enabled) return;
+    const files = ['reel_stop_1.mp3','reel_stop_2.mp3','reel_stop_3.mp3','reel_stop_4.mp3','reel_stop_5.mp3'];
+    this._oneShot(files[index] || files[0], 0.6);
+  }
+  anticipation() { this._oneShot('anticipation.mp3', 0.5); }
+
+  // ── wins ──
+  win(totalWin, bet) {
+    if (!this.enabled) return;
+    const ratio = totalWin / bet;
+    if (ratio >= 8)      this._oneShot('win_big.mp3', 0.8);
+    else if (ratio >= 3) this._oneShot('win_medium.mp3', 0.7);
+    else                 this._oneShot('win_small.mp3', 0.6);
+  }
+  bonusSiren()  { this._oneShot('bonus_siren.mp3', 0.7); }
+  bigWinAlarm() { this._oneShot('win_big.mp3', 0.9); }
+
+  // ── wolf & houses ──
+  wolfHuff()    { this._oneShot('wolf_huff.mp3', 0.8); }
+  wolfHowl()    { this._oneShot('wolf_howl.mp3', 0.6); }
+  strawBreak()  { this._oneShot('straw_break.mp3', 0.7); }
+  stickBreak()  { this._oneShot('stick_break.mp3', 0.7); }
+  brickImpact() { this._oneShot('brick_impact.mp3', 0.7); }
+  brickLay()    { this._oneShot('brick_lay.mp3', 0.5); }
+  houseAward(tier) {
+    if (!this.enabled) return;
+    const files = { 1: 'house_award_1.mp3', 2: 'house_award_2.mp3', 3: 'house_award_3.mp3' };
+    this._oneShot(files[tier] || files[1], 0.6);
+  }
+  retriggerChime() { this._oneShot('retrigger_chime.mp3', 0.6); }
+  mansionFanfare() { this._oneShot('mansion_fanfare.mp3', 0.8); }
+
+  // ── coins ──
+  coinTick() {
+    if (!this.enabled) return;
+    const files = ['coin_clink_1.mp3', 'coin_clink_2.mp3'];
+    this._oneShot(files[Math.floor(Math.random() * files.length)], 0.25);
+  }
+  coinClink() {
+    if (!this.enabled) return;
+    const files = ['coin_clink_1.mp3', 'coin_clink_2.mp3', 'coin_clink_3.mp3'];
+    this._oneShot(files[Math.floor(Math.random() * files.length)], 0.35);
+  }
+  coinShower() { this._oneShot('coin_shower.mp3', 0.6); }
+
+  // ── ui ──
+  buttonClick() { this._oneShot('button_click.mp3', 0.3); }
+  betChange()   { this._oneShot('bet_change.mp3', 0.3); }
+
+  // ── volume ──
+  toggle() { this.enabled = !this.enabled; return this.enabled; }
+  setVolume(v) {
+    this._volume = Math.max(0, Math.min(1, v));
+    if (this._spinAudio) this._spinAudio.volume = this._volume * 0.3;
+  }
+  getVolume() { return this._volume; }
+}
+
+/* ── Background music ──
+   Two looping tracks that crossfade: a whimsical Western score for the base game
+   and a bigger, more epic cinematic piece during the bonus. The bonus feature
+   calls switchToBonus()/switchToBase(); everything else uses the same start/stop/
+   setVolume API as before. */
+class BGMusic {
+  constructor() {
+    this.tracks = {
+      base:  new Audio('assets/audio/music/bgm_base.mp3'),
+      bonus: new Audio('assets/audio/music/bgm_bonus.mp3'),
+    };
+    for (const a of Object.values(this.tracks)) { a.loop = true; a.preload = 'auto'; a.volume = 0; }
+    this.current = 'base';
+    this.playing = false;
+    this._volume = 0.5;        // 0..1 (user-facing)
+    this._fadeTimer = null;
+  }
+
+  get audio() { return this.tracks[this.current]; }   // back-compat accessor
+
+  // 0.5 multiplier keeps music under the SFX
+  _effective() { return Math.max(0, Math.min(1, this._volume * 0.5)); }
+
+  /** Crossfade: ramp `targetName` up to volume, everything else down to 0. */
+  _fadeTo(targetName, ms = 800) {
+    if (this._fadeTimer) clearInterval(this._fadeTimer);
+    const target = this._effective();
+    const steps = Math.max(1, Math.round(ms / 40));
+    const start = {};
+    for (const [name, a] of Object.entries(this.tracks)) start[name] = a.volume;
+    let i = 0;
+    this._fadeTimer = setInterval(() => {
+      const t = ++i / steps;
+      for (const [name, a] of Object.entries(this.tracks))
+        a.volume = start[name] + ((name === targetName ? target : 0) - start[name]) * t;
+      if (i >= steps) {
+        clearInterval(this._fadeTimer); this._fadeTimer = null;
+        for (const [name, a] of Object.entries(this.tracks)) if (name !== targetName) a.pause();
+      }
+    }, 40);
+  }
+
+  /**
+   * Try to start playback of the current track.
+   * @returns {Promise<boolean>} true if it actually started, false if the
+   *   browser blocked autoplay (caller keeps the gesture fallback armed).
+   */
+  start() {
+    if (this.playing) return Promise.resolve(true);
+    this.playing = true;                 // optimistic guard against re-entrancy
+    const a = this.tracks[this.current];
+    a.volume = 0;
+    const p = a.play();
+    if (p) {
+      return p.then(() => { this._fadeTo(this.current); return true; }).catch(err => {
+        console.warn('[BGM] Play blocked:', err.message, '— will retry on next interaction');
+        this.playing = false;
+        return false;
+      });
+    }
+    this._fadeTo(this.current);
+    return Promise.resolve(true);
+  }
+
+  /** Crossfade to a different track (base ⇄ bonus). */
+  switchTo(name, ms = 1200) {
+    if (!this.tracks[name] || this.current === name) { this.current = name; return; }
+    this.current = name;
+    if (!this.playing) return;           // start() will pick up the new current track
+    const a = this.tracks[name];
+    try { a.currentTime = 0; } catch (e) {}
+    a.volume = 0;
+    a.play().catch(() => {});
+    this._fadeTo(name, ms);
+  }
+  switchToBonus(ms) { this.switchTo('bonus', ms); }
+  switchToBase(ms)  { this.switchTo('base', ms); }
+
+  stop() {
+    this.playing = false;
+    if (this._fadeTimer) { clearInterval(this._fadeTimer); this._fadeTimer = null; }
+    for (const a of Object.values(this.tracks)) { a.pause(); a.currentTime = 0; a.volume = 0; }
+  }
+  setVolume(v) {
+    this._volume = Math.max(0, Math.min(1, v));
+    if (!this._fadeTimer && this.playing) this.tracks[this.current].volume = this._effective();
+  }
+  getVolume() { return this._volume; }
+  isPlaying() { return this.playing; }
+}
+
+const synth = new Synth();
+const bgm = new BGMusic();
+
+Object.assign(exports, { synth, bgm });
+
+  };
+
+  __mods["basegame"] = function (exports, require) {
+/**
+ * @module basegame
+ * @description The normal spin: take the bet, spin the reels, then present the
+ * result (loss, small/medium/big/mega win, or bonus trigger). Also handles the
+ * bet +/- buttons, turbo toggle, auto-spin, and the spin keyboard shortcuts.
+ * Wins are computed by mathcore; this file is presentation + flow.
+ */
+
+const { BET_LEVELS } = require("config");
+const { state } = require("state");
+const { sleep, fmt } = require("utils");
+const { synth } = require("audio");
+const { narrator } = require("narrator");
+const { generateGrid, evaluateGrid, countHats, shouldAnticipate } = require("mathcore");
+const { animateReel, getReelStrips, highlightWinners, clearHighlights, animateWinCount } = require("engine");
+const {
+  spawnStarbursts, spawnSideWaterfall, spawnWinVignette, spawnWinPopText,
+  playWinPresentation
+} = require("particles");
+const { setStatus, updateDisplays, elWin, buttons, stopAuto } = require("ui");
+const { startBonus, isBonusActive } = require("bonus");
+
+const cabinet    = document.getElementById('cabinet');
+const winFlash   = document.getElementById('win-flash');
+const bigWinOver = document.getElementById('big-win-overlay');
+const bigWinLabel = document.getElementById('big-win-label');
+const bigWinAmt  = document.getElementById('big-win-amount');
+const spinVideo  = document.getElementById('spin-video');   // animated SPIN badge
+
+const shake = ms => { cabinet.classList.add('screen-shake'); setTimeout(() => cabinet.classList.remove('screen-shake'), ms); };
+
+// Rest the badge on its first frame; replay it from the start on each spin.
+if (spinVideo) {
+  spinVideo.addEventListener('loadeddata', () => { try { spinVideo.currentTime = 0; } catch (e) {} });
+  spinVideo.addEventListener('ended', () => { try { spinVideo.pause(); spinVideo.currentTime = 0; } catch (e) {} });
+}
+function playSpinBadge() {
+  if (spinVideo) { try { spinVideo.currentTime = 0; spinVideo.play().catch(() => {}); } catch (e) {} }
+}
+
+/* ══════════════════════════════════════════
+   SPIN
+══════════════════════════════════════════ */
+function triggerSpin() {
+  if (state.spinning || isBonusActive()) return;
+
+  const bet = BET_LEVELS[state.betIndex];
+  if (state.balance < bet) {
+    setStatus('INSUFFICIENT FUNDS!', 'error');
+    narrator.onInsufficientFunds();
+    stopAuto();
+    return;
+  }
+
+  state.spinning = true;
+  state.balance -= bet;
+  elWin.textContent = '$0.00';
+  elWin.classList.remove('win-glow');
+  updateDisplays();
+  setStatus('SPINNING…');
+  bigWinOver.classList.add('hidden');
+  clearHighlights();
+
+  buttons.spin.disabled = buttons.betUp.disabled = buttons.betDown.disabled = true;
+
+  synth.startSpin();
+  playSpinBadge();
+  narrator.onSpin();
+  if (state.balance < bet * 3) narrator.onLowBalance();
+
+  const targetGrid = generateGrid();
+  const anticipate = shouldAnticipate(targetGrid);
+
+  let stopped = 0;
+  for (let r = 0; r < 5; r++) {
+    animateReel(r, targetGrid[r], () => { if (++stopped === 5) finalizeSpin(targetGrid, bet); }, anticipate);
+  }
+}
+
+async function finalizeSpin(targetGrid, bet) {
+  synth.stopSpin();
+  state.currentGrid = targetGrid;
+  const reelStrips = getReelStrips();
+
+  // bonus trigger takes priority over line wins
+  const { count: hatCount, hatCells } = countHats(targetGrid);
+  if (hatCount >= 6) {
+    hatCells.forEach(([r, row]) => {
+      const cell = reelStrips[r].querySelectorAll('.sym-cell')[row];
+      if (cell) cell.classList.add('is-winner');
+    });
+    shake(600);
+    playWinPresentation(8, false); // 8 is a big win threshold, sufficient for the bonus trigger celebration
+    spawnWinVignette(); spawnStarbursts(hatCells);
+    narrator.onBonusTrigger();
+    state.spinning = false;
+    await sleep(800);
+    startBonus(bet, targetGrid);
+    return;
+  }
+
+  const { totalWin, winners } = evaluateGrid(targetGrid, bet);
+
+  if (totalWin > 0) {
+    highlightWinners(winners);
+    spawnWinVignette();
+    winFlash.classList.remove('hidden');
+    setTimeout(() => winFlash.classList.add('hidden'), 500);
+    cabinet.classList.add('win-flash-active');
+    setTimeout(() => cabinet.classList.remove('win-flash-active'), 500);
+    spawnStarbursts(winners.flatMap(w => w.cells));
+    spawnWinPopText(totalWin);
+
+    const ratio = totalWin / bet;
+    if (ratio >= 8) {
+      const isMega = ratio >= 15;
+      bigWinLabel.textContent = isMega ? 'MEGA WIN!' : 'BIG WIN!';
+      bigWinLabel.classList.toggle('mega-win', isMega);
+      shake(600);
+      playWinPresentation(ratio, isMega);
+      synth.bigWinAlarm();
+      narrator.onWin(totalWin, bet);
+      await animateWinCount(totalWin, isMega ? 2500 : 1800);
+      bigWinAmt.textContent = fmt(totalWin);
+      bigWinOver.classList.remove('hidden');
+      state.balance += totalWin;
+      updateDisplays();
+      setStatus(`YOU WON ${fmt(totalWin)}!`, 'win');
+      setTimeout(() => bigWinOver.classList.add('hidden'), 3500);
+    } else if (ratio >= 2) {
+      playWinPresentation(ratio);
+      synth.win(totalWin, bet);
+      narrator.onWin(totalWin, bet);
+      await animateWinCount(totalWin, 1000);
+      state.balance += totalWin;
+      updateDisplays();
+      setStatus(`YOU WON ${fmt(totalWin)}!`, 'win');
+    } else {
+      playWinPresentation(ratio);
+      synth.win(totalWin, bet);
+      narrator.onWin(totalWin, bet);
+      await animateWinCount(totalWin, 800);
+      state.balance += totalWin;
+      updateDisplays();
+      setStatus(`YOU WON ${fmt(totalWin)}!`, 'win');
+    }
+  } else {
+    setStatus('GOOD LUCK – PRESS SPIN!');
+    narrator.onLoss();
+  }
+
+  // unlock (auto-spin continues, otherwise re-enable buttons)
+  const delay = totalWin > 0 ? (totalWin / bet >= 8 ? 3800 : 1200) : 350;
+  setTimeout(() => {
+    state.spinning = false;
+    if (state.autoActive) {
+      state.autoTimer = setTimeout(triggerSpin, state.turbo ? 500 : 1400);
+    } else {
+      buttons.spin.disabled = buttons.betUp.disabled = buttons.betDown.disabled = false;
+    }
+  }, delay);
+}
+
+/* ══════════════════════════════════════════
+   AUTO-SPIN  (stopAuto lives in ui.js)
+══════════════════════════════════════════ */
+function startAuto() {
+  state.autoActive = true;
+  buttons.auto.textContent = 'STOP';
+  buttons.auto.classList.add('is-active');
+  if (!state.spinning && !isBonusActive()) triggerSpin();
+}
+
+/* ══════════════════════════════════════════
+   CONTROL WIRING
+══════════════════════════════════════════ */
+buttons.spin.addEventListener('click', () => { if (!state.spinning && !isBonusActive()) triggerSpin(); });
+
+buttons.betUp.addEventListener('click', () => {
+  if (state.spinning || isBonusActive()) return;
+  state.betIndex = Math.min(BET_LEVELS.length - 1, state.betIndex + 1);
+  updateDisplays();
+  narrator.onBetChange('up');
+});
+
+buttons.betDown.addEventListener('click', () => {
+  if (state.spinning || isBonusActive()) return;
+  state.betIndex = Math.max(0, state.betIndex - 1);
+  updateDisplays();
+  narrator.onBetChange('down');
+});
+
+buttons.auto.addEventListener('click', () => {
+  if (isBonusActive()) return;
+  if (state.autoActive) stopAuto(); else startAuto();
+});
+
+const chkTurbo = document.getElementById('chk-turbo');
+if (chkTurbo) chkTurbo.addEventListener('change', () => { state.turbo = chkTurbo.checked; });
+
+document.addEventListener('keydown', (e) => {
+  if (e.code === 'Space' && !state.spinning && !isBonusActive()) { e.preventDefault(); triggerSpin(); }
+  if (e.code === 'KeyA' && !isBonusActive()) { state.autoActive ? stopAuto() : startAuto(); }
+  if (e.code === 'Backquote') {
+    const dbg = document.getElementById('debug-panel');
+    if (dbg) dbg.classList.toggle('hidden');
+  }
+});
+
+Object.assign(exports, { triggerSpin, startAuto });
+
+  };
+
+  __mods["bonus"] = function (exports, require) {
+/**
+ * @module bonus
+ * @description The Hard Hat Free Spins feature — the whole show:
+ *   1. trigger intro  →  2. free spins that build straw/stick/brick houses
+ *   →  3. the wolf blows each house down for a prize  →  4. mansion jackpot for
+ *   3+ bricks  →  5. pay out the total.
+ *
+ * Award magnitudes come from BONUS_CONFIG via mathcore's rollHouseAward /
+ * rollMansionAward, so this file controls the *show* and mathcore controls the
+ * *money* (kept identical to the headless simulateBonusOutcome).
+ */
+
+const { HAT_IDS, MAX_FRAME_TIER, BONUS_CONFIG } = require("config");
+const { state } = require("state");
+const { sleep, fmt } = require("utils");
+const { synth, bgm } = require("audio");
+const { narrator } = require("narrator");
+const { generateGrid, evaluateGrid, rollHouseAward, rollMansionAward } = require("mathcore");
+const { animateAllReels, highlightWinners, clearHighlights, animateWinCount, getReelStrips } = require("engine");
+const {
+  spawnCoinShower, spawnCoinFountain, spawnDollarBills, spawnConfetti, spawnSparkles,
+  spawnStarbursts, spawnWinVignette, spawnWinPopText,
+  playWinPresentation
+} = require("particles");
+const { setStatus, updateDisplays, setControlsEnabled, stopAuto, elWin } = require("ui");
+
+/* ── DOM ── */
+const cabinet         = document.getElementById('cabinet');
+const particleContainer = document.getElementById('particle-container');
+const bonusHud        = document.getElementById('bonus-hud');
+const bonusOverlay    = document.getElementById('bonus-overlay');
+const bonusTitle      = document.getElementById('bonus-title');
+const bonusPhaseLabel = document.getElementById('bonus-phase-label');
+const bonusSpinsLeft  = document.getElementById('bonus-spins-left');
+const bonusWinDisplay = document.getElementById('bonus-win-display');
+const mansionOverlay  = document.getElementById('mansion-overlay');
+const mansionTitle    = document.getElementById('mansion-title');
+const mansionSubtitle = document.getElementById('mansion-subtitle');
+const mansionPress    = document.getElementById('mansion-press');
+const wolfTornadoOverlay = document.getElementById('wolf-tornado-overlay');
+const wolfTornadoVideo   = document.getElementById('wolf-tornado-video');
+const bigWinOver      = document.getElementById('big-win-overlay');
+const bigWinLabel     = document.getElementById('big-win-label');
+const bigWinAmt       = document.getElementById('big-win-amount');
+const bonusIntroOverlay = document.getElementById('bonus-intro-overlay');
+const bonusIntroVideo   = document.getElementById('bonus-intro-video');
+
+/* ── bonus-only state ── */
+let bonusActive    = false;
+let bonusFreeSpins = 0;
+let bonusTotalWin  = 0;
+let bonusBet       = 0;
+let frameTiers     = makeGrid();
+let prevFrameTiers = makeGrid();
+
+function makeGrid() { return Array.from({ length: 5 }, () => [0, 0, 0]); }
+function isBonusActive() { return bonusActive; }
+
+/**
+ * Bonus intro video, contained inside the reel window. Resolves when it ends, is
+ * clicked (skip), errors, or hits a safety timeout — so the bonus can never get
+ * stuck behind it.
+ */
+function playBonusIntro() {
+  return new Promise(resolve => {
+    if (!bonusIntroOverlay || !bonusIntroVideo) { resolve(); return; }
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      bonusIntroOverlay.classList.add('fade-out');
+      try { bonusIntroVideo.pause(); } catch (e) {}
+      setTimeout(() => {
+        bonusIntroOverlay.classList.add('hidden');
+        bonusIntroOverlay.classList.remove('fade-out');
+        resolve();
+      }, 500);
+    };
+    bonusIntroVideo.addEventListener('ended', finish, { once: true });
+    bonusIntroVideo.addEventListener('error', finish, { once: true });
+    bonusIntroOverlay.addEventListener('click', finish, { once: true });
+    bonusIntroOverlay.classList.remove('hidden');
+    try { bonusIntroVideo.currentTime = 0; } catch (e) {}
+    // Try with sound (the player has already interacted); fall back to muted so it always shows.
+    bonusIntroVideo.muted = false;
+    bonusIntroVideo.play().catch(() => {
+      bonusIntroVideo.muted = true;
+      bonusIntroVideo.play().catch(finish);
+    });
+    setTimeout(finish, 30000);   // hard safety cap
+  });
+}
+
+/**
+ * Wolf-blow video (the tornado huff). Plays once, contained inside the reel
+ * window — same containment as the bonus intro. Resolves when it ends, is
+ * clicked (skip), errors, or hits a safety timeout, then fades out.
+ */
+function playWolfTornado() {
+  return new Promise(resolve => {
+    if (!wolfTornadoOverlay || !wolfTornadoVideo) { resolve(); return; }
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      wolfTornadoOverlay.classList.add('fade-out');
+      try { wolfTornadoVideo.pause(); } catch (e) {}
+      setTimeout(() => {
+        wolfTornadoOverlay.classList.add('hidden');
+        wolfTornadoOverlay.classList.remove('fade-out');
+        resolve();
+      }, 500);
+    };
+    wolfTornadoVideo.addEventListener('ended', finish, { once: true });
+    wolfTornadoVideo.addEventListener('error', finish, { once: true });
+    wolfTornadoOverlay.addEventListener('click', finish, { once: true });
+    wolfTornadoOverlay.classList.remove('hidden');
+    try { wolfTornadoVideo.currentTime = 0; } catch (e) {}
+    wolfTornadoVideo.muted = true;                 // webm has no audio; the synth wolfHuff carries the sound
+    wolfTornadoVideo.play().catch(finish);
+    setTimeout(finish, 12000);                     // hard safety cap
+  });
+}
+
+/* ══════════════════════════════════════════
+   ENTRY
+══════════════════════════════════════════ */
+async function startBonus(bet, triggerGrid) {
+  stopAuto();
+  bonusActive = true;
+  bonusFreeSpins = BONUS_CONFIG.freeSpins;
+  bonusTotalWin = 0;
+  bonusBet = bet;
+  frameTiers = makeGrid();
+  prevFrameTiers = makeGrid();
+  setControlsEnabled(false);
+
+  // bonus intro video plays inside the reel window as soon as the bonus triggers
+  await playBonusIntro();
+
+  // swap to the bigger, epic bonus score (crossfades from the base-game theme)
+  bgm.switchToBonus();
+
+  // trigger hats become the first straw frames
+  for (let r = 0; r < 5; r++)
+    for (let row = 0; row < 3; row++)
+      if (HAT_IDS.includes(triggerGrid[r][row]))
+        frameTiers[r][row] = Math.min(frameTiers[r][row] + 1, MAX_FRAME_TIER);
+
+  synth.bonusSiren();
+  showBonusOverlay('BONUS REEL FEATURE!', 'FREE SPINS STARTING');
+  if (bonusHud) bonusHud.classList.remove('hidden');
+  shake(600);
+  await sleep(2800);
+  hideBonusOverlay();
+
+  showMansionOverlay(bonusFreeSpins);
+  await sleep(3000);
+  hideMansionOverlay();
+
+  renderFrameOverlays();
+  updateBonusHUD();
+  await runFreeSpins();
+}
+
+/* ══════════════════════════════════════════
+   FREE SPINS
+══════════════════════════════════════════ */
+async function runFreeSpins() {
+  const reelStrips = getReelStrips();
+  while (bonusFreeSpins > 0) {
+    bonusFreeSpins--;
+    updateBonusHUD();
+    setStatus(`FREE SPIN — ${bonusFreeSpins + 1} remaining`, 'win');
+    narrator.onFreeSpin();
+    await sleep(600);
+
+    const targetGrid = generateGrid();
+    synth.startSpin();
+    await animateAllReels(targetGrid);
+    synth.stopSpin();
+    state.currentGrid = targetGrid;
+
+    // line wins still pay during free spins
+    const { totalWin, winners } = evaluateGrid(targetGrid, bonusBet);
+    if (totalWin > 0) {
+      highlightWinners(winners);
+      synth.win(totalWin, bonusBet);
+      bonusTotalWin += totalWin;
+      spawnWinVignette();
+      spawnStarbursts(winners.flatMap(w => w.cells));
+      spawnWinPopText(totalWin);
+      const ratio = totalWin / bonusBet;
+      if (ratio > 0) {
+        playWinPresentation(ratio, false);
+      }
+      await animateWinCount(bonusTotalWin, 600);
+      updateBonusHUD();
+      await sleep(400);
+      clearHighlights();
+    }
+
+    // hats upgrade houses; track new bricks
+    let newHats = 0;
+    const newBrickCells = [];
+    for (let r = 0; r < 5; r++)
+      for (let row = 0; row < 3; row++)
+        if (HAT_IDS.includes(targetGrid[r][row])) {
+          const old = frameTiers[r][row];
+          frameTiers[r][row] = Math.min(old + 1, MAX_FRAME_TIER);
+          newHats++;
+          if (old === 2 && frameTiers[r][row] === 3) newBrickCells.push({ reel: r, row });
+        }
+    renderFrameOverlays();
+
+    if (newHats > 0) {
+      if (newBrickCells.length > 0) narrator.onFrameUpgrade(3);
+      else narrator.onFrameUpgrade(Math.min(frameTiers.flat().filter(t => t > 0).slice(-1)[0] || 1, 2));
+    }
+
+    if (newBrickCells.length > 0) await animateBrickBuild(newBrickCells);
+
+    const brickCount = countBrickFrames();
+    if (brickCount >= BONUS_CONFIG.mansion.minBricks && newBrickCells.length > 0) {
+      await triggerMansionsJackpot(brickCount);
+    }
+
+    if (newHats >= BONUS_CONFIG.retriggerHats) {
+      bonusFreeSpins += BONUS_CONFIG.retriggerSpins;
+      synth.retriggerChime();
+      narrator.onRetrigger();
+      setStatus(`+1 FREE SPIN RETRIGGER! (${newHats} Hats)`, 'win');
+      showBonusOverlay('+1 FREE SPIN!', 'RETRIGGER');
+      spawnCoinShower(15, 1500);
+      await sleep(1800);
+      hideBonusOverlay();
+    }
+
+    updateBonusHUD();
+    await sleep(400);
+  }
+  await wolfEndGameReveal();
+}
+
+/* ══════════════════════════════════════════
+   WOLF REVEAL — pay out every house
+══════════════════════════════════════════ */
+async function wolfEndGameReveal() {
+  const reelStrips = getReelStrips();
+  setStatus('THE WOLF IS COMING...', 'win');
+  narrator.onWolfReveal();
+  cabinet.classList.add('wolf-reveal-active');
+
+  // the wolf huffs & puffs — tornado video plays contained inside the reel window
+  synth.wolfHuff();
+  await playWolfTornado();
+
+  const framedCells = [];
+  for (let r = 0; r < 5; r++)
+    for (let row = 0; row < 3; row++)
+      if (frameTiers[r][row] > 0) framedCells.push({ reel: r, row, tier: frameTiers[r][row] });
+  framedCells.sort((a, b) => a.tier - b.tier);   // straw first
+
+  for (const { reel, row, tier } of framedCells) {
+    const cellEl = reelStrips[reel].querySelectorAll('.sym-cell')[row];
+    if (!cellEl) continue;
+
+    narrator.onWolfBlow(tier);
+
+    cellEl.classList.add('bonus-shake');
+    if (tier === 3) shake(600);
+    await sleep(800);
+    cellEl.classList.remove('bonus-shake');
+
+    // award (formula from mathcore; presentation here)
+    const { amount, isJackpot } = rollHouseAward(tier, bonusBet);
+    const award = Math.round(amount * 100) / 100;
+    if (isJackpot && tier === 2) {
+      setStatus('⭐ MINI JACKPOT! ⭐', 'win'); narrator.onMiniJackpot(); playWinPresentation(3);
+    } else if (isJackpot && tier === 3) {
+      setStatus('🏆 MINOR JACKPOT! 🏆', 'win'); narrator.onMiniJackpot(); shake(600); playWinPresentation(8);
+    } else if (tier === 3) {
+      spawnCoinShower(20, 1500);
+    }
+
+    updateCellToHouse(cellEl, tier);
+    synth.houseAward(tier);
+    sparkleAt(cellEl, 12);
+
+    bonusTotalWin += award;
+    setStatus(`${['', 'STRAW', 'STICK', 'BRICK'][tier]} HOUSE → ${fmt(award)}`, 'win');
+    await animateWinCount(bonusTotalWin, 500);
+    updateBonusHUD();
+    await sleep(800);
+  }
+
+  cabinet.classList.remove('wolf-reveal-active');
+  await endBonus();
+}
+
+/* ══════════════════════════════════════════
+   MANSION JACKPOT
+══════════════════════════════════════════ */
+async function triggerMansionsJackpot(brickCount) {
+  setStatus('🏰 MANSIONS FEATURE! 🏰', 'win');
+  shake(600);
+  synth.mansionFanfare();
+  narrator.onMansionJackpot();
+  showMansionOverlay(bonusFreeSpins, true);
+  spawnCoinShower(40, 3000);
+  await sleep(3000);
+  hideMansionOverlay();
+
+  const award = Math.round(rollMansionAward(brickCount, bonusBet) * 100) / 100;
+  bonusTotalWin += award;
+  setStatus(`🏰 MANSION JACKPOT: ${fmt(award)}! 🏰`, 'win');
+  bigWinLabel.textContent = '🏰 MANSION JACKPOT!';
+  bigWinLabel.classList.remove('mega-win');
+  bigWinAmt.textContent = fmt(award);
+  bigWinOver.classList.remove('hidden');
+  shake(600);
+  spawnCoinShower(60, 4000);
+  await animateWinCount(bonusTotalWin, 2000);
+  updateBonusHUD();
+  await sleep(3500);
+  bigWinOver.classList.add('hidden');
+}
+
+/* ══════════════════════════════════════════
+   FINISH
+══════════════════════════════════════════ */
+async function endBonus() {
+  bonusTotalWin = Math.round(bonusTotalWin * 100) / 100;
+  showBonusOverlay(`BONUS WIN: ${fmt(bonusTotalWin)}`, 'CONGRATULATIONS!');
+  synth.bonusSiren();
+  spawnCoinShower(60, 3500);
+  shake(600);
+  await sleep(3500);
+  hideBonusOverlay();
+
+  state.balance += bonusTotalWin;
+  updateDisplays();
+  elWin.textContent = fmt(bonusTotalWin);
+  elWin.classList.add('win-glow');
+  setStatus(`BONUS COMPLETE — WON ${fmt(bonusTotalWin)}!`, 'win');
+  narrator.onBonusComplete(bonusTotalWin);
+
+  clearFrameOverlays();
+  if (bonusHud) bonusHud.classList.add('hidden');
+  document.querySelectorAll('.house-icon').forEach(el => el.remove());
+  document.querySelectorAll('.is-house-revealed').forEach(el => el.classList.remove('is-house-revealed'));
+  document.querySelectorAll('.house-straw, .house-stick, .house-brick, .house-mansion')
+    .forEach(el => el.classList.remove('house-straw', 'house-stick', 'house-brick', 'house-mansion'));
+
+  // crossfade back to the whimsical base-game theme
+  bgm.switchToBase();
+
+  bonusActive = false;
+  state.spinning = false;
+  setControlsEnabled(true);
+}
+
+/* ══════════════════════════════════════════
+   FRAME / HOUSE VISUALS
+══════════════════════════════════════════ */
+function updateCellToHouse(cellEl, tier) {
+  const existing = cellEl.querySelector('.frame-overlay');
+  if (existing) existing.remove();
+  cellEl.classList.add('is-house-revealed');
+  cellEl.classList.remove('frame-straw', 'frame-stick', 'frame-brick');
+  cellEl.classList.add(['', 'house-straw', 'house-stick', 'house-brick'][tier]);
+  const houseDiv = document.createElement('div');
+  houseDiv.className = 'house-icon' + (tier === 3 ? ' mansion-house' : '');
+  houseDiv.textContent = ['', '🏚️', '🏠', '🏰'][tier];
+  cellEl.appendChild(houseDiv);
+  if (tier === 3) cellEl.classList.add('house-mansion');
+}
+
+function countBrickFrames() {
+  let count = 0;
+  for (let r = 0; r < 5; r++) for (let row = 0; row < 3; row++) if (frameTiers[r][row] === 3) count++;
+  return count;
+}
+
+async function animateBrickBuild(cells) {
+  const reelStrips = getReelStrips();
+  for (const { reel, row } of cells) {
+    const cellEl = reelStrips[reel].querySelectorAll('.sym-cell')[row];
+    const frameEl = cellEl && cellEl.querySelector('.frame-tier-3');
+    if (!frameEl) continue;
+    frameEl.classList.add('brick-building');
+    for (const t of [0, 250, 500, 750]) setTimeout(() => synth.brickLay(), t);
+    const rect = cellEl.getBoundingClientRect();
+    const cr = particleContainer.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2 - cr.left, cy = rect.top + rect.height / 2 - cr.top;
+    setTimeout(() => spawnSparkles(cx - rect.width / 2, cy - rect.height / 2, 4), 100);
+    setTimeout(() => spawnSparkles(cx + rect.width / 2, cy - rect.height / 2, 4), 300);
+    setTimeout(() => spawnSparkles(cx + rect.width / 2, cy + rect.height / 2, 4), 550);
+    setTimeout(() => spawnSparkles(cx - rect.width / 2, cy + rect.height / 2, 4), 800);
+    await sleep(1200);
+    frameEl.classList.remove('brick-building');
+    frameEl.classList.add('brick-complete');
+    synth.houseAward(3);
+    spawnSparkles(cx, cy, 12);
+    await sleep(500);
+    frameEl.classList.remove('brick-complete');
+  }
+}
+
+function renderFrameOverlays() {
+  clearFrameOverlays();
+  const reelStrips = getReelStrips();
+  for (let r = 0; r < 5; r++)
+    for (let row = 0; row < 3; row++) {
+      const tier = frameTiers[r][row];
+      if (tier === 0) continue;
+      const cell = reelStrips[r].querySelectorAll('.sym-cell')[row];
+      if (!cell) continue;
+      cell.classList.remove('frame-straw', 'frame-stick', 'frame-brick');
+      cell.classList.add(['', 'frame-straw', 'frame-stick', 'frame-brick'][tier]);
+      const overlay = document.createElement('div');
+      overlay.className = 'frame-overlay frame-tier-' + tier;
+      cell.appendChild(overlay);
+      if (tier > prevFrameTiers[r][row]) {
+        cell.classList.remove('frame-pop');
+        void cell.offsetWidth;
+        cell.classList.add('frame-pop');
+      }
+    }
+  prevFrameTiers = frameTiers.map(col => [...col]);
+}
+
+function clearFrameOverlays() {
+  document.querySelectorAll('.frame-overlay').forEach(el => el.remove());
+  document.querySelectorAll('.frame-straw, .frame-stick, .frame-brick')
+    .forEach(el => el.classList.remove('frame-straw', 'frame-stick', 'frame-brick'));
+}
+
+/* ══════════════════════════════════════════
+   OVERLAYS / HUD / small helpers
+══════════════════════════════════════════ */
+function showBonusOverlay(title, phase) {
+  if (!bonusOverlay) return;
+  bonusTitle.textContent = title;
+  bonusPhaseLabel.textContent = phase;
+  bonusOverlay.classList.remove('hidden');
+}
+function hideBonusOverlay() { if (bonusOverlay) bonusOverlay.classList.add('hidden'); }
+
+function showMansionOverlay(spinsRemaining, isJackpot = false) {
+  if (!mansionOverlay) return;
+  if (mansionSubtitle) mansionSubtitle.textContent = isJackpot ? 'MANSION JACKPOT AWARDED!' : `${spinsRemaining} FREE GAMES REMAINING`;
+  if (mansionTitle) mansionTitle.textContent = isJackpot ? '🏰 MANSION JACKPOT!' : 'MANSIONS FEATURE';
+  if (mansionPress) mansionPress.textContent = isJackpot ? 'CONGRATULATIONS!' : 'PRESS PLAY!';
+  mansionOverlay.classList.remove('hidden');
+}
+function hideMansionOverlay() { if (mansionOverlay) mansionOverlay.classList.add('hidden'); }
+
+function updateBonusHUD() {
+  if (bonusSpinsLeft) bonusSpinsLeft.textContent = bonusFreeSpins;
+  if (bonusWinDisplay) bonusWinDisplay.textContent = fmt(bonusTotalWin);
+}
+
+function shake(ms) {
+  cabinet.classList.add('screen-shake');
+  setTimeout(() => cabinet.classList.remove('screen-shake'), ms);
+}
+function sparkleAt(cellEl, n) {
+  const rect = cellEl.getBoundingClientRect();
+  const cr = particleContainer.getBoundingClientRect();
+  spawnSparkles(rect.left + rect.width / 2 - cr.left, rect.top + rect.height / 2 - cr.top, n);
+}
+
+Object.assign(exports, { isBonusActive, startBonus });
+
+  };
+
+  __mods["buybonus"] = function (exports, require) {
+/**
+ * @module buybonus
+ * @description "Buy Bonus": pay buyCostMult × bet (80×) to skip the base game
+ * and go straight into the feature. Priced (in config) so the buy's RTP matches
+ * the game's ~97% — see PARSHEET.md. The trigger screen is rejection-sampled
+ * from real spins so a bought bonus is worth exactly what a natural one is.
+ */
+
+const { BET_LEVELS, BONUS_CONFIG, HAT_IDS } = require("config");
+const { state } = require("state");
+const { fmt } = require("utils");
+const { synth } = require("audio");
+const { narrator } = require("narrator");
+const { generateGrid, countHats } = require("mathcore");
+const { animateReel, getReelStrips } = require("engine");
+const { spawnCoinShower } = require("particles");
+const { setStatus, updateDisplays, elWin, buttons } = require("ui");
+const { startBonus, isBonusActive } = require("bonus");
+
+const cabinet      = document.getElementById('cabinet');
+const buyModal     = document.getElementById('buy-modal');
+const btnCloseBuy  = document.getElementById('btn-close-buy');
+const btnConfirmBuy = document.getElementById('btn-confirm-buy');
+const btnCancelBuy = document.getElementById('btn-cancel-buy');
+const buyCostEl    = document.getElementById('buy-cost');
+const buyBetEl     = document.getElementById('buy-bet');
+
+/** Current cost to buy the bonus, in dollars. */
+function bonusBuyCost() {
+  return Math.round(BET_LEVELS[state.betIndex] * BONUS_CONFIG.buyCostMult * 100) / 100;
+}
+
+function executeBonusBuy() {
+  if (state.spinning || isBonusActive()) return;
+  const bet = BET_LEVELS[state.betIndex];
+  const cost = bonusBuyCost();
+  if (state.balance < cost) {
+    setStatus('NOT ENOUGH CASH TO BUY THE BONUS!', 'error');
+    narrator.onInsufficientFunds();
+    return;
+  }
+
+  // rejection-sample a real screen until it has 6+ hats (matches natural triggers)
+  let mockGrid, guard = 0;
+  do { mockGrid = generateGrid(); }
+  while (countHats(mockGrid).count < BONUS_CONFIG.triggerHats && ++guard < 100000);
+
+  state.spinning = true;
+  state.balance -= cost;
+  elWin.textContent = '$0.00';
+  elWin.classList.remove('win-glow');
+  updateDisplays();
+  setStatus(`BONUS PURCHASED — ${fmt(cost)}`, 'win');
+  buttons.spin.disabled = buttons.betUp.disabled = buttons.betDown.disabled = true;
+
+  synth.startSpin();
+  const reelStrips = getReelStrips();
+  let stopped = 0;
+  for (let r = 0; r < 5; r++) {
+    animateReel(r, mockGrid[r], () => {
+      if (++stopped !== 5) return;
+      synth.stopSpin();
+      state.currentGrid = mockGrid;
+      for (let ri = 0; ri < 5; ri++)
+        for (let row = 0; row < 3; row++)
+          if (HAT_IDS.includes(mockGrid[ri][row])) {
+            const cell = reelStrips[ri].querySelectorAll('.sym-cell')[row];
+            if (cell) cell.classList.add('is-winner');
+          }
+      state.spinning = false;
+      cabinet.classList.add('screen-shake');
+      setTimeout(() => cabinet.classList.remove('screen-shake'), 600);
+      spawnCoinShower(30, 2000);
+      setTimeout(() => startBonus(bet, mockGrid), 1000);
+    }, true); // anticipation on
+  }
+}
+
+function openBuyConfirm() {
+  if (state.spinning || isBonusActive()) return;
+  if (buyCostEl) buyCostEl.textContent = fmt(bonusBuyCost());
+  if (buyBetEl) buyBetEl.textContent = fmt(BET_LEVELS[state.betIndex]);
+  if (buyModal) buyModal.classList.remove('hidden');
+}
+function closeBuyConfirm() { if (buyModal) buyModal.classList.add('hidden'); }
+
+/* ── wiring ── */
+if (buttons.buy) buttons.buy.addEventListener('click', openBuyConfirm);
+if (btnCloseBuy) btnCloseBuy.addEventListener('click', closeBuyConfirm);
+if (btnCancelBuy) btnCancelBuy.addEventListener('click', closeBuyConfirm);
+if (buyModal) buyModal.addEventListener('click', e => { if (e.target === buyModal) closeBuyConfirm(); });
+if (btnConfirmBuy) btnConfirmBuy.addEventListener('click', () => { closeBuyConfirm(); executeBonusBuy(); });
+
+document.addEventListener('keydown', (e) => {
+  if (e.code === 'KeyB' && !state.spinning && !isBonusActive()) openBuyConfirm();
+});
+
+Object.assign(exports, { bonusBuyCost });
+
+  };
+
+  __mods["config"] = function (exports, require) {
+/**
+ * @module config
+ * @description Game configuration, symbol definitions, reel strip layouts,
+ *              and shared constants for Huff N' More Puff.
+ *
+ * ════════════════════════════════════════════════════════════════════════
+ *  THIS FILE IS THE CANONICAL PAR SHEET (single source of truth for math).
+ *  Human-readable summary + expected RTP decomposition lives in PARSHEET.md.
+ *  Re-verify any change with:   node tools/sim.js
+ *  Both the live game (js/main.js → modules) and the verifier import from here,
+ *  so there is exactly ONE copy of these numbers.
+ * ════════════════════════════════════════════════════════════════════════
+ *
+ * Design target: ~97% RTP, high volatility (real "Huff N' More Puff" feel).
+ *   • Base game  ≈ 50% RTP  (243-ways, fairly quiet between features)
+ *   • Bonus      ≈ 47% RTP  (wolf/house feature drives most of the return)
+ *   • Bonus trigger ≈ 1 in 175 spins (6+ hard-hat scatters)
+ */
+
+/* ══════════════════════════════════════════
+   NAMED CONSTANTS
+══════════════════════════════════════════ */
+
+/** Number of reels on the machine */
+const REEL_COUNT = 5;
+
+/** Rows visible per reel */
+const ROWS_PER_REEL = 3;
+
+/** Minimum consecutive reels for a ways-win */
+const MIN_WIN_SPAN = 3;
+
+/** Number of scatter hats required to trigger the bonus */
+const BONUS_TRIGGER_HATS = 6;
+
+/** Free spins awarded on bonus trigger */
+const FREE_SPINS_INITIAL = 6;
+
+/** Hats needed during a free spin to retrigger +1 */
+const RETRIGGER_HATS = 3;
+
+/** Maximum frame tier (brick/mansion) */
+const MAX_FRAME_TIER = 3;
+
+/** Frame tier labels for display */
+const TIER_NAMES = ['', 'STRAW', 'STICK', 'BRICK'];
+
+/** House emoji per tier for UI rendering */
+const TIER_EMOJIS = ['', '🏚️', '🏠', '🏰'];
+
+/** Scroll symbols during normal spin animation */
+const SCROLL_SYMBOLS = 22;
+
+/** Scroll symbols during turbo spin animation */
+const TURBO_SCROLL = 10;
+
+/** Normal reel stop durations (ms) per reel index */
+const SPIN_DURATIONS = [620, 820, 1020, 1220, 1420];
+
+/** Turbo reel stop durations (ms) per reel index */
+const TURBO_DURATIONS = [280, 360, 440, 520, 600];
+
+/** Extra ms added to anticipation reels */
+const ANTICIPATION_EXTRA = 800;
+
+/** Bet levels available to the player */
+const BET_LEVELS = [0.20, 0.50, 1.00, 2.00, 5.00, 10.00, 20.00, 50.00];
+
+/** Default bet index (into BET_LEVELS) */
+const DEFAULT_BET_INDEX = 2;
+
+/** Starting player balance */
+const DEFAULT_BALANCE = 1000.00;
+
+/* ══════════════════════════════════════════
+   RTP MODELS  (selectable math models)
+   The RTP picker in the options drawer renders one card per entry here, so to
+   add a new model you only add an object to this list — the UI updates itself.
+
+   Right now there is a single model ("standard", ~97%) and its math lives in the
+   REEL_COUNTS / BONUS_CONFIG / SYMBOLS tables below. A future model will carry its
+   OWN math tables on its entry (e.g. model.reelCounts, model.bonusConfig) and the
+   game will swap the active set when the player picks it.
+══════════════════════════════════════════ */
+
+const RTP_MODELS = [
+  {
+    id:    'standard',
+    label: 'Standard',
+    rtp:   0.97,                         // 0–1; shown as a percentage
+    blurb: 'High-volatility classic. A quiet base game with big, swingy bonus rounds.',
+  },
+];
+
+/** Default selected RTP model id */
+const DEFAULT_RTP_MODEL = 'standard';
+
+/* ══════════════════════════════════════════
+   SYMBOL DEFINITIONS  (PAYTABLE)
+   pays[span] = per-WAY multiplier of the bet.
+   Total cell payout = ways × pays[span] × bet  (243-ways, left-to-right).
+══════════════════════════════════════════ */
+
+const SYMBOLS = {
+  // ── PNG Image Symbols ──
+  'hat-yellow':     { id: 'hat-yellow',     src: 'assets/hat_yellow.png',     label: 'Yellow Hat',    pays: { 3: 3.5,  4: 14.0, 5: 70.0 }, isHat: true },
+  'hat-green':      { id: 'hat-green',      src: 'assets/hat_green.png',      label: 'Green Hat',     pays: { 3: 1.75, 4: 7.0,  5: 35.0 }, isHat: true },
+  'hat-red':        { id: 'hat-red',        src: 'assets/hat_red.png',        label: 'Red Hat',       pays: { 3: 1.4,  4: 5.6,  5: 28.0 }, isHat: true },
+  'pig-suit':       { id: 'pig-suit',       src: 'assets/pig_suit.png',       label: 'Suit Pig',      pays: { 3: 2.8,  4: 10.5, 5: 52.0 } },
+  'pig-contractor': { id: 'pig-contractor', src: 'assets/pig_builder.png',    label: 'Builder Pig',   pays: { 3: 2.1,  4: 8.4,  5: 42.0 } },
+  'pig-nature':     { id: 'pig-nature',     src: 'assets/pig_blueprint.png',  label: 'Blueprint Pig', pays: { 3: 1.4,  4: 5.6,  5: 28.0 } },
+  'toolbox':        { id: 'toolbox',        src: 'assets/toolbox.png',        label: 'Toolbox',       pays: { 3: 1.2,  4: 4.9,  5: 24.0 } },
+  'wolf':           { id: 'wolf',           src: 'assets/wolf.png',           label: 'Wolf',          pays: { 3: 0.9,  4: 3.5,  5: 17.0 } },
+  'buzzard':        { id: 'buzzard',        src: 'assets/buzzard.png',        label: 'Buzzard',       pays: { 3: 0.7,  4: 2.8,  5: 14.0 } },
+
+  // ── Inline SVG Royals (low-pay filler) ──
+  'royal-a':        { id: 'royal-a',        svgId: '#sym-royal-a',  label: 'Ace',    pays: { 3: 0.5,  4: 1.75, 5: 8.75 } },
+  'royal-k':        { id: 'royal-k',        svgId: '#sym-royal-k',  label: 'King',   pays: { 3: 0.5,  4: 1.75, 5: 8.75 } },
+  'royal-q':        { id: 'royal-q',        svgId: '#sym-royal-q',  label: 'Queen',  pays: { 3: 0.42, 4: 1.4,  5: 7.0  } },
+  'royal-j':        { id: 'royal-j',        svgId: '#sym-royal-j',  label: 'Jack',   pays: { 3: 0.42, 4: 1.4,  5: 7.0  } },
+  'royal-10':       { id: 'royal-10',       svgId: '#sym-royal-10', label: 'Ten',    pays: { 3: 0.35, 4: 1.05, 5: 5.25 } },
+};
+
+/** All hat symbol IDs for bonus detection */
+const HAT_IDS = ['hat-yellow', 'hat-green', 'hat-red'];
+
+/** All symbol IDs as an array (cached for perf) */
+const SYMBOL_IDS = Object.keys(SYMBOLS);
+
+/* ══════════════════════════════════════════
+   BONUS PAR SHEET  (Hard Hat Free Spins)
+   All bonus award magnitudes live here — the only place bonus math is stored.
+   Awards are expressed as multiples of the (per-line) bet.
+══════════════════════════════════════════ */
+
+const BONUS_CONFIG = {
+  triggerHats:    6,   // hats on the trigger spin to start the bonus
+  freeSpins:      6,   // initial free spins
+  retriggerHats:  3,   // hats in one free spin to award +1 spin
+  retriggerSpins: 1,   // spins added per retrigger
+
+  // BONUS BUY: cost = buyCostMult × bet. Set so the buy carries the same RTP
+  // as the game (avg bonus ≈ 77.8× bet ÷ 0.97 ≈ 80×). Verified by tools/sim.js.
+  buyCostMult:    80,
+
+  /**
+   * Per-house award when the wolf blows a frame down.
+   * tier 1 = straw, 2 = stick, 3 = brick. Award = bet × U(min,max),
+   * except with probability `jackpotChance` it pays bet × `jackpotMult`.
+   */
+  tiers: {
+    1: { min: 0.4,  max: 2.1  },
+    2: { min: 2.1,  max: 8.4,  jackpotChance: 0.04, jackpotMult: 25  },
+    3: { min: 6.3,  max: 38.0, jackpotChance: 0.04, jackpotMult: 126 },
+  },
+
+  /**
+   * Mansion jackpot: awarded once when 3+ brick frames are built.
+   * Award = bet × (baseMult + U(0, perBrickMult × brickCount)).
+   */
+  mansion: { minBricks: 3, baseMult: 21, perBrickMult: 17 },
+};
+
+/* ══════════════════════════════════════════
+   REEL STRIPS  —  PER-REEL SYMBOL COUNTS (the par sheet)
+   REEL_COUNTS[reel][symbolId] = how many of that symbol live on that reel.
+   This table IS the math model — change a number, re-run `node tools/sim.js`.
+
+   buildStrip() turns each count column into a physical strip: it spreads the
+   filler symbols evenly and drops the hard hats in 2-symbol CLUSTERS, so a
+   3-cell window can show 2 hats at once. That clustering is what makes the
+   "6+ hats" bonus trigger reachable, and total hat count tunes how often it
+   fires. buildStrip() is deterministic, so the strips are identical every load.
+══════════════════════════════════════════ */
+
+const REEL_COUNTS = [
+  // Reel 1 (leftmost — slightly looser)
+  { 'hat-yellow': 2, 'hat-green': 1, 'hat-red': 1, 'pig-suit': 2, 'pig-contractor': 1, 'pig-nature': 1, 'toolbox': 2, 'wolf': 2, 'buzzard': 1, 'royal-a': 4, 'royal-k': 4, 'royal-q': 4, 'royal-j': 4, 'royal-10': 5 },
+  // Reel 2
+  { 'hat-yellow': 1, 'hat-green': 1, 'hat-red': 1, 'pig-suit': 1, 'pig-contractor': 2, 'pig-nature': 1, 'toolbox': 2, 'wolf': 2, 'buzzard': 1, 'royal-a': 4, 'royal-k': 4, 'royal-q': 4, 'royal-j': 4, 'royal-10': 4 },
+  // Reel 3 (middle)
+  { 'hat-yellow': 1, 'hat-green': 1, 'hat-red': 1, 'pig-suit': 1, 'pig-contractor': 1, 'pig-nature': 1, 'toolbox': 1, 'wolf': 2, 'buzzard': 1, 'royal-a': 4, 'royal-k': 4, 'royal-q': 4, 'royal-j': 4, 'royal-10': 6 },
+  // Reel 4
+  { 'hat-yellow': 1, 'hat-green': 1, 'hat-red': 1, 'pig-suit': 1, 'pig-contractor': 1, 'pig-nature': 1, 'toolbox': 2, 'wolf': 2, 'buzzard': 1, 'royal-a': 4, 'royal-k': 4, 'royal-q': 4, 'royal-j': 4, 'royal-10': 6 },
+  // Reel 5 (rightmost — fewest premiums)
+  { 'hat-yellow': 1, 'hat-green': 1, 'hat-red': 0, 'pig-suit': 1, 'pig-contractor': 1, 'pig-nature': 1, 'toolbox': 1, 'wolf': 2, 'buzzard': 1, 'royal-a': 4, 'royal-k': 4, 'royal-q': 4, 'royal-j': 4, 'royal-10': 6 },
+];
+
+/**
+ * Build a deterministic reel strip from a per-symbol count map.
+ * Non-hat fillers are interleaved round-robin (even spread); hats are grouped
+ * into clusters of 2 and woven in at evenly spaced gaps.
+ */
+function buildStrip(counts) {
+  // hats, flattened — the cluster fuel
+  const hats = [];
+  for (const id of HAT_IDS) for (let i = 0; i < (counts[id] || 0); i++) hats.push(id);
+
+  // non-hat fillers, round-robin across symbol types for an even spread
+  const buckets = Object.keys(counts)
+    .filter(id => !HAT_IDS.includes(id))
+    .map(id => Array(counts[id]).fill(id));
+  const fillers = [];
+  for (let any = true; any; ) {
+    any = false;
+    for (const b of buckets) { if (b.length) { fillers.push(b.pop()); any = true; } }
+  }
+
+  // group hats into clusters of 2 (a trailing odd hat stays a single)
+  const clusters = [];
+  for (let i = 0; i < hats.length; i += 2) clusters.push(hats.slice(i, i + 2));
+
+  // weave clusters into the fillers at even gaps
+  const gap = Math.max(1, Math.floor(fillers.length / (clusters.length + 1)));
+  const strip = [];
+  let ci = 0;
+  for (let i = 0; i < fillers.length; i++) {
+    strip.push(fillers[i]);
+    if (ci < clusters.length && (i + 1) % gap === 0) strip.push(...clusters[ci++]);
+  }
+  while (ci < clusters.length) strip.push(...clusters[ci++]);
+  return strip;
+}
+
+/** Physical reel strips (flat arrays), derived from REEL_COUNTS. */
+const REEL_STRIPS = REEL_COUNTS.map(buildStrip);
+
+/* ══════════════════════════════════════════
+   INITIAL GRID (visible on page load)
+══════════════════════════════════════════ */
+
+const INITIAL_GRID = [
+  ['royal-a',    'pig-suit',   'royal-k' ],
+  ['toolbox',    'royal-q',    'royal-j' ],
+  ['pig-contractor', 'royal-a', 'royal-k'],
+  ['royal-q',    'pig-nature', 'royal-j' ],
+  ['royal-a',    'royal-k',    'toolbox' ],
+];
+
+Object.assign(exports, { REEL_COUNT, ROWS_PER_REEL, MIN_WIN_SPAN, BONUS_TRIGGER_HATS, FREE_SPINS_INITIAL, RETRIGGER_HATS, MAX_FRAME_TIER, TIER_NAMES, TIER_EMOJIS, SCROLL_SYMBOLS, TURBO_SCROLL, SPIN_DURATIONS, TURBO_DURATIONS, ANTICIPATION_EXTRA, BET_LEVELS, DEFAULT_BET_INDEX, DEFAULT_BALANCE, RTP_MODELS, DEFAULT_RTP_MODEL, SYMBOLS, HAT_IDS, SYMBOL_IDS, BONUS_CONFIG, REEL_COUNTS, buildStrip, REEL_STRIPS, INITIAL_GRID });
+
+  };
+
+  __mods["daynight"] = function (exports, require) {
+/**
+ * @module daynight
+ * @description Darkens the background image based on the time of day.
+ *
+ * By default it follows the browser's real clock — brightest at noon, darkest
+ * around midnight — and re-checks every minute. The clock button (🕐) opens a
+ * slider to scrub the time of day manually; "USE REAL TIME" switches back to the
+ * live clock.
+ *
+ * Mapping: a cosine of the hour gives a smooth day curve (1 = full light at
+ * noon, 0 = full dark at midnight); the overlay opacity is MAX_DARK × (1 − light).
+ */
+
+const overlay = document.getElementById('day-night-overlay');
+const btnTime = document.getElementById('btn-time');
+const panel   = document.getElementById('time-panel');
+const slider  = document.getElementById('time-slider');
+const label   = document.getElementById('time-label');
+const autoBtn = document.getElementById('time-auto');
+
+const MAX_DARK = 0.82;     // overlay opacity at the darkest point (midnight)
+let autoMode = true;
+let tick = null;
+
+/** Overlay opacity for a minute-of-day (0..1439): 0 at noon … MAX_DARK at midnight. */
+function darknessFor(minutes) {
+  const hour = minutes / 60;                                          // 0..24
+  const light = (1 + Math.cos(((hour - 12) / 24) * 2 * Math.PI)) / 2; // 1 noon, 0 midnight
+  return MAX_DARK * (1 - light);
+}
+
+/** Pretty 12-hour clock string, e.g. 615 → "10:15 AM". */
+function fmtTime(minutes) {
+  const h = Math.floor(minutes / 60), m = minutes % 60;
+  const ap = h < 12 ? 'AM' : 'PM';
+  const hh = (h % 12) || 12;
+  return `${hh}:${String(m).padStart(2, '0')} ${ap}`;
+}
+
+function apply(minutes) {
+  if (overlay) overlay.style.opacity = darknessFor(minutes).toFixed(3);
+  if (label) label.textContent = fmtTime(minutes);
+  if (slider) slider.value = String(minutes);
+}
+
+function nowMinutes() {
+  const d = new Date();
+  return d.getHours() * 60 + d.getMinutes();
+}
+
+/**
+ * Animate the day/night darkening from its current value to the correct one for
+ * the current time. Used by the intro reveal, which first parks the overlay at 0
+ * (clean background) and then calls this to fade the darkening back in.
+ */
+function revealDayNight(ms = 1100) {
+  if (!overlay) return;
+  overlay.style.transition = `opacity ${ms}ms ease`;
+  apply(autoMode ? nowMinutes() : parseInt(slider.value, 10));
+  setTimeout(() => { overlay.style.transition = ''; }, ms + 60);  // drop transition so the slider stays snappy
+}
+
+/** Follow the real clock and keep it updated each minute. */
+function goAuto() {
+  autoMode = true;
+  if (autoBtn) autoBtn.classList.add('is-active');
+  apply(nowMinutes());
+  clearInterval(tick);
+  tick = setInterval(() => { if (autoMode) apply(nowMinutes()); }, 60000);
+}
+
+if (overlay) {
+  if (slider) slider.addEventListener('input', () => {
+    autoMode = false;                                  // manual override
+    if (autoBtn) autoBtn.classList.remove('is-active');
+    apply(parseInt(slider.value, 10));
+  });
+  if (autoBtn) autoBtn.addEventListener('click', goAuto);
+
+  if (btnTime && panel) {
+    btnTime.addEventListener('click', e => { e.stopPropagation(); panel.classList.toggle('hidden'); });
+    panel.addEventListener('click', e => e.stopPropagation());
+    document.addEventListener('click', e => {
+      if (!panel.classList.contains('hidden') && !panel.contains(e.target) && !btnTime.contains(e.target)) {
+        panel.classList.add('hidden');
+      }
+    });
+  }
+
+  goAuto();   // start on the real time of day
+}
+
+Object.assign(exports, { revealDayNight });
+
+  };
+
+  __mods["deposit"] = function (exports, require) {
+/**
+ * @module deposit
+ * @description "Add Credit" — a popup with $1 / $20 / $50 / $100 buttons that
+ * each add their amount to the machine's balance. Stays open so you can stack
+ * deposits; the balance updates live.
+ */
+
+const { state } = require("state");
+const { updateDisplays } = require("ui");
+const { fmt } = require("utils");
+const { synth } = require("audio");
+
+const btnDeposit = document.getElementById('btn-deposit');
+const modal      = document.getElementById('deposit-modal');
+const closeBtn   = document.getElementById('btn-close-deposit');
+const doneBtn    = document.getElementById('btn-deposit-done');
+const balEl      = document.getElementById('deposit-balance');
+
+function refresh() { if (balEl) balEl.textContent = fmt(state.balance); }
+function openModal() { refresh(); modal.classList.remove('hidden'); }
+function closeModal() { modal.classList.add('hidden'); }
+
+if (btnDeposit && modal) {
+  btnDeposit.addEventListener('click', openModal);
+  if (closeBtn) closeBtn.addEventListener('click', closeModal);
+  if (doneBtn) doneBtn.addEventListener('click', closeModal);
+  modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+
+  modal.querySelectorAll('.deposit-amt').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.balance += parseFloat(btn.dataset.amt);
+      updateDisplays();   // update the CASH readout
+      refresh();          // update the balance shown in the popup
+      synth.coinClink();  // little feedback chime
+    });
+  });
+}
+
+  };
+
+  __mods["engine"] = function (exports, require) {
+/**
+ * @module engine
+ * @description The reels' DOM + animation layer: building symbol cells, the
+ * spin animation, win highlighting and the count-up. The actual win math lives
+ * in mathcore.js — this module just shows it.
+ */
+
+const { SYMBOLS, SYMBOL_IDS, SPIN_DURATIONS, TURBO_DURATIONS, SCROLL_SYMBOLS, TURBO_SCROLL, ANTICIPATION_EXTRA } = require("config");
+const { state } = require("state");
+const { synth } = require("audio");
+const { fmt } = require("utils");
+const { spawnSparkles } = require("particles");
+
+const reelCols   = [0, 1, 2, 3, 4].map(i => document.getElementById(`reel-${i}`));
+const reelStrips = [0, 1, 2, 3, 4].map(i => document.getElementById(`strip-${i}`));
+const particleContainer = document.getElementById('particle-container');
+const elWin = document.getElementById('display-win');
+
+function getReelStrips() { return reelStrips; }
+
+/** A random symbol id, used only to fill the blurry scroll buffer. */
+function randomSymbol() { return SYMBOL_IDS[Math.floor(Math.random() * SYMBOL_IDS.length)]; }
+
+/** Read the cell pixel height from the CSS custom property. */
+function getCellHeight() {
+  const val = getComputedStyle(document.documentElement).getPropertyValue('--cell-size').trim();
+  return parseInt(val, 10) || 130;
+}
+
+/** Build one symbol cell (PNG image, or inline-SVG for royals). */
+function makeCell(symId) {
+  const sym = SYMBOLS[symId];
+  const div = document.createElement('div');
+  div.className = 'sym-cell';
+  div.dataset.sym = symId;
+  if (sym.src) {
+    const img = document.createElement('img');
+    img.src = sym.src;
+    img.alt = sym.label || symId;
+    img.draggable = false;
+    img.className = 'sym-img';
+    div.appendChild(img);
+  } else {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+    use.setAttributeNS('http://www.w3.org/1999/xlink', 'href', sym.svgId);
+    use.setAttribute('href', sym.svgId);
+    svg.appendChild(use);
+    div.appendChild(svg);
+  }
+  return div;
+}
+
+/** Instantly show 3 symbols on a reel (no animation). */
+function renderReel(reelIndex, symbolIds) {
+  const strip = reelStrips[reelIndex];
+  strip.style.transition = 'none';
+  strip.style.transform  = 'translateY(0)';
+  strip.innerHTML = '';
+  symbolIds.forEach(id => strip.appendChild(makeCell(id)));
+}
+
+/**
+ * Spin one reel from its current symbols to the target symbols.
+ * Builds a tall strip [target] + [random blur] + [current], snaps it to the
+ * bottom, then transitions to the top so the target lands in view.
+ */
+function animateReel(reelIndex, targetSymIds, onDone, anticipate = false) {
+  const strip = reelStrips[reelIndex];
+  const col   = reelCols[reelIndex];
+  const cellH = getCellHeight();
+  const scrollN = state.turbo ? TURBO_SCROLL : SCROLL_SYMBOLS;
+  let duration  = state.turbo ? TURBO_DURATIONS[reelIndex] : SPIN_DURATIONS[reelIndex];
+
+  if (anticipate && reelIndex >= 3) {        // suspense slow-down on later reels
+    duration += ANTICIPATION_EXTRA;
+    col.classList.add('is-anticipating');
+    if (reelIndex === 3) synth.anticipation();
+  }
+
+  const current = (state.currentGrid && state.currentGrid[reelIndex]) || ['royal-a', 'royal-k', 'royal-q'];
+  const allIds = [...targetSymIds, ...Array.from({ length: scrollN }, randomSymbol), ...current];
+
+  strip.innerHTML = '';
+  allIds.forEach(id => strip.appendChild(makeCell(id)));
+
+  const startY = (allIds.length - 3) * cellH;
+  strip.style.transition = 'none';
+  strip.style.transform  = `translateY(-${startY}px)`;
+  col.classList.add('is-spinning');
+
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      const easing = anticipate && reelIndex >= 3
+        ? 'cubic-bezier(0.05, 0.9, 0.35, 1.12)'
+        : 'cubic-bezier(0.12, 0.85, 0.38, 1.08)';
+      strip.style.transition = `transform ${duration}ms ${easing}`;
+      strip.style.transform  = 'translateY(0)';
+
+      let isDone = false;
+      const finishAnimation = () => {
+        if (isDone) return;
+        isDone = true;
+        col.classList.remove('is-spinning', 'is-anticipating');
+        renderReel(reelIndex, targetSymIds);
+        strip.classList.add('bounce-stop');
+        setTimeout(() => strip.classList.remove('bounce-stop'), 350);
+        synth.reelStop(reelIndex);
+        onDone();
+      };
+
+      const fallbackTimer = setTimeout(finishAnimation, duration + 50);
+
+      strip.addEventListener('transitionend', function handler(e) {
+        if (e.propertyName === 'transform') {
+          strip.removeEventListener('transitionend', handler);
+          clearTimeout(fallbackTimer);
+          finishAnimation();
+        }
+      });
+    });
+  });
+}
+
+/** Spin all 5 reels; resolves once every reel has stopped. */
+function animateAllReels(targetGrid, anticipate = false) {
+  return new Promise(resolve => {
+    let stopped = 0;
+    for (let r = 0; r < 5; r++) {
+      animateReel(r, targetGrid[r], () => { if (++stopped === 5) resolve(); }, anticipate);
+    }
+  });
+}
+
+/** Add the winner glow + sparkles to every winning cell. */
+function highlightWinners(winners) {
+  clearHighlights();
+  winners.forEach(({ cells }) => {
+    cells.forEach(([reelIdx, rowIdx]) => {
+      const cell = reelStrips[reelIdx].querySelectorAll('.sym-cell')[rowIdx];
+      if (!cell) return;
+      cell.classList.add('is-winner');
+      const rect = cell.getBoundingClientRect();
+      const cr = particleContainer.getBoundingClientRect();
+      spawnSparkles(rect.left + rect.width / 2 - cr.left, rect.top + rect.height / 2 - cr.top, 6);
+    });
+  });
+}
+
+function clearHighlights() {
+  document.querySelectorAll('.sym-cell.is-winner').forEach(el => el.classList.remove('is-winner'));
+}
+
+/** Count the WIN display up from 0 to targetAmount. Resolves when done. */
+function animateWinCount(targetAmount, durationMs = 1200) {
+  return new Promise(resolve => {
+    const startTime = performance.now();
+    elWin.classList.add('counting', 'win-glow');
+    function tick(now) {
+      const progress = Math.min((now - startTime) / durationMs, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);  // ease-out cubic
+      elWin.textContent = fmt(targetAmount * eased);
+      if (progress < 0.9 && Math.random() < 0.30) synth.coinTick();
+      if (progress < 1) {
+        requestAnimationFrame(tick);
+      } else {
+        elWin.textContent = fmt(targetAmount);
+        elWin.classList.remove('counting');
+        resolve();
+      }
+    }
+    requestAnimationFrame(tick);
+  });
+}
+
+Object.assign(exports, { getReelStrips, makeCell, renderReel, animateReel, animateAllReels, highlightWinners, clearHighlights, animateWinCount });
+
+  };
+
+  __mods["gamesize"] = function (exports, require) {
+/**
+ * @module gamesize
+ * @description The "GAME SIZE" popup — opened from the options drawer. Shows the
+ * total size of the whole game folder plus a color-coded breakdown (videos,
+ * audio, images, code, other), styled to match the sim/math stat panels.
+ *
+ * The numbers come from SIZE_MANIFEST in js/sizedata.js, which is regenerated by
+ * tools/build.js on every build — so the figure is accurate as of the last build.
+ */
+
+const { SIZE_MANIFEST } = require("sizedata");
+
+/* per-category icon + colour (matched to the manifest's category keys) */
+const CAT_META = {
+  video: { icon: '🎬', color: '#B07CF0' },
+  audio: { icon: '🔊', color: '#2EE85A' },
+  image: { icon: '🖼️', color: '#F5C400' },
+  code:  { icon: '💻', color: '#40D8FF' },
+  other: { icon: '📦', color: '#8899AA' },
+};
+
+const btnSize   = document.getElementById('btn-size');
+const modal     = document.getElementById('size-modal');
+const closeBtn  = document.getElementById('btn-close-size');
+const doneBtn   = document.getElementById('btn-size-done');
+const totalEl   = document.getElementById('size-total');
+const barEl     = document.getElementById('size-bar');
+const legendEl  = document.getElementById('size-legend');
+
+const MB = bytes => bytes / 1048576;
+function fmtSize(bytes) {
+  const m = MB(bytes);
+  if (m >= 1)  return `${m.toFixed(m >= 10 ? 1 : 2)} MB`;
+  return `${(bytes / 1024).toFixed(0)} KB`;
+}
+
+/** Build the popup contents from the manifest (once). */
+function render() {
+  const { totalBytes, fileCount, generatedAt, categories } = SIZE_MANIFEST;
+  if (!totalBytes) return;
+  const pct = b => (b / totalBytes) * 100;
+
+  // total headline
+  if (totalEl) {
+    totalEl.innerHTML =
+      `<span class="size-total-num">${MB(totalBytes).toFixed(1)}</span>` +
+      `<span class="size-total-unit">MB</span>` +
+      `<span class="size-total-sub">${fileCount.toLocaleString()} files · snapshot ${generatedAt}</span>`;
+  }
+
+  // stacked bar
+  if (barEl) {
+    barEl.innerHTML = '';
+    categories.forEach(c => {
+      const seg = document.createElement('div');
+      seg.className = 'size-bar-seg';
+      seg.style.width = `${pct(c.bytes)}%`;
+      seg.style.background = (CAT_META[c.key] || CAT_META.other).color;
+      seg.title = `${c.label}: ${fmtSize(c.bytes)}`;
+      barEl.appendChild(seg);
+    });
+  }
+
+  // legend rows
+  if (legendEl) {
+    legendEl.innerHTML = '';
+    categories.forEach(c => {
+      const meta = CAT_META[c.key] || CAT_META.other;
+      const row = document.createElement('div');
+      row.className = 'size-leg-row';
+      row.innerHTML =
+        `<span class="size-swatch" style="background:${meta.color}"></span>` +
+        `<span class="size-leg-name">${meta.icon} ${c.label}</span>` +
+        `<span class="size-leg-pct">${pct(c.bytes).toFixed(0)}%</span>` +
+        `<span class="size-leg-files">${c.files.toLocaleString()} file${c.files === 1 ? '' : 's'}</span>` +
+        `<span class="size-leg-val">${fmtSize(c.bytes)}</span>`;
+      legendEl.appendChild(row);
+    });
+  }
+}
+
+function openModal()  { modal.classList.remove('hidden'); }
+function closeModal() { modal.classList.add('hidden'); }
+
+if (btnSize && modal) {
+  render();
+  btnSize.addEventListener('click', openModal);
+  if (closeBtn) closeBtn.addEventListener('click', closeModal);
+  if (doneBtn) doneBtn.addEventListener('click', closeModal);
+  modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+}
+
+  };
+
+  __mods["idleposter"] = function (exports, require) {
+/**
+ * @module idleposter
+ * @description Attract-mode flourish for the reel-background "Wanted" poster
+ * (Wanted_poster.webm). When the base game sits idle — nobody pressing anything,
+ * no spin/auto/bonus running — the poster slowly glows up from its usual faint
+ * 0.55 opacity to full 100%. The moment the player interacts again it snaps
+ * straight back to its normal opacity.
+ *
+ * The two speeds (slow up, instant down) come from CSS: the `.poster-idle` class
+ * carries a long transition; the base rule carries a short one. This module only
+ * adds/removes that class based on activity + game state.
+ */
+
+const { state } = require("state");
+const { isBonusActive } = require("bonus");
+
+const video  = document.getElementById('reel-bg-video');
+const IDLE_MS = 12000;   // how long with zero input before the poster glows up
+
+let timer = null;
+
+/** The reels are "busy" (so don't glow up) during a spin, auto-spin, or bonus. */
+function isBusy() { return state.spinning || state.autoActive || isBonusActive(); }
+
+function scheduleIdle() {
+  clearTimeout(timer);
+  timer = setTimeout(tick, IDLE_MS);
+}
+
+function tick() {
+  if (!video) return;
+  if (isBusy()) { scheduleIdle(); return; }   // not truly idle yet — check again later
+  video.classList.add('poster-idle');          // slow ramp to 100%
+}
+
+/** Any interaction snaps the poster back and restarts the idle countdown. */
+function onActivity() {
+  if (video) video.classList.remove('poster-idle');
+  scheduleIdle();
+}
+
+if (video) {
+  // capture phase so we see every click/keypress, even ones that stopPropagation
+  document.addEventListener('pointerdown', onActivity, true);
+  document.addEventListener('keydown', onActivity, true);
+  scheduleIdle();
+}
+
+  };
+
+  __mods["intro"] = function (exports, require) {
+/**
+ * @module intro
+ * @description Full-screen intro splash. Plays assets/webm/Big_Bad_Wolf_intro.webm
+ * over everything on load, then fades into the game. Dismisses when the clip
+ * ends, on click (skip), on error, or if autoplay is blocked — so the player
+ * can never get stuck on the splash. Muted, because browsers block autoplay
+ * with sound before any user interaction.
+ */
+
+const overlay = document.getElementById('intro-overlay');
+const video   = document.getElementById('intro-video');
+
+if (overlay && video) {
+  let dismissed = false;
+
+  function dismiss() {
+    if (dismissed) return;
+    dismissed = true;
+    overlay.classList.add('fade-out');     // CSS opacity transition
+    try { video.pause(); } catch (e) {}
+    setTimeout(() => {
+      overlay.classList.add('hidden');                       // remove after fade
+      window.dispatchEvent(new Event('intro:done'));         // cue the background hold + game reveal
+    }, 700);
+  }
+
+  video.addEventListener('ended', dismiss);
+  video.addEventListener('error', dismiss);
+  overlay.addEventListener('click', dismiss);              // click/tap to skip
+
+  // Backup: if 'ended' never fires, dismiss shortly after the clip's length.
+  video.addEventListener('loadedmetadata', () => {
+    if (isFinite(video.duration) && video.duration > 0) {
+      setTimeout(dismiss, video.duration * 1000 + 1500);
+    }
+  });
+
+  // Autoplay (muted). If the browser blocks it, skip the splash entirely.
+  const p = video.play();
+  if (p && typeof p.catch === 'function') p.catch(dismiss);
+
+  // Hard safety cap in case the video can't load at all.
+  setTimeout(dismiss, 20000);
+}
+
+  };
+
+  __mods["main"] = function (exports, require) {
+/**
+ * @module main
+ * @description Entry point. Importing the feature modules runs their setup
+ * (each wires its own buttons), then init() renders the starting screen, wires
+ * the volume/paytable/sound controls, and kicks off ambient effects + music.
+ *
+ * Module map:
+ *   config      – the par sheet (symbols, reels, bonus, constants)
+ *   mathcore    – pure game math (243-ways, bonus value)         ← also used by tools/sim.js
+ *   utils/state – helpers + shared runtime state
+ *   audio/narrator/particles – sound, voice, eye-candy
+ *   engine/ui   – reel rendering & animation, readouts/status
+ *   basegame/bonus/buybonus  – the actual gameplay
+ *   simulation/mathpanel     – the 📊 SIM dashboard & 🧮 MATH panel
+ */
+
+const { INITIAL_GRID, SYMBOLS } = require("config");
+const { state } = require("state");
+const { synth, bgm } = require("audio");
+const { narrator } = require("narrator");
+const { renderReel } = require("engine");
+const { startAmbientParticles } = require("particles");
+const { updateDisplays, setStatus } = require("ui");
+
+// Side-effect imports: these wire up their own controls on load.
+require("intro");      // full-screen intro splash
+require("daynight");   // time-of-day background darkening
+require("reveal");     // post-intro: hold on the background, then fade the game in
+require("options");    // right-side slide-out options drawer
+require("deposit");    // add-credit popup
+require("rtp");        // RTP / math-model picker popup
+require("gamesize");   // folder-size breakdown popup
+require("idleposter"); // idle "attract mode" — glows up the Wanted poster
+require("basegame");
+require("bonus");
+require("buybonus");
+require("simulation");
+require("mathpanel");
+
+/* ══════════════════════════════════════════
+   VOLUME / SOUND CONTROLS
+══════════════════════════════════════════ */
+function wireSoundControls() {
+  const btnSound     = document.getElementById('btn-sound');
+  const volumePanel  = document.getElementById('volume-panel');
+  const sliderSfx    = document.getElementById('slider-sfx');
+  const sliderMusic  = document.getElementById('slider-music');
+  const sliderNarr   = document.getElementById('slider-narrator');
+  const sfxPct       = document.getElementById('sfx-pct');
+  const musicPct     = document.getElementById('music-pct');
+  const narrPct      = document.getElementById('narrator-pct');
+  const iconOn       = document.getElementById('icon-sound-on');
+  const iconOff      = document.getElementById('icon-sound-off');
+
+  btnSound.addEventListener('click', e => { e.stopPropagation(); volumePanel.classList.toggle('hidden'); });
+  document.addEventListener('click', e => {
+    if (!volumePanel.classList.contains('hidden') && !volumePanel.contains(e.target) && !btnSound.contains(e.target)) {
+      volumePanel.classList.add('hidden');
+    }
+  });
+  volumePanel.addEventListener('click', e => e.stopPropagation());
+
+  sliderSfx.addEventListener('input', () => {
+    const v = parseInt(sliderSfx.value);
+    sfxPct.textContent = v + '%';
+    synth.setVolume(v / 100);
+    const off = v === 0;
+    iconOn.classList.toggle('hidden', off);
+    iconOff.classList.toggle('hidden', !off);
+    btnSound.classList.toggle('sound-on', !off);
+    synth.enabled = !off;
+  });
+
+  sliderMusic.addEventListener('input', () => {
+    const v = parseInt(sliderMusic.value);
+    musicPct.textContent = v + '%';
+    bgm.setVolume(v / 100);
+    if (v === 0) bgm.stop();
+    else if (!bgm.isPlaying()) bgm.start();
+  });
+
+  sliderNarr.addEventListener('input', () => {
+    const v = parseInt(sliderNarr.value);
+    narrPct.textContent = v + '%';
+    narrator.setVolume(v / 100);
+    if (v === 0) { narrator.enabled = false; narrator.stop(); }
+    else narrator.enabled = true;
+  });
+}
+
+/* ══════════════════════════════════════════
+   MUSIC AUTOSTART (browsers block audible autoplay until a gesture)
+══════════════════════════════════════════ */
+function wireMusicAutostart() {
+  function tryStart() {
+    if (state.musicAutoStarted) return;
+    bgm.start().then(started => {
+      if (started) {
+        state.musicAutoStarted = true;
+        document.removeEventListener('click', tryStart);
+        document.removeEventListener('keydown', tryStart);
+      }
+    });
+  }
+  tryStart();                                  // attempt immediately…
+  document.addEventListener('click', tryStart); // …fall back to first interaction
+  document.addEventListener('keydown', tryStart);
+}
+
+/* ══════════════════════════════════════════
+   PAYTABLE MODAL (pays auto-filled from the par sheet)
+══════════════════════════════════════════ */
+function wirePaytable() {
+  const btnInfo = document.getElementById('btn-info');
+  const modal   = document.getElementById('paytable-modal');
+  const btnClose = document.getElementById('btn-close-paytable');
+  if (btnInfo) btnInfo.addEventListener('click', () => modal.classList.remove('hidden'));
+  if (btnClose) btnClose.addEventListener('click', () => modal.classList.add('hidden'));
+  if (modal) modal.addEventListener('click', e => { if (e.target === modal) modal.classList.add('hidden'); });
+
+  // keep displayed pays in sync with SYMBOLS
+  const order = ['hat-yellow', 'hat-green', 'hat-red', 'pig-suit', 'pig-contractor', 'pig-nature', 'toolbox', 'wolf', 'buzzard'];
+  const items = document.querySelectorAll('#paytable-modal .pt-item:not(.pt-royals)');
+  order.forEach((id, i) => {
+    const el = items[i] && items[i].querySelector('.pt-pays');
+    const p = SYMBOLS[id] && SYMBOLS[id].pays;
+    if (el && p) el.innerHTML = `5&#9733; &times; ${p[5]} &nbsp;|&nbsp; 4&#9733; &times; ${p[4]} &nbsp;|&nbsp; 3&#9733; &times; ${p[3]}`;
+  });
+  const royalEl = document.querySelector('#paytable-modal .pt-royals .pt-pays');
+  if (royalEl) {
+    const hi = SYMBOLS['royal-a'].pays, lo = SYMBOLS['royal-10'].pays;
+    royalEl.innerHTML = `5&#9733; &times; ${lo[5]}–${hi[5]} &nbsp;|&nbsp; 4&#9733; &times; ${lo[4]}–${hi[4]} &nbsp;|&nbsp; 3&#9733; &times; ${lo[3]}–${hi[3]}`;
+  }
+}
+
+/* ══════════════════════════════════════════
+   INIT
+══════════════════════════════════════════ */
+function init() {
+  state.currentGrid = INITIAL_GRID.map(col => [...col]);
+  updateDisplays();
+  for (let r = 0; r < 5; r++) renderReel(r, state.currentGrid[r]);
+  setStatus('GOOD LUCK – PRESS SPIN!');
+
+  wireSoundControls();
+  wirePaytable();
+  wireMusicAutostart();
+
+  // close the big-win overlay on click
+  const bigWin = document.getElementById('big-win-overlay');
+  if (bigWin) bigWin.addEventListener('click', () => bigWin.classList.add('hidden'));
+
+  // nudge the looping side wolf to play (muted autoplay; harmless if blocked)
+  const sideWolf = document.getElementById('side-wolf');
+  if (sideWolf) sideWolf.play().catch(() => {});
+
+  startAmbientParticles();
+}
+
+// Module scripts run after the DOM is parsed, so it's safe to init now.
+init();
+
+  };
+
+  __mods["mathcore"] = function (exports, require) {
+/**
+ * @module mathcore
+ * @description The math of Huff N' More Puff — and nothing else.
+ *
+ * This module is intentionally PURE: no DOM, no audio, no animation. That means
+ * the browser game AND the headless verifier (tools/sim.js) import the SAME
+ * functions, so what you test is exactly what players get. If a number feels
+ * wrong, it is decided here or in the par sheet (js/config.js) — nowhere else.
+ *
+ * Contents:
+ *   generateGrid()            – draw a random 5×3 screen from the reel strips
+ *   evaluateGrid()            – the 243-ways payout calculation
+ *   countHats()               – how many scatter hats are showing
+ *   shouldAnticipate()        – cosmetic "near win" slow-down hint
+ *   rollHouseAward()          – value of one blown-down house in the bonus
+ *   rollMansionAward()        – value of the mansion jackpot
+ *   simulateBonusOutcome()    – headless play-through of a whole bonus
+ */
+
+const {
+  SYMBOLS, SYMBOL_IDS, HAT_IDS, REEL_STRIPS, BONUS_CONFIG,
+  REEL_COUNT, ROWS_PER_REEL, MIN_WIN_SPAN, MAX_FRAME_TIER,
+} = require("config");
+
+/* ══════════════════════════════════════════
+   DRAWING A SCREEN
+══════════════════════════════════════════ */
+
+/**
+ * Pick a random visible 5×3 grid from the reel strips.
+ * For each reel we pick a random stop position and take the 3 symbols there
+ * (wrapping around the end of the strip). grid[reel][row] = symbol id.
+ * @returns {string[][]}
+ */
+function generateGrid() {
+  return REEL_STRIPS.map(strip => {
+    const len = strip.length;
+    const start = Math.floor(Math.random() * len);
+    return [strip[start % len], strip[(start + 1) % len], strip[(start + 2) % len]];
+  });
+}
+
+/* ══════════════════════════════════════════
+   243-WAYS PAYOUT
+   ─────────────────────────────────────────
+   "Ways" (not paylines): a symbol pays when it lands on adjacent reels starting
+   from reel 1, in ANY rows. The number of "ways" is the product of how many
+   times the symbol shows on each of those reels.
+
+       payout = ways × pays[span] × bet
+
+   where `span` = how many consecutive reels (from reel 1) the symbol covers
+   (3, 4, or 5). With 3 rows per reel the theoretical max is 3×3×3×3×3 = 243 ways.
+══════════════════════════════════════════ */
+
+/**
+ * @typedef {Object} WinResult
+ * @property {string} symId
+ * @property {number} span       consecutive reels matched (≥ MIN_WIN_SPAN)
+ * @property {number} ways       number of ways this symbol hit
+ * @property {number} winAmount  ways × pays[span] × bet
+ * @property {Array<[number,number]>} cells  [reel,row] of each contributing cell
+ */
+
+/**
+ * Evaluate every winning symbol on a grid.
+ * @param {string[][]} grid grid[reel][row] = symbol id
+ * @param {number} bet
+ * @returns {{ totalWin: number, winners: WinResult[] }}
+ */
+function evaluateGrid(grid, bet) {
+  let totalWin = 0;
+  const winners = [];
+
+  for (const symId of SYMBOL_IDS) {
+    const sym = SYMBOLS[symId];
+
+    // how many times the symbol appears on each reel
+    const colCounts = grid.map(col => col.filter(s => s === symId).length);
+
+    // must be present on reel 1 to start a left-to-right win
+    if (colCounts[0] === 0) continue;
+
+    // extend the win across consecutive reels, multiplying the ways
+    let span = 1;
+    let ways = colCounts[0];
+    for (let r = 1; r < REEL_COUNT; r++) {
+      if (colCounts[r] === 0) break;
+      span++;
+      ways *= colCounts[r];
+    }
+
+    if (span < MIN_WIN_SPAN) continue;          // need 3+ in a row to pay
+    const payout = sym.pays[span];
+    if (!payout) continue;
+
+    const winAmount = ways * payout * bet;
+    totalWin += winAmount;
+
+    // record the contributing cells (for highlighting in the UI)
+    const cells = [];
+    for (let r = 0; r < span; r++) {
+      grid[r].forEach((s, row) => { if (s === symId) cells.push([r, row]); });
+    }
+    winners.push({ symId, span, ways, winAmount, cells });
+  }
+
+  return { totalWin, winners };
+}
+
+/* ══════════════════════════════════════════
+   SCATTER HATS (bonus trigger)
+══════════════════════════════════════════ */
+
+/**
+ * Count the hard hats anywhere on the grid (they are the bonus scatter).
+ * @returns {{ count: number, hatCells: Array<[number,number]> }}
+ */
+function countHats(grid) {
+  let count = 0;
+  const hatCells = [];
+  for (let r = 0; r < REEL_COUNT; r++) {
+    for (let row = 0; row < ROWS_PER_REEL; row++) {
+      if (HAT_IDS.includes(grid[r][row])) { count++; hatCells.push([r, row]); }
+    }
+  }
+  return { count, hatCells };
+}
+
+/** Symbols that, when stacking across reels, trigger the anticipation slow-down. */
+const ANTICIPATION_SYMS = ['hat-yellow', 'pig-suit', 'pig-contractor'];
+
+/**
+ * Cosmetic only: should later reels slow down for suspense? True when a big
+ * symbol is building across the first reels, or a bonus is one hat away.
+ */
+function shouldAnticipate(grid) {
+  for (const symId of ANTICIPATION_SYMS) {
+    let consecutive = 0;
+    for (let r = 0; r < REEL_COUNT; r++) {
+      if (grid[r].includes(symId)) consecutive++;
+      else break;
+    }
+    if (consecutive >= 3) return true;
+  }
+  return countHats(grid).count >= 4;
+}
+
+/* ══════════════════════════════════════════
+   BONUS AWARD MATH
+   All magnitudes come from BONUS_CONFIG (the par sheet); these helpers are the
+   ONE place the formulas live, shared by the live bonus and the simulators.
+══════════════════════════════════════════ */
+
+/**
+ * Value of a single house when the wolf blows it down, in dollars.
+ * tier 1 = straw, 2 = stick, 3 = brick. Tiers 2 & 3 have a small jackpot chance.
+ * @returns {{ amount: number, isJackpot: boolean }}
+ */
+function rollHouseAward(tier, bet) {
+  const t = BONUS_CONFIG.tiers[tier];
+  if (t.jackpotChance && Math.random() < t.jackpotChance) {
+    return { amount: bet * t.jackpotMult, isJackpot: true };
+  }
+  return { amount: bet * (t.min + Math.random() * (t.max - t.min)), isJackpot: false };
+}
+
+/** Value of the mansion jackpot for a given number of brick houses, in dollars. */
+function rollMansionAward(brickCount, bet) {
+  const m = BONUS_CONFIG.mansion;
+  return bet * (m.baseMult + Math.random() * (m.perBrickMult * brickCount));
+}
+
+/* ══════════════════════════════════════════
+   HEADLESS BONUS PLAY-THROUGH
+   Mirrors the live feature (js/bonus.js) but with no animation — just the money.
+   Used by the Monte-Carlo simulators. Keep in lock-step with js/bonus.js.
+══════════════════════════════════════════ */
+
+const round2 = n => Math.round(n * 100) / 100;
+
+/**
+ * Play a whole bonus and return what it paid.
+ * @param {number} bet
+ * @param {string[][]} triggerGrid the 6+ hat screen that started it
+ * @returns {{ bonusWin: number, freeSpins: number, mansions: number }}
+ */
+function simulateBonusOutcome(bet, triggerGrid) {
+  const C = BONUS_CONFIG;
+  let freeSpins = C.freeSpins, bonusWin = 0, spinsPlayed = 0, mansions = 0;
+  const frames = Array.from({ length: REEL_COUNT }, () => Array(ROWS_PER_REEL).fill(0));
+
+  // trigger hats place the first straw frames
+  for (let r = 0; r < REEL_COUNT; r++)
+    for (let row = 0; row < ROWS_PER_REEL; row++)
+      if (HAT_IDS.includes(triggerGrid[r][row]))
+        frames[r][row] = Math.min(frames[r][row] + 1, MAX_FRAME_TIER);
+
+  while (freeSpins > 0) {
+    freeSpins--; spinsPlayed++;
+    const grid = generateGrid();
+    bonusWin += evaluateGrid(grid, bet).totalWin;       // free spins still pay lines
+
+    // each hat upgrades its cell's house: straw → stick → brick
+    let newHats = 0, newBricks = 0;
+    for (let r = 0; r < REEL_COUNT; r++)
+      for (let row = 0; row < ROWS_PER_REEL; row++)
+        if (HAT_IDS.includes(grid[r][row])) {
+          const old = frames[r][row];
+          frames[r][row] = Math.min(old + 1, MAX_FRAME_TIER);
+          newHats++;
+          if (old === MAX_FRAME_TIER - 1 && frames[r][row] === MAX_FRAME_TIER) newBricks++;
+        }
+
+    // mansion jackpot fires when a fresh brick lands and 3+ bricks are up
+    let bricks = 0;
+    for (let r = 0; r < REEL_COUNT; r++)
+      for (let row = 0; row < ROWS_PER_REEL; row++)
+        if (frames[r][row] === MAX_FRAME_TIER) bricks++;
+    if (bricks >= C.mansion.minBricks && newBricks > 0) {
+      bonusWin += round2(rollMansionAward(bricks, bet));
+      mansions++;
+    }
+
+    if (newHats >= C.retriggerHats) freeSpins += C.retriggerSpins;   // retrigger
+  }
+
+  // the wolf blows every built house down for its prize
+  for (let r = 0; r < REEL_COUNT; r++)
+    for (let row = 0; row < ROWS_PER_REEL; row++) {
+      const tier = frames[r][row];
+      if (tier) bonusWin += round2(rollHouseAward(tier, bet).amount);
+    }
+
+  return { bonusWin, freeSpins: spinsPlayed, mansions };
+}
+
+Object.assign(exports, { generateGrid, evaluateGrid, countHats, shouldAnticipate, rollHouseAward, rollMansionAward, simulateBonusOutcome });
+
+  };
+
+  __mods["mathpanel"] = function (exports, require) {
+/**
+ * @module mathpanel
+ * @description The 🧮 MATH pop-up: a plain-English breakdown of RTP (base vs
+ * bonus), the bonus trigger rate, and the reel composition. Everything is
+ * derived from the live constants and a quick run of the shared simulation
+ * engine, so it always reflects the real par sheet.
+ */
+
+const { SYMBOLS, HAT_IDS, REEL_STRIPS } = require("config");
+const { runSimulation } = require("simulation");
+
+const btnMath  = document.getElementById('btn-math');
+const modal    = document.getElementById('math-modal');
+const btnClose = document.getElementById('btn-close-math');
+
+const RTP_SPINS = 1_000_000;   // spins to estimate RTP over when the panel opens
+let lastResult = null;          // cache so re-opening is instant
+
+function openPanel() {
+  modal.classList.remove('hidden');
+  renderComposition();          // instant — pure data
+  if (lastResult) renderRtp(lastResult);
+  runRtpEstimate();             // refresh RTP in the background
+}
+
+/* ── reel composition (instant) ── */
+function renderComposition() {
+  const total = REEL_STRIPS.reduce((sum, strip) => sum + strip.length, 0);
+  document.getElementById('math-total-positions').textContent = total;
+
+  const symIds = Object.keys(SYMBOLS);
+  const counts = {};
+  symIds.forEach(id => { counts[id] = 0; });
+  REEL_STRIPS.forEach(strip => strip.forEach(id => { counts[id]++; }));
+
+  let hatTotal = 0;
+  HAT_IDS.forEach(id => { hatTotal += counts[id]; });
+  document.getElementById('math-hat-callout').innerHTML =
+    `🦺 <b>Hard hats</b> (the bonus trigger) are <b>${((hatTotal / total) * 100).toFixed(1)}%</b> of all ` +
+    `reel positions — ${hatTotal} of ${total}. The rarer they are, the rarer the bonus.`;
+
+  const rows = symIds
+    .map(id => ({ label: SYMBOLS[id].label, count: counts[id], isHat: !!SYMBOLS[id].isHat }))
+    .sort((a, b) => b.count - a.count);
+  const maxCount = Math.max(...rows.map(r => r.count));
+
+  const body = document.getElementById('math-comp-body');
+  body.innerHTML = '';
+  for (const r of rows) {
+    const tr = document.createElement('tr');
+    tr.innerHTML =
+      `<td class="mc-name">${r.label}${r.isHat ? ' <span class="mc-tag">HAT</span>' : ''}</td>` +
+      `<td class="mc-count">${r.count}</td>` +
+      `<td class="mc-barcell"><span class="mc-bar${r.isHat ? ' is-hat' : ''}" style="width:${(r.count / maxCount) * 100}%"></span></td>` +
+      `<td class="mc-pct">${((r.count / total) * 100).toFixed(1)}%</td>`;
+    body.appendChild(tr);
+  }
+}
+
+/* ── RTP + trigger rate (async sim) ── */
+async function runRtpEstimate() {
+  const totalEl = document.getElementById('math-rtp-total');
+  totalEl.classList.add('is-loading');
+  document.getElementById('math-rtp-note').textContent = `Crunching ${RTP_SPINS.toLocaleString()} simulated spins…`;
+  let R;
+  try {
+    R = await runSimulation(RTP_SPINS, 1, 1000);
+  } catch (err) {
+    document.getElementById('math-rtp-note').textContent = 'Could not estimate RTP: ' + err.message;
+    totalEl.classList.remove('is-loading');
+    return;
+  }
+  lastResult = R;
+  totalEl.classList.remove('is-loading');
+  renderRtp(R);
+}
+
+function renderRtp(R) {
+  const base = R.baseWon / R.totalWagered;
+  const bonus = R.bonusWon / R.totalWagered;
+  const total = base + bonus;
+
+  document.getElementById('math-rtp-total').textContent = (total * 100).toFixed(1) + '%';
+  document.getElementById('math-rtp-base').textContent = (base * 100).toFixed(1) + '%';
+  document.getElementById('math-rtp-bonus').textContent = (bonus * 100).toFixed(1) + '%';
+  document.getElementById('math-bar-base').style.width = (total > 0 ? (base / total) * 100 : 0) + '%';
+  document.getElementById('math-bar-bonus').style.width = (total > 0 ? (bonus / total) * 100 : 0) + '%';
+
+  const edge = (1 - total) * 100;
+  const noteEl = document.getElementById('math-rtp-note');
+  if (edge >= 0) {
+    noteEl.innerHTML = `For every <b>$100</b> wagered, players get back about <b>$${(total * 100).toFixed(0)}</b> ` +
+      `over the long run. The house keeps about <b>${edge.toFixed(1)}%</b>.`;
+  } else {
+    noteEl.innerHTML = `⚠ Players currently get back <b>${(total * 100).toFixed(0)}%</b> — more than they wager. ` +
+      `This game pays out too much and needs balancing.`;
+  }
+
+  const oneIn = R.bonusTriggers > 0 ? Math.round(RTP_SPINS / R.bonusTriggers) : 0;
+  document.getElementById('math-trigger-rate').textContent =
+    oneIn > 0 ? `about 1 in ${oneIn.toLocaleString()} spins` : 'effectively never';
+}
+
+if (btnMath && modal) {
+  btnMath.addEventListener('click', openPanel);
+  btnClose.addEventListener('click', () => modal.classList.add('hidden'));
+  modal.addEventListener('click', e => { if (e.target === modal) modal.classList.add('hidden'); });
+}
+
+  };
+
+  __mods["narrator"] = function (exports, require) {
+/**
+ * @module narrator
+ * @description The BIG BAD WOLF's play-by-play voice — a gruff cowboy wolf who
+ * narrates every spin. Plays pre-rendered MP3s from assets/audio/narrator/ named
+ * `<category>_<index>.mp3`. The script (what each clip says) lives in js/phrases.js
+ * so the generator tool and the game share one source; here we only need the
+ * category names and how many clips each has, to pick a valid random index.
+ * Exports a single shared `narrator` instance.
+ *
+ * Game code calls the on*() event hooks (onSpin, onWin, onBonusTrigger, …); the
+ * narrator decides whether/what to say, respecting a cooldown so it doesn't talk
+ * over itself, and fills silence with idle chatter.
+ */
+
+const { PHRASES } = require("phrases");
+
+class Narrator {
+  constructor() {
+    this.audio = new Audio();
+    this.audio.addEventListener('play',  () => { this._speaking = true; });
+    this.audio.addEventListener('ended', () => { this._speaking = false; });
+    this.audio.addEventListener('error', () => { this._speaking = false; });
+
+    this.enabled = true;
+    this._volume = 0.8;
+    this._lastSpoke = 0;
+    this._cooldownMs = 1500;    // short cooldown — talks constantly
+    this._speaking = false;
+    this._spinCount = 0;
+    this._lossStreak = 0;
+    this._winStreak = 0;
+    this._totalSpins = 0;
+    this._sessionWins = 0;
+    this._lastEvent = '';
+    this._lastPhraseIndex = -1;
+    this._excitement = 0;      // 0-10 excitement meter
+
+    // Phrase banks — one array per game event, loaded from the shared script in
+    // js/phrases.js. Each line maps to <category>_<index>.mp3 on disk.
+    this.phrases = PHRASES;
+
+    this._idleTimer = null;
+    this._resetIdleTimer();
+  }
+
+  setVolume(v) { this._volume = Math.max(0, Math.min(1, v)); this.audio.volume = this._volume; }
+
+  _playAudio(filename) {
+    if (!this.enabled || this._volume === 0) return;
+    this.audio.pause();
+    this.audio.src = `assets/audio/narrator/${filename}`;
+    this.audio.volume = this._volume;
+    this.audio.play().catch(() => {});   // play() can be interrupted; ignore
+    this._lastSpoke = Date.now();
+  }
+
+  /** Pick and play a random clip from a category, respecting the cooldown. */
+  say(category, forceCooldown = null, excitementBoost = 0) {
+    if (!this.enabled || this._volume === 0) return;
+    const cooldown = forceCooldown ?? this._cooldownMs;
+    if (Date.now() - this._lastSpoke < cooldown) return;
+
+    const pool = this.phrases[category];
+    if (!pool || !pool.length) return;
+
+    let index;
+    if (pool.length === 1) {
+      index = 0;
+    } else {
+      do { index = Math.floor(Math.random() * pool.length); }
+      while (index === this._lastPhraseIndex && pool.length > 1 && category === this._lastEvent);
+    }
+    this._lastPhraseIndex = index;
+    this._lastEvent = category;
+    this._playAudio(`${category}_${index}.mp3`);
+    this._resetIdleTimer();
+  }
+
+  sayNow(category, excitementBoost = 0) { this.say(category, 0, excitementBoost); }
+
+  _hype(d) { this._excitement = Math.max(0, Math.min(10, this._excitement + d)); }
+  _decayExcitement() { if (this._excitement > 0) this._excitement = Math.max(0, this._excitement - 0.5); }
+
+  /* ── game event hooks ── */
+  onSpin() {
+    this._totalSpins++;
+    this._spinCount++;
+    this._resetIdleTimer();
+    this._decayExcitement();
+    if (this._totalSpins === 1) { this._hype(2); this.sayNow('firstSpin', 2); return; }
+    if (Math.random() < 0.75) this.say('spin');
+  }
+
+  onWin(amount, bet) {
+    this._lossStreak = 0;
+    this._winStreak++;
+    this._sessionWins++;
+    const ratio = amount / bet;
+    if (ratio >= 8) {
+      this._hype(5);
+      this.sayNow('bigWin', 5);
+      setTimeout(() => { if (this.enabled) this.say('postWin', 2000, 3); }, 3500);
+    } else if (ratio >= 2) {
+      this._hype(3);
+      this.sayNow('mediumWin', 3);
+    } else {
+      this._hype(1);
+      this.say('smallWin', 800, 1);
+    }
+    if (this._winStreak >= 3) {
+      setTimeout(() => { if (this.enabled) this.say('winStreak', 1500, 2); }, 2500);
+    }
+  }
+
+  onLoss() {
+    this._winStreak = 0;
+    this._lossStreak++;
+    this._decayExcitement();
+    if (this._lossStreak >= 6) this.say('lossStreak', 1000);
+    else if (this._lossStreak >= 3 && Math.random() < 0.70) this.say('lossStreak');
+    else if (Math.random() < 0.60) this.say('loss');
+  }
+
+  onNearMiss() { this._hype(2); this.sayNow('nearMiss', 2); }
+  onBonusTrigger() { this._hype(8); this.sayNow('bonusTrigger', 6); }
+  onFreeSpin() { if (Math.random() < 0.60) this.say('freeSpin', 1000, 1); }
+  onFrameUpgrade(tier) {
+    if (tier === 3) { this._hype(5); this.sayNow('brickAchieved', 4); }
+    else { this._hype(1); if (Math.random() < 0.70) this.say('frameUpgrade', 1000, 1); }
+  }
+  onWolfReveal() { this._hype(6); this.sayNow('wolfReveal', 4); }
+  onWolfBlow(tier) {
+    const cats = ['', 'wolfStraw', 'wolfStick', 'wolfBrick'];
+    this._hype(tier * 2);
+    this.say(cats[tier], 800, tier * 2);
+  }
+  onMansionJackpot() { this._excitement = 10; this.sayNow('mansionJackpot', 8); }
+  onMiniJackpot() { this._hype(6); this.sayNow('miniJackpot', 5); }
+  onRetrigger() { this._hype(5); this.sayNow('retrigger', 4); }
+  onBonusComplete(totalWin) { this._hype(4); this.sayNow('bonusComplete', 3); }
+  onBetChange(direction) { this.say(direction === 'up' ? 'betUp' : 'betDown', 500, 1); }
+  onLowBalance() { this.say('lowBalance', 8000); }
+  onInsufficientFunds() { this.sayNow('noFunds', 0); }
+
+  _resetIdleTimer() {
+    if (this._idleTimer) clearTimeout(this._idleTimer);
+    this._idleTimer = setTimeout(() => {
+      if (this.enabled && this._volume > 0) { this.say('idle', 0); this._resetIdleTimer(); }
+    }, 8000 + Math.random() * 7000); // 8-15 seconds idle
+  }
+
+  stop() { this.audio.pause(); this.audio.currentTime = 0; this._speaking = false; }
+}
+
+const narrator = new Narrator();
+
+Object.assign(exports, { narrator });
+
+  };
+
+  __mods["options"] = function (exports, require) {
+/**
+ * @module options
+ * @description The right-side options drawer. Clicking the edge handle slides the
+ * panel open/closed; clicking anywhere outside closes it. The buttons inside keep
+ * their original IDs, so their behaviour is wired by their own modules — this
+ * module only handles the open/close of the drawer itself.
+ */
+
+const drawer = document.getElementById('options-drawer');
+const tab    = document.getElementById('options-tab');
+
+if (drawer && tab) {
+  tab.addEventListener('click', e => { e.stopPropagation(); drawer.classList.toggle('open'); });
+
+  // close when clicking outside the drawer
+  document.addEventListener('click', e => {
+    if (drawer.classList.contains('open') && !drawer.contains(e.target)) {
+      drawer.classList.remove('open');
+    }
+  });
+
+  // tidy up: close the drawer when an option opens a full-screen modal
+  ['btn-rtp', 'btn-size', 'btn-deposit', 'btn-buy-bonus', 'btn-info', 'btn-simulate', 'btn-math'].forEach(id => {
+    const b = document.getElementById(id);
+    if (b) b.addEventListener('click', () => drawer.classList.remove('open'));
+  });
+}
+
+  };
+
+  __mods["particles"] = function (exports, require) {
+/**
+ * @module particles
+ * @description Pure eye-candy: coins, sparkles, confetti, dollar bills, wind,
+ * and the ambient gold dust. Every function builds DOM nodes with CSS-animation
+ * classes (defined in styles.css) and removes them when the animation ends.
+ */
+
+const { synth } = require("audio");
+const { fmt } = require("utils");
+
+const particleContainer = document.getElementById('particle-container');
+const ambientContainer  = document.getElementById('ambient-particles');
+const reelStrips = [0, 1, 2, 3, 4].map(i => document.getElementById(`strip-${i}`));
+
+/** Coins raining down from the top of the reel window. */
+function spawnCoinShower(count = 20, durationMs = 2000) {
+  if (!particleContainer) return;
+  for (let i = 0; i < count; i++) {
+    const coin = document.createElement('div');
+    coin.className = 'particle particle-coin';
+    coin.style.left = (Math.random() * 90 + 5) + '%';
+    coin.style.top = '-20px';
+    const scale = 0.6 + Math.random() * 0.8;
+    coin.style.width = (20 * scale) + 'px';
+    coin.style.height = (20 * scale) + 'px';
+    coin.style.animationDelay = (Math.random() * durationMs * 0.5) + 'ms';
+    coin.style.animationDuration = (1200 + Math.random() * 1200) + 'ms';
+    particleContainer.appendChild(coin);
+    setTimeout(() => { if (coin.parentNode) coin.remove(); }, durationMs + 2000);
+  }
+}
+
+/** Coins bursting upward from the bottom in physics arcs (with clink sounds). */
+function spawnCoinFountain(count = 15, durationMs = 2000) {
+  if (!particleContainer) return;
+  for (let i = 0; i < count; i++) {
+    const coin = document.createElement('div');
+    coin.className = 'particle particle-coin-fountain';
+    coin.style.left = ((0.3 + Math.random() * 0.4) * 100) + '%';   // center-biased
+    const scale = 0.7 + Math.random() * 0.6;
+    coin.style.width = (22 * scale) + 'px';
+    coin.style.height = (22 * scale) + 'px';
+    const driftDir = Math.random() > 0.5 ? 1 : -1;
+    const driftMag = 20 + Math.random() * 80;
+    coin.style.setProperty('--launch-y', -(200 + Math.random() * 200) + 'px');
+    coin.style.setProperty('--peak-y', -(300 + Math.random() * 200) + 'px');
+    coin.style.setProperty('--mid-y', -(100 + Math.random() * 150) + 'px');
+    coin.style.setProperty('--drift-x1', (driftDir * driftMag * 0.3) + 'px');
+    coin.style.setProperty('--drift-x2', (driftDir * driftMag * 0.6) + 'px');
+    coin.style.setProperty('--drift-x3', (driftDir * driftMag * 0.8) + 'px');
+    coin.style.setProperty('--drift-x4', (driftDir * driftMag) + 'px');
+    const delay = Math.random() * durationMs * 0.4;
+    coin.style.animationDelay = delay + 'ms';
+    coin.style.animationDuration = (1400 + Math.random() * 800) + 'ms';
+    particleContainer.appendChild(coin);
+    setTimeout(() => synth.coinClink(), delay + 100 + Math.random() * 200);
+    setTimeout(() => { if (coin.parentNode) coin.remove(); }, delay + 2500);
+  }
+}
+
+/** A radial sparkle burst centered at (x, y) within the particle container. */
+function spawnSparkles(x, y, count = 8) {
+  if (!particleContainer) return;
+  const colors = ['#FFE000', '#FFFFFF', '#FFB000', '#FF8800', '#88FF88'];
+  for (let i = 0; i < count; i++) {
+    const spark = document.createElement('div');
+    spark.className = 'particle particle-sparkle';
+    spark.style.left = x + 'px';
+    spark.style.top = y + 'px';
+    const angle = (Math.PI * 2 / count) * i + Math.random() * 0.5;
+    const dist = 20 + Math.random() * 40;
+    const dx = Math.cos(angle) * dist, dy = Math.sin(angle) * dist;
+    spark.style.setProperty('--dx', dx + 'px');
+    spark.style.setProperty('--dy', dy + 'px');
+    spark.style.setProperty('--dx2', dx * 1.5 + 'px');
+    spark.style.setProperty('--dy2', (dy * 1.5 + 20) + 'px');
+    spark.style.background = colors[Math.floor(Math.random() * colors.length)];
+    particleContainer.appendChild(spark);
+    setTimeout(() => { if (spark.parentNode) spark.remove(); }, 900);
+  }
+}
+
+/** Horizontal wind streaks inside a container (used for the wolf's huff). */
+function spawnWindParticles(containerEl, count = 12) {
+  for (let i = 0; i < count; i++) {
+    setTimeout(() => {
+      const wind = document.createElement('div');
+      wind.className = 'wind-particle';
+      wind.style.top = (Math.random() * 80 + 10) + '%';
+      wind.style.left = '-40px';
+      wind.style.width = (30 + Math.random() * 40) + 'px';
+      wind.style.animationDuration = (0.5 + Math.random() * 0.5) + 's';
+      containerEl.appendChild(wind);
+      setTimeout(() => { if (wind.parentNode) wind.remove(); }, 1200);
+    }, i * 100);
+  }
+}
+
+/** Dollar bills floating up from the bottom, swaying and spinning. */
+function spawnDollarBills(count = 10, durationMs = 2500) {
+  if (!particleContainer) return;
+  for (let i = 0; i < count; i++) {
+    const bill = document.createElement('div');
+    bill.className = 'particle-dollar';
+    bill.style.left = (10 + Math.random() * 80) + '%';
+    const scale = 0.7 + Math.random() * 0.6;
+    bill.style.width = (40 * scale) + 'px';
+    bill.style.height = (20 * scale) + 'px';
+    const dir = Math.random() > 0.5 ? 1 : -1;
+    bill.style.setProperty('--rise-y1', -(80 + Math.random() * 120) + 'px');
+    bill.style.setProperty('--rise-y2', -(200 + Math.random() * 150) + 'px');
+    bill.style.setProperty('--rise-y3', -(300 + Math.random() * 150) + 'px');
+    bill.style.setProperty('--rise-y4', -(400 + Math.random() * 150) + 'px');
+    bill.style.setProperty('--sway-x1', (dir * (10 + Math.random() * 30)) + 'px');
+    bill.style.setProperty('--sway-x2', (-dir * (15 + Math.random() * 40)) + 'px');
+    bill.style.setProperty('--sway-x3', (dir * (10 + Math.random() * 50)) + 'px');
+    bill.style.setProperty('--sway-x4', (-dir * (5 + Math.random() * 30)) + 'px');
+    bill.style.setProperty('--spin1', (dir * (10 + Math.random() * 20)) + 'deg');
+    bill.style.setProperty('--spin2', (-dir * (5 + Math.random() * 15)) + 'deg');
+    bill.style.setProperty('--spin3', (dir * (15 + Math.random() * 25)) + 'deg');
+    bill.style.setProperty('--spin4', (-dir * (10 + Math.random() * 20)) + 'deg');
+    const delay = Math.random() * durationMs * 0.5;
+    bill.style.animationDelay = delay + 'ms';
+    bill.style.animationDuration = (2000 + Math.random() * 1500) + 'ms';
+    particleContainer.appendChild(bill);
+    setTimeout(() => { if (bill.parentNode) bill.remove(); }, delay + 4000);
+  }
+}
+
+/** Confetti raining from the top. */
+function spawnConfetti(count = 30, durationMs = 2500) {
+  if (!particleContainer) return;
+  const colors = ['#F5C400', '#FF4060', '#2EE85A', '#4488FF', '#FF8800', '#FF44FF', '#FFFFFF', '#00DDFF'];
+  for (let i = 0; i < count; i++) {
+    const piece = document.createElement('div');
+    piece.className = 'particle-confetti';
+    piece.style.left = (5 + Math.random() * 90) + '%';
+    piece.style.setProperty('--conf-w', (4 + Math.random() * 8) + 'px');
+    piece.style.setProperty('--conf-h', (8 + Math.random() * 12) + 'px');
+    piece.style.setProperty('--conf-color', colors[Math.floor(Math.random() * colors.length)]);
+    piece.style.setProperty('--conf-drift', ((Math.random() - 0.5) * 100) + 'px');
+    const delay = Math.random() * durationMs * 0.4;
+    piece.style.animationDelay = delay + 'ms';
+    piece.style.animationDuration = (1800 + Math.random() * 1200) + 'ms';
+    particleContainer.appendChild(piece);
+    setTimeout(() => { if (piece.parentNode) piece.remove(); }, delay + 3500);
+  }
+}
+
+/** Golden starburst flashes behind winning cells. cells = [[reel,row], …]. */
+function spawnStarbursts(winnerCells) {
+  if (!particleContainer) return;
+  winnerCells.forEach(([reelIdx, rowIdx]) => {
+    const cell = reelStrips[reelIdx] && reelStrips[reelIdx].querySelectorAll('.sym-cell')[rowIdx];
+    if (!cell) return;
+    const rect = cell.getBoundingClientRect();
+    const cr = particleContainer.getBoundingClientRect();
+    const burst = document.createElement('div');
+    burst.className = 'particle-starburst';
+    burst.style.left = (rect.left + rect.width / 2 - cr.left - 40) + 'px';
+    burst.style.top = (rect.top + rect.height / 2 - cr.top - 40) + 'px';
+    particleContainer.appendChild(burst);
+    setTimeout(() => { if (burst.parentNode) burst.remove(); }, 1000);
+  });
+}
+
+/** Coins cascading down both side edges (big-win flourish). */
+function spawnSideWaterfall(countPerSide = 15, durationMs = 3000) {
+  if (!particleContainer) return;
+  for (let side = 0; side < 2; side++) {
+    for (let i = 0; i < countPerSide; i++) {
+      const coin = document.createElement('div');
+      coin.className = 'particle-side-coin';
+      if (side === 0) {
+        coin.style.left = (Math.random() * 30) + 'px';
+        coin.style.setProperty('--side-drift', (5 + Math.random() * 20) + 'px');
+      } else {
+        coin.style.right = (Math.random() * 30) + 'px';
+        coin.style.left = 'auto';
+        coin.style.setProperty('--side-drift', -(5 + Math.random() * 20) + 'px');
+      }
+      const scale = 0.6 + Math.random() * 0.8;
+      coin.style.width = (16 * scale) + 'px';
+      coin.style.height = (16 * scale) + 'px';
+      const delay = Math.random() * durationMs * 0.7;
+      coin.style.animationDelay = delay + 'ms';
+      coin.style.animationDuration = (800 + Math.random() * 1200) + 'ms';
+      particleContainer.appendChild(coin);
+      setTimeout(() => synth.coinClink(), delay + 50 + Math.random() * 150);
+      setTimeout(() => { if (coin.parentNode) coin.remove(); }, delay + 2500);
+    }
+  }
+}
+
+/** Flash a golden vignette inside the reel window. */
+function spawnWinVignette() {
+  const reelWindow = document.getElementById('reel-window');
+  if (!reelWindow) return;
+  const vig = document.createElement('div');
+  vig.className = 'win-vignette';
+  reelWindow.appendChild(vig);
+  setTimeout(() => { if (vig.parentNode) vig.remove(); }, 800);
+}
+
+/** Floating "+$X.XX" text that pops and fades. */
+function spawnWinPopText(amount) {
+  if (!particleContainer) return;
+  const pop = document.createElement('div');
+  pop.className = 'win-pop-text';
+  pop.textContent = '+' + fmt(amount);
+  pop.style.left = (35 + Math.random() * 30) + '%';
+  pop.style.top = (30 + Math.random() * 30) + '%';
+  particleContainer.appendChild(pop);
+  setTimeout(() => { if (pop.parentNode) pop.remove(); }, 1800);
+}
+
+/** Wind lines + swirls for the wolf's blow, scaled by house tier. */
+function spawnWolfWindBlast(wolfWindBlast, tier) {
+  if (!wolfWindBlast) return;
+  wolfWindBlast.innerHTML = '';
+  const lineCount = tier === 3 ? 12 : tier === 2 ? 8 : 5;
+  const swirlCount = tier === 3 ? 8 : tier === 2 ? 5 : 3;
+  for (let i = 0; i < lineCount; i++) {
+    const line = document.createElement('div');
+    line.className = 'wind-blast-line';
+    line.style.top = (30 + Math.random() * 40) + '%';
+    line.style.height = (2 + Math.random() * 3) + 'px';
+    line.style.animationDelay = (i * 0.04) + 's';
+    line.style.animationDuration = (0.4 + Math.random() * 0.3) + 's';
+    line.style.opacity = (0.4 + Math.random() * 0.6);
+    wolfWindBlast.appendChild(line);
+    setTimeout(() => { if (line.parentNode) line.remove(); }, 1200);
+  }
+  for (let i = 0; i < swirlCount; i++) {
+    const swirl = document.createElement('div');
+    swirl.className = 'wind-swirl';
+    swirl.style.top = (25 + Math.random() * 50) + '%';
+    swirl.style.left = '0';
+    swirl.style.animationDelay = (i * 0.06 + 0.1) + 's';
+    swirl.style.width = (4 + Math.random() * 6) + 'px';
+    swirl.style.height = swirl.style.width;
+    wolfWindBlast.appendChild(swirl);
+    setTimeout(() => { if (swirl.parentNode) swirl.remove(); }, 1500);
+  }
+}
+
+/** Continuous background gold-dust motes. Call once at startup. */
+function startAmbientParticles() {
+  if (!ambientContainer) return;
+  const types = ['gold', 'gold', 'gold', 'green', 'white'];
+  function spawnMote() {
+    const mote = document.createElement('div');
+    mote.className = `ambient-mote ${types[Math.floor(Math.random() * types.length)]}`;
+    const size = 2 + Math.random() * 4;
+    mote.style.width = size + 'px';
+    mote.style.height = size + 'px';
+    mote.style.left = (Math.random() > 0.3 ? 25 + Math.random() * 50 : Math.random() * 100) + '%';
+    mote.style.bottom = '-10px';
+    mote.style.setProperty('--mote-dx', ((Math.random() - 0.5) * 80) + 'px');
+    mote.style.setProperty('--mote-dy', -(150 + Math.random() * 300) + 'px');
+    const duration = 4000 + Math.random() * 6000;
+    mote.style.animation = `mote-float ${duration}ms ease-out forwards`;
+    ambientContainer.appendChild(mote);
+    setTimeout(() => { if (mote.parentNode) mote.remove(); }, duration + 100);
+  }
+  (function scheduleNext() {
+    setTimeout(() => { spawnMote(); scheduleNext(); }, 400 + Math.random() * 400);
+  })();
+  for (let i = 0; i < 5; i++) setTimeout(spawnMote, i * 200);
+}
+
+/** 
+ * Centralized win presentation logic to DRY up the game loop.
+ * Plays the appropriate particles and coin clinks based on the win ratio.
+ */
+function playWinPresentation(ratio, isMega = false) {
+  if (isMega) {
+    spawnCoinShower(60, 3500);
+    spawnCoinFountain(40, 3500);
+    spawnDollarBills(20, 3500);
+    spawnConfetti(50, 3500);
+    spawnSideWaterfall(25, 3500);
+    setTimeout(() => {
+      spawnCoinFountain(20, 2000); 
+      spawnDollarBills(10, 2000); 
+      spawnConfetti(25, 2000);
+      spawnWinVignette();
+    }, 1500);
+    for (let i = 0; i < 5; i++) setTimeout(() => synth.coinClink(), 200 + i * 150);
+  } else if (ratio >= 8) {
+    spawnCoinShower(40, 2500);
+    spawnCoinFountain(25, 2500);
+    spawnDollarBills(12, 2500);
+    spawnConfetti(30, 2500);
+    spawnSideWaterfall(15, 2500);
+    for (let i = 0; i < 5; i++) setTimeout(() => synth.coinClink(), 200 + i * 150);
+  } else if (ratio >= 3) {
+    spawnCoinShower(15, 1500); 
+    spawnCoinFountain(20, 1800); 
+    spawnDollarBills(6, 1800); 
+    spawnConfetti(15, 1800);
+    for (let i = 0; i < 3; i++) setTimeout(() => synth.coinClink(), 100 + i * 120);
+  } else if (ratio >= 2) {
+    spawnCoinShower(15, 1500); 
+    spawnCoinFountain(20, 1800); 
+    spawnDollarBills(6, 1800); 
+    spawnConfetti(15, 1800);
+    for (let i = 0; i < 3; i++) setTimeout(() => synth.coinClink(), 100 + i * 120);
+  } else if (ratio > 0) {
+    spawnCoinFountain(12, 1500); 
+    spawnDollarBills(3, 1500);
+  }
+}
+
+Object.assign(exports, { spawnCoinShower, spawnCoinFountain, spawnSparkles, spawnWindParticles, spawnDollarBills, spawnConfetti, spawnStarbursts, spawnSideWaterfall, spawnWinVignette, spawnWinPopText, spawnWolfWindBlast, startAmbientParticles, playWinPresentation });
+
+  };
+
+  __mods["phrases"] = function (exports, require) {
+/**
+ * @module phrases
+ * @description Every line the narrator can say, in the voice of the BIG BAD WOLF —
+ * a gruff cowboy wolf straight out of the Three Little Pigs. Grouped by game event.
+ *
+ * This is the SINGLE source of truth for the narrator script. It's imported by:
+ *   • js/narrator.js   – picks a random line per event and plays the matching MP3
+ *   • tools/voice.js   – generates the MP3s from ElevenLabs (one file per line)
+ *
+ * Files live at  assets/audio/narrator/<category>_<index>.mp3  where <index> is the
+ * line's position in its array. So the array order here defines which file is which —
+ * if you re-order or change counts, re-run `node tools/voice.js all <voiceId>`.
+ */
+
+const PHRASES = {
+  spin: [
+    "Alright partner, let's give them reels a spin!",
+    "Heeere we go now — round and round she goes!",
+    "Spin 'em up, and let's see what the wind blows in!",
+    "Ooo-wee! Let's rattle them reels, partner!",
+    "Come on now, daddy needs a new pair o' boots!",
+    "Awooo! Let 'er rip!",
+    "Let's huff up a storm and spin this thing!",
+    "Round the reels go — where they stop, heh, only I know!",
+    "Crank 'er up, partner — I got a hankerin' for a win!",
+    "Spinnin' faster'n a tumbleweed in a twister!",
+    "Let's see if them pigs left us anything good!",
+    "Hold onto your hat — here she spins!",
+    "I feel a lucky wind a-blowin', partner!",
+    "Saddle up! These reels are about to ride!",
+    "One good huff oughta get these reels movin'!",
+    "Come on, sugar — show ol' Wolf somethin' sweet!",
+    "Reels a-turnin', and my belly's a-rumblin'!",
+    "Yeehaw! Down the trail we go!",
+    "Spin it like you mean it, partner!",
+    "Let's blow the doors off this one!",
+    "Here comes the big bad spin, little piggies!",
+    "My whiskers are twitchin' — that means money!",
+    "Let's kick up some dust on these here reels!",
+    "Come on now, line 'em up like ducks in a row!",
+    "Easy does it... and... SPIN!",
+    "Wind's at our back, partner — let 'er fly!",
+    "Give 'er a whirl! Fortune favors the hungry!",
+    "Round we go — I can almost taste them winnins!",
+  ],
+  smallWin: [
+    "Well lookie there — a lil' nibble!",
+    "Heh, ain't much, but a wolf don't turn down a snack!",
+    "A few coins for the den! I'll take it!",
+    "That there's an appetizer, partner!",
+    "Small bite, but tasty all the same!",
+    "Cha-ching — that's some kibble money!",
+    "Not a feast, but it'll hold me over!",
+    "A lil' somethin' for the chinny-chin-chin!",
+    "Coins in the coat, partner — every bit counts!",
+    "Heh heh, them pigs dropped a few on the way out!",
+    "A modest haul, but ol' Wolf is patient!",
+    "That'll buy me a new neckerchief at least!",
+    "Small win, big appetite — keep 'em comin'!",
+    "Pocket change, but my pockets run deep!",
+    "A nibble here, a nibble there — adds up, partner!",
+    "Yeehaw, a little drizzle 'fore the storm!",
+    "I've et smaller, partner — we'll take it!",
+    "Couple coins jingle-jangle — music to my ears!",
+  ],
+  mediumWin: [
+    "Now we're cookin' with bacon grease!",
+    "Ooo-wee! That's a proper meal right there!",
+    "Heh heh HEH! The pigs are payin' up!",
+    "Now THAT'S a haul worth howlin' about! Awooo!",
+    "Look at them coins runnin' like scared piggies!",
+    "That's the good stuff, partner — sink yer teeth in!",
+    "A solid bite outta this here game!",
+    "Yeehaw! The wind's blowin' our way!",
+    "That'll fill the den AND the belly!",
+    "Mighty fine payout, partner — mighty fine!",
+    "Them reels finally came to their senses!",
+    "Oh, I'm lickin' my chops over this one!",
+    "Now we're talkin' real wolf money!",
+    "That's a wagon-load of coins, partner!",
+    "Huff, puff, and PAYDAY! Beautiful!",
+    "The pigs are squealin' and I'm grinnin'!",
+    "A fine cut of winnins, served up hot!",
+    "Ringin' the dinner bell on that one!",
+  ],
+  bigWin: [
+    "AWOOOOO! Now THAT is a feast, partner!",
+    "WELL SLAP MY TAIL AND CALL ME LUCKY!",
+    "HOO-WEE! The whole dang henhouse just paid out!",
+    "I HUFFED, I PUFFED, AND I BLEW THE BANK WIDE OPEN!",
+    "GREAT GALLOPIN' GOLD! LOOK AT THEM COINS!",
+    "NOT BY THE HAIR — THIS HERE'S A MONSTER, PARTNER!",
+    "YEEEEHAW! BIGGEST HAUL THIS SIDE O' THE FOREST!",
+    "THEM PIGS DONE LEFT THE WHOLE TREASURE BEHIND!",
+    "I'M HOWLIN' AT THE MOON OVER THIS ONE! AWOOO!",
+    "STAMPEDE OF COINS, PARTNER — GET OUTTA THE WAY!",
+    "MY CHINNY-CHIN-CHIN IS TREMBLIN' WITH JOY!",
+    "BLOW ME DOWN — THAT'S A FORTUNE!",
+    "HOT DIGGITY WOLF, WE STRUCK IT RICH!",
+    "RING THE DINNER BELL — IT'S A BANQUET!",
+    "I AIN'T NEVER SEEN SO MANY COINS IN ALL MY DAYS!",
+    "THE BIG BAD WOLF HITS THE BIG BAD JACKPOT!",
+    "GRAB A BUCKET, PARTNER — IT'S RAININ' GOLD!",
+    "MY WHISKERS 'BOUT FELL OFF — WHAT A WIN!",
+    "WOOOO! TELL THE WHOLE FOREST WE DONE IT!",
+    "THIS HERE'S A WIN FER THE STORYBOOKS!",
+  ],
+  loss: [
+    "Aw, shucks — empty as a pig pen at suppertime.",
+    "Nothin' but tumbleweeds on that one, partner.",
+    "Hmph. Them pigs got away clean that round.",
+    "Dry as the desert. Shake it off, partner.",
+    "No bacon this time. We huff again!",
+    "Ah well — even a wolf misses a meal now and then.",
+    "The wind died down on that one. Reload them lungs!",
+    "Nothin' in the henhouse. Onward!",
+    "Them reels are playin' coy. I like a challenge.",
+    "Missed 'em by a whisker. We'll get 'em next time.",
+    "No coins, no problem — a wolf is patient.",
+    "That house didn't budge. Bigger huff next round!",
+    "Empty-pawed, but not for long, partner.",
+    "Heh, them pigs think they're safe. Cute.",
+    "Dust in the wind. Let's spin her again.",
+    "A swing and a miss. Sharpen them claws!",
+    "Not a crumb that time. My belly grumbles on.",
+    "Quiet round. Calm 'fore the big bad storm.",
+  ],
+  lossStreak: [
+    "Come on now — them pigs can't hide forever!",
+    "Dang it all, this dry spell's testin' my patience!",
+    "A wolf's gotta eat! Throw me a bone here!",
+    "Been a long, dusty trail without a meal...",
+    "I've huffed till I'm blue — somethin's gotta give!",
+    "Them three pigs are gettin' cocky. Won't last!",
+    "Every drought ends in a downpour, partner. Hold fast!",
+    "I can smell a big win comin' over the ridge!",
+    "These reels OWE me — and a wolf always collects!",
+    "Lean times, partner — but the wolf endures!",
+    "I've gone hungrier'n this and still ate good!",
+    "The bricks are holdin' for now. Keep huffin'!",
+    "Patience, partner. Even the moon takes its time.",
+    "My luck's 'bout to turn like the prairie wind!",
+    "Storm's been brewin' — any spin now she breaks!",
+    "Keep the faith — the big bad payday's comin'!",
+  ],
+  nearMiss: [
+    "Ooo! Nearly had them pigs by the tail!",
+    "One whisker away! ONE! Dadgummit!",
+    "So close I could smell the bacon fryin'!",
+    "Argh — that house near 'bout came down!",
+    "Them pigs slipped out the back door, partner!",
+    "A hair! Not by the hair of my chinny-chin-chin!",
+    "Teasin' me, are ya? Them reels are cruel!",
+    "I had 'em cornered and they wriggled free!",
+    "Almost blew it down! One more gust!",
+    "My chops were waterin' — and POOF, gone!",
+    "Right there! It was RIGHT there, partner!",
+    "Close enough to feel the wind change!",
+  ],
+  bonusTrigger: [
+    "AWOOO! Them hard hats opened the gate — FREE SPINS!",
+    "WELL BUST MY BRITCHES — IT'S THE BONUS, PARTNER!",
+    "THE PIGS ARE BUILDIN' AND WE'RE COMIN' FOR 'EM!",
+    "SIX HATS! TIME TO HUFF AND PUFF FER REAL!",
+    "BONUS ROUND, PARTNER — THE HUNT IS ON!",
+    "YEEHAW! THE BIG BAD BONUS DONE TRIGGERED!",
+    "RING THE BELL — FREE SPINS AT THE PIG FARM!",
+    "I BEEN WAITIN' ALL DAY FER THIS — BONUS TIME!",
+    "GRAB YER HAT — WE'RE GOIN' HOUSE TO HOUSE!",
+    "THE WHOLE FOREST HEARD THAT ONE! BONUS, BABY!",
+    "HOO-WEE! Now the real huffin' begins!",
+  ],
+  freeSpin: [
+    "Another free one — build them houses, piggies!",
+    "Free spin a-comin' — more straw to blow down!",
+    "On the house, partner — just how I like it!",
+    "Stack them frames up — I'll huff 'em all down!",
+    "Come on, hard hats — show yer faces!",
+    "Free spin! Let's fatten up that prize!",
+    "More bricks, more loot — keep 'em comin'!",
+    "Round on the house — yeehaw!",
+    "Let's see them pigs work fer MY supper!",
+    "Another crack at the henhouse — free!",
+    "Spin's on me, partner — well, on the pigs!",
+  ],
+  frameUpgrade: [
+    "A hat! That house just got a sight bigger!",
+    "Buildin' up, partner — more to blow down later!",
+    "Ooo, them walls are risin'! Good, GOOD!",
+    "Upgrade! The bigger they are, the harder I huff!",
+    "Another hat on the pile — keep stackin'!",
+    "Them pigs are workin' hard fer my benefit!",
+    "Walls goin' up means winnins goin' up!",
+  ],
+  brickAchieved: [
+    "A BRICK HOUSE! Oh, that's the GOOD eatin' right there!",
+    "FULL BRICK, partner — top dollar inside!",
+    "Them pigs built it solid — and I built it RICH!",
+    "Brick by brick, that's a fortune waitin'!",
+    "Solid as a mountain — and twice as valuable!",
+    "Now THAT house has somethin' worth blowin' fer!",
+  ],
+  wolfReveal: [
+    "Step aside — the BIG BAD WOLF is here!",
+    "Heh heh... I'll huff, and I'll puff, partner!",
+    "Time to do what a wolf does best!",
+    "Knock knock, little pigs — guess who?",
+    "The wind's got teeth now, partner!",
+    "Here comes the huffin', here comes the puffin'!",
+    "Awooo! Let me at them houses!",
+  ],
+  wolfStraw: [
+    "HUFF! And the straw goes flyin'! Easy pickins!",
+    "One puff and that straw house is GONE!",
+    "Ha! Straw don't stand a chance against me!",
+    "Down she goes — straw all over the prairie!",
+    "Barely a breath and POOF — straw's history!",
+  ],
+  wolfStick: [
+    "PUFF! Them sticks are scatterin' ever' which way!",
+    "A bigger blow and TIMBER — sticks down!",
+    "Heh, had to put a little muscle in that one!",
+    "Stick house crumbles like a dry biscuit!",
+    "Whoosh! Kindlin' fer my campfire now!",
+  ],
+  wolfBrick: [
+    "HUFF AND PUFF — I'm givin' her all I got!",
+    "Them bricks are stubborn... but the PRIZE inside, ooo-wee!",
+    "Not by the hair of my chinny-chin-chin — but LOOK at that payout!",
+    "The brick house stands... and pays a wolf's ransom!",
+    "Couldn't blow it down, but I'll take the treasure!",
+    "Solid bricks, solid GOLD, partner!",
+  ],
+  mansionJackpot: [
+    "MANSION JACKPOT! WELL I'LL BE A HORNSWOGGLED WOLF!",
+    "THREE MANSIONS! THE WHOLE PIG EMPIRE IS OURS!",
+    "JACKPOT! JACKPOT! AWOOOO! THE BIG ONE, PARTNER!",
+    "I COULDN'T BLOW 'EM DOWN, SO I'M CASHIN' 'EM IN!",
+    "THE GRANDEST HAUL IN ALL THE FOREST! YEEHAW!",
+  ],
+  miniJackpot: [
+    "JACKPOT, partner! Treasure in the chimney!",
+    "Well lookie — a pot o' gold in that house!",
+    "Mini jackpot! Them pigs were hidin' loot!",
+    "Found the stash, partner! Heh heh heh!",
+  ],
+  retrigger: [
+    "MORE free spins?! Don't mind if I DO!",
+    "Retrigger! The hunt keeps on goin'!",
+    "Three more hats — extra spins on the house!",
+    "Awooo! We ain't done feastin' yet!",
+    "The bonus keeps givin' like a generous pig!",
+  ],
+  bonusComplete: [
+    "And that's a wrap, partner — fine huntin' today!",
+    "Bonus done — the pigs live to build another day!",
+    "Belly's full, den's richer — what a round!",
+    "We blew through them houses good, partner!",
+    "Last puff's been puffed — let's count the loot!",
+  ],
+  idle: [
+    "Reels are quiet... too quiet fer my likin', partner.",
+    "I can smell them three little pigs from here...",
+    "Go on, give 'er a spin — the wolf gets restless!",
+    "Just me, the moon, and a hankerin' fer bacon.",
+    "Press that button, partner — daylight's burnin'!",
+    "I hear them pigs hammerin' away... let 'em build.",
+    "A wolf waits... but not too patient-like, ya hear?",
+    "Tumbleweed just rolled by. That's your cue, partner.",
+    "The henhouse ain't gonna raid itself, ya know.",
+    "I been sharpenin' my huffin' fer the next round.",
+    "Quiet as a church mouse out here — spin somethin'!",
+    "My whiskers are gettin' dusty. Let's ride!",
+    "Them reels are just sittin' there, tauntin' me.",
+    "Story goes the wolf always gets his supper. Eventually.",
+    "Take yer time, partner. The pigs sure are.",
+    "I could go fer a spin... and a snack.",
+    "Wind's pickin' up. Perfect weather fer huffin'.",
+    "Fortune favors the hungry — and I'm STARVIN'.",
+    "Out here narratin' to the cactus again, I see.",
+    "Even the moon's waitin' on ya, partner.",
+    "A good wolf knows patience. A great one knows when to POUNCE.",
+    "Reckon them pigs think they're safe. Reckon they're wrong.",
+    "Spin the reels 'fore I start chewin' the furniture!",
+    "Long as there's pigs to chase, ol' Wolf's stickin' around.",
+  ],
+  firstSpin: [
+    "Well howdy, partner — welcome to BIG BAD WOLF! Let's hunt!",
+    "Saddle up! First spin of the day — make it a good 'un!",
+    "The wolf is hungry and the pigs are nervous — here we GO!",
+    "Welcome to my neck o' the woods, partner! First spin's a-comin'!",
+  ],
+  lowBalance: [
+    "Careful now, partner — the purse is gettin' light.",
+    "We're runnin' lean, like a wolf in winter...",
+    "Balance is thin as straw. Need a big huff soon!",
+    "Pockets near empty, partner — time fer a comeback!",
+    "Low on coin, but a wolf's luck can turn quick!",
+  ],
+  betUp: [
+    "Raisin' the stakes! I LIKE yer appetite, partner!",
+    "Bigger bet, bigger bacon! Now yer talkin'!",
+    "Ooo-wee, goin' for the whole hog, are ya?",
+    "More on the line — that's the wolf spirit!",
+  ],
+  betDown: [
+    "Easin' off a touch — smart, partner, smart.",
+    "Playin' it cagey. A wise wolf does the same.",
+    "Smaller bet, longer hunt. I respect it.",
+    "Dialin' it back to live and huff another day.",
+  ],
+  postWin: [
+    "Look at them coins pile up — purty as a sunset!",
+    "Keep 'em comin', partner — fill the den!",
+    "That counter's climbin' like a cat up a tree!",
+    "Sweetest sound there is — coins and squealin' pigs!",
+    "I could watch this all dang day, partner!",
+    "The loot just keeps a-rollin' in! Yeehaw!",
+    "My belly AND my coin purse are happy now!",
+    "That's a payout worth howlin' over! Awooo!",
+  ],
+  winStreak: [
+    "Another'n?! We're on a TEAR, partner!",
+    "Back to back — this machine's runnin' scared!",
+    "Hotter'n a brandin' iron! Keep it up!",
+    "The pigs can't build fast enough fer us!",
+    "Win after win — the wolf is on the PROWL!",
+    "Don't nobody touch nothin' — we're blazin'!",
+    "Three in a row! I'm howlin' at the moon!",
+    "This here's a winnin' streak fer the ages!",
+    "Stampede o' luck, partner — ride it!",
+  ],
+  noFunds: [
+    "Aw, partner — the purse is plumb empty.",
+    "Den's bare and the pockets are dry. Reload to ride!",
+    "That's all she wrote — outta coin, partner.",
+    "Even a big bad wolf runs outta supper sometime.",
+    "Empty-handed, but full of stories! Refill to hunt again!",
+  ],
+};
+
+Object.assign(exports, { PHRASES });
+
+  };
+
+  __mods["reveal"] = function (exports, require) {
+/**
+ * @module reveal
+ * @description Post-intro reveal sequence. The game loads hidden (body.pre-reveal)
+ * with the background video shown clean and undimmed. After the intro splash
+ * finishes we linger on that background for a beat, then fade the whole game —
+ * cabinet/reels/character, the side panel, the ambient dust, and the day-night
+ * darkening — in together.
+ *
+ * Order matters: this module imports AFTER daynight in main.js, so it can park
+ * the day-night overlay at 0 (overriding daynight's initial value) for the hold.
+ */
+
+const { revealDayNight } = require("daynight");
+
+const overlay = document.getElementById('day-night-overlay');
+const HOLD_MS = 1500;   // how long to linger on the clean background after the intro
+let revealed = false;
+
+// Start hidden, with the background full & undimmed (daynight already set the
+// overlay opacity on load — override it to 0 so the hold looks clean).
+document.body.classList.add('pre-reveal');
+if (overlay) overlay.style.opacity = '0';
+
+function reveal() {
+  if (revealed) return;
+  revealed = true;
+  document.body.classList.remove('pre-reveal');   // fade the game in (CSS 1.1s)
+  revealDayNight();                                // fade the darkening back in
+}
+
+// When the intro signals it's done, hold on the background, then reveal.
+window.addEventListener('intro:done', () => setTimeout(reveal, HOLD_MS), { once: true });
+
+// Safety net: reveal anyway if the intro never signals (missing/blocked splash).
+setTimeout(reveal, 23000);
+
+  };
+
+  __mods["rtp"] = function (exports, require) {
+/**
+ * @module rtp
+ * @description The RTP picker — a popup (opened from the options drawer) that
+ * lets the player choose which math model the game runs. The list of choices is
+ * rendered straight from RTP_MODELS in config.js, so adding a model there makes
+ * a new card appear here automatically; no UI edits needed.
+ *
+ * Selecting a card calls applyRtpModel(), which records the choice in shared
+ * state. There is currently a single model, so switching is a no-op beyond the
+ * UI; when a second model is added, applyRtpModel() is the one place to also
+ * swap the active reel strips / bonus tables.
+ */
+
+const { RTP_MODELS } = require("config");
+const { state } = require("state");
+const { synth } = require("audio");
+
+const btnRtp   = document.getElementById('btn-rtp');
+const modal    = document.getElementById('rtp-modal');
+const closeBtn = document.getElementById('btn-close-rtp');
+const doneBtn  = document.getElementById('btn-rtp-done');
+const optionsEl = document.getElementById('rtp-options');
+
+const pct = rtp => `${(rtp * 100).toFixed(0)}%`;
+
+/** Build one selectable card per model (once). */
+function renderOptions() {
+  if (!optionsEl) return;
+  optionsEl.innerHTML = '';
+  RTP_MODELS.forEach(model => {
+    const card = document.createElement('button');
+    card.className = 'rtp-option';
+    card.dataset.id = model.id;
+    card.innerHTML = `
+      <span class="rtp-check" aria-hidden="true">✓</span>
+      <span class="rtp-pct">${pct(model.rtp)}</span>
+      <span class="rtp-text">
+        <span class="rtp-name">${model.label}</span>
+        <span class="rtp-blurb">${model.blurb}</span>
+      </span>`;
+    card.addEventListener('click', () => applyRtpModel(model.id));
+    optionsEl.appendChild(card);
+  });
+  markSelected();
+}
+
+/** Highlight whichever card matches the active model. */
+function markSelected() {
+  if (!optionsEl) return;
+  optionsEl.querySelectorAll('.rtp-option').forEach(card => {
+    card.classList.toggle('selected', card.dataset.id === state.rtpModelId);
+  });
+}
+
+/**
+ * Select a model. Records it in state and refreshes the UI. This is the single
+ * spot where future model-switching (swapping reel strips / bonus math) hooks in.
+ */
+function applyRtpModel(id) {
+  if (!RTP_MODELS.some(m => m.id === id)) return;
+  const changed = state.rtpModelId !== id;
+  state.rtpModelId = id;
+  markSelected();
+  if (changed) synth.coinClink();
+}
+
+function openModal()  { markSelected(); modal.classList.remove('hidden'); }
+function closeModal() { modal.classList.add('hidden'); }
+
+if (btnRtp && modal) {
+  renderOptions();
+  btnRtp.addEventListener('click', openModal);
+  if (closeBtn) closeBtn.addEventListener('click', closeModal);
+  if (doneBtn) doneBtn.addEventListener('click', closeModal);
+  modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+}
+
+Object.assign(exports, { applyRtpModel });
+
+  };
+
+  __mods["simulation"] = function (exports, require) {
+/**
+ * @module simulation
+ * @description The 📊 SIM dashboard: a chunked Monte-Carlo run over the real
+ * game math (from mathcore) plus zero-dependency Canvas 2D charts. Exports
+ * `runSimulation` so the MATH panel can reuse the exact same engine.
+ */
+
+const { SYMBOLS, HAT_IDS, BONUS_CONFIG } = require("config");
+const { generateGrid, evaluateGrid, simulateBonusOutcome } = require("mathcore");
+
+const btnSim        = document.getElementById('btn-simulate');
+const simModal      = document.getElementById('sim-modal');
+const btnCloseSim   = document.getElementById('btn-close-sim');
+const btnRunSim     = document.getElementById('btn-run-sim');
+const runLabel      = document.getElementById('sim-run-label');
+const simSpinsEl    = document.getElementById('sim-spins');
+const simBetEl      = document.getElementById('sim-bet');
+const simBankrollEl = document.getElementById('sim-bankroll');
+const progressWrap  = document.getElementById('sim-progress-wrap');
+const progressFill  = document.getElementById('sim-progress-fill');
+const progressText  = document.getElementById('sim-progress-text');
+const elapsedEl     = document.getElementById('sim-elapsed');
+const dashboard     = document.getElementById('sim-dashboard');
+const insightsEl    = document.getElementById('sim-insights');
+
+/* ══════════════════════════════════════════
+   MONTE CARLO ENGINE (chunked async, uses mathcore)
+══════════════════════════════════════════ */
+async function runSimulation(totalSpins, bet, startBankroll) {
+  const CHUNK = 500;
+  const R = {
+    totalWagered: 0, totalWon: 0, baseWon: 0, bonusWon: 0,
+    wins: 0, losses: 0, bonusTriggers: 0, bonusTotalFS: 0,
+    maxWin: 0, maxMult: 0, symbolWins: {}, balanceHistory: [],
+    winsByTier: { dead: 0, tiny: 0, small: 0, medium: 0, big: 0, mega: 0 },
+    winsByTierPaid: { dead: 0, tiny: 0, small: 0, medium: 0, big: 0, mega: 0 },
+    allMultipliers: [],
+    currentWinStreak: 0, currentLossStreak: 0, maxWinStreak: 0, maxLossStreak: 0,
+    startBankroll, bankrollSurvived: true, bustSpin: -1,
+    peakBalance: startBankroll, troughBalance: startBankroll,
+  };
+  Object.keys(SYMBOLS).forEach(id => { R.symbolWins[id] = { count: 0, totalPaid: 0 }; });
+
+  let bal = startBankroll, processed = 0;
+  const sampleRate = Math.max(1, Math.floor(totalSpins / 600));
+  const startTime = performance.now();
+
+  while (processed < totalSpins) {
+    const end = Math.min(processed + CHUNK, totalSpins);
+    for (let i = processed; i < end; i++) {
+      R.totalWagered += bet;
+      bal -= bet;
+
+      const grid = generateGrid();
+      const { totalWin, winners } = evaluateGrid(grid, bet);
+      let spinWin = totalWin;
+      winners.forEach(w => {
+        if (R.symbolWins[w.symId]) { R.symbolWins[w.symId].count++; R.symbolWins[w.symId].totalPaid += w.winAmount; }
+      });
+
+      let hatCount = 0;
+      for (let r = 0; r < 5; r++) for (let row = 0; row < 3; row++) if (HAT_IDS.includes(grid[r][row])) hatCount++;
+      if (hatCount >= BONUS_CONFIG.triggerHats) {
+        R.bonusTriggers++;
+        const b = simulateBonusOutcome(bet, grid);
+        spinWin += b.bonusWin;
+        R.bonusWon += b.bonusWin;
+        R.bonusTotalFS += b.freeSpins;
+      }
+
+      R.baseWon += totalWin;
+      R.totalWon += spinWin;
+      bal += spinWin;
+      const m = spinWin / bet;
+      R.allMultipliers.push(m);
+
+      if (spinWin > 0) {
+        R.wins++;
+        if (spinWin > R.maxWin) { R.maxWin = spinWin; R.maxMult = m; }
+        R.currentWinStreak++; R.currentLossStreak = 0;
+        if (R.currentWinStreak > R.maxWinStreak) R.maxWinStreak = R.currentWinStreak;
+        if (m < 1)       { R.winsByTier.tiny++;   R.winsByTierPaid.tiny += spinWin; }
+        else if (m < 3)  { R.winsByTier.small++;  R.winsByTierPaid.small += spinWin; }
+        else if (m < 8)  { R.winsByTier.medium++; R.winsByTierPaid.medium += spinWin; }
+        else if (m < 20) { R.winsByTier.big++;    R.winsByTierPaid.big += spinWin; }
+        else             { R.winsByTier.mega++;   R.winsByTierPaid.mega += spinWin; }
+      } else {
+        R.losses++;
+        R.winsByTier.dead++;
+        R.currentLossStreak++; R.currentWinStreak = 0;
+        if (R.currentLossStreak > R.maxLossStreak) R.maxLossStreak = R.currentLossStreak;
+      }
+
+      if (bal > R.peakBalance) R.peakBalance = bal;
+      if (bal < R.troughBalance) R.troughBalance = bal;
+      if (bal <= 0 && R.bankrollSurvived) { R.bankrollSurvived = false; R.bustSpin = i; }
+      if (i % sampleRate === 0 || i === totalSpins - 1) R.balanceHistory.push({ spin: i, balance: bal });
+    }
+    processed = end;
+    if (progressFill) {
+      progressFill.style.width = Math.round((processed / totalSpins) * 100) + '%';
+      progressText.textContent = `${processed.toLocaleString()} / ${totalSpins.toLocaleString()} spins`;
+      elapsedEl.textContent = `${((performance.now() - startTime) / 1000).toFixed(1)}s`;
+    }
+    await new Promise(r => setTimeout(r, 0));
+  }
+
+  R.finalBalance = bal;
+  R.elapsedMs = performance.now() - startTime;
+  return R;
+}
+
+/* ══════════════════════════════════════════
+   CANVAS CHART UTILITIES
+══════════════════════════════════════════ */
+function prepCanvas(canvas) {
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, rect.width, rect.height);
+  return { ctx, w: rect.width, h: rect.height };
+}
+
+const CHART_FONT = "'Nunito', sans-serif";
+
+function drawBarChart(canvas, labels, values, colors) {
+  const { ctx, w, h } = prepCanvas(canvas);
+  const pad = { top: 12, right: 16, bottom: 44, left: 52 };
+  const cW = w - pad.left - pad.right, cH = h - pad.top - pad.bottom;
+  const maxV = Math.max(...values, 1);
+  const gap = cW / labels.length;
+  const barW = Math.min(36, gap * 0.6);
+  ctx.strokeStyle = 'rgba(0,191,255,.06)'; ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = pad.top + cH - (cH * i / 4);
+    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(w - pad.right, y); ctx.stroke();
+    ctx.fillStyle = '#3A6A80'; ctx.font = `600 9px ${CHART_FONT}`; ctx.textAlign = 'right';
+    ctx.fillText(maxV > 999 ? (maxV * i / 4 / 1000).toFixed(1) + 'k' : (maxV * i / 4).toFixed(0), pad.left - 6, y + 3);
+  }
+  labels.forEach((label, i) => {
+    const x = pad.left + gap * i + (gap - barW) / 2;
+    const bH = (values[i] / maxV) * cH;
+    const y = pad.top + cH - bH;
+    const grad = ctx.createLinearGradient(x, y, x, pad.top + cH);
+    const c = colors[i % colors.length];
+    grad.addColorStop(0, c); grad.addColorStop(1, c + '30');
+    ctx.fillStyle = grad;
+    const r = Math.min(3, barW / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + r, y); ctx.lineTo(x + barW - r, y);
+    ctx.arcTo(x + barW, y, x + barW, y + r, r);
+    ctx.lineTo(x + barW, pad.top + cH); ctx.lineTo(x, pad.top + cH);
+    ctx.lineTo(x, y + r); ctx.arcTo(x, y, x + r, y, r);
+    ctx.fill();
+    if (values[i] > 0) {
+      ctx.fillStyle = c; ctx.font = `700 8px ${CHART_FONT}`; ctx.textAlign = 'center';
+      ctx.fillText(values[i] > 999 ? (values[i] / 1000).toFixed(1) + 'k' : values[i], x + barW / 2, y - 4);
+    }
+    ctx.fillStyle = '#3A6A80'; ctx.font = `700 7.5px ${CHART_FONT}`; ctx.textAlign = 'center';
+    ctx.save(); ctx.translate(x + barW / 2, h - pad.bottom + 14); ctx.rotate(-0.4);
+    ctx.fillText(label, 0, 0); ctx.restore();
+  });
+}
+
+function drawHBarChart(canvas, labels, values, colors, fmtVal) {
+  const { ctx, w, h } = prepCanvas(canvas);
+  const pad = { top: 6, right: 70, bottom: 6, left: 90 };
+  const cW = w - pad.left - pad.right, cH = h - pad.top - pad.bottom;
+  const maxV = Math.max(...values, 0.01);
+  const barH = Math.min(20, (cH / labels.length) * 0.7);
+  const gap = cH / labels.length;
+  labels.forEach((label, i) => {
+    const y = pad.top + gap * i + (gap - barH) / 2;
+    const bW = (values[i] / maxV) * cW;
+    const grad = ctx.createLinearGradient(pad.left, 0, pad.left + bW, 0);
+    const c = colors[i % colors.length];
+    grad.addColorStop(0, c); grad.addColorStop(1, c + '50');
+    ctx.fillStyle = grad;
+    const r = Math.min(3, barH / 2);
+    ctx.beginPath();
+    ctx.moveTo(pad.left, y + r); ctx.arcTo(pad.left, y, pad.left + r, y, r);
+    ctx.lineTo(pad.left + bW - r, y); ctx.arcTo(pad.left + bW, y, pad.left + bW, y + r, r);
+    ctx.lineTo(pad.left + bW, y + barH - r); ctx.arcTo(pad.left + bW, y + barH, pad.left + bW - r, y + barH, r);
+    ctx.lineTo(pad.left, y + barH); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#4A8899'; ctx.font = `700 9px ${CHART_FONT}`; ctx.textAlign = 'right';
+    ctx.fillText(label.length > 12 ? label.slice(0, 12) + '…' : label, pad.left - 6, y + barH / 2 + 3);
+    ctx.fillStyle = '#80C0D0'; ctx.font = `700 9px ${CHART_FONT}`; ctx.textAlign = 'left';
+    ctx.fillText(fmtVal ? fmtVal(values[i]) : values[i].toLocaleString(), pad.left + bW + 6, y + barH / 2 + 3);
+  });
+}
+
+function drawLineChart(canvas, points, startBankroll) {
+  const { ctx, w, h } = prepCanvas(canvas);
+  const pad = { top: 12, right: 16, bottom: 30, left: 58 };
+  const cW = w - pad.left - pad.right, cH = h - pad.top - pad.bottom;
+  if (points.length < 2) return;
+  const minB = Math.min(...points.map(p => p.balance));
+  const maxB = Math.max(...points.map(p => p.balance));
+  const range = maxB - minB || 1;
+  const maxS = points[points.length - 1].spin;
+  const toX = s => pad.left + (s / maxS) * cW;
+  const toY = b => pad.top + cH - ((b - minB) / range) * cH;
+  ctx.strokeStyle = 'rgba(0,191,255,.05)'; ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = pad.top + cH * (1 - i / 4);
+    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(w - pad.right, y); ctx.stroke();
+    ctx.fillStyle = '#3A6A80'; ctx.font = `600 9px ${CHART_FONT}`; ctx.textAlign = 'right';
+    ctx.fillText('$' + (minB + range * i / 4).toFixed(0), pad.left - 6, y + 3);
+  }
+  const sY = toY(startBankroll);
+  if (sY >= pad.top && sY <= pad.top + cH) {
+    ctx.setLineDash([4, 4]); ctx.strokeStyle = 'rgba(255,170,0,.25)';
+    ctx.beginPath(); ctx.moveTo(pad.left, sY); ctx.lineTo(w - pad.right, sY); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(255,170,0,.4)'; ctx.font = `600 8px ${CHART_FONT}`; ctx.textAlign = 'left';
+    ctx.fillText('START $' + startBankroll, pad.left + 4, sY - 4);
+  }
+  const finalBal = points[points.length - 1].balance;
+  const lineColor = finalBal >= startBankroll ? '#2EE85A' : '#FF6060';
+  ctx.beginPath();
+  points.forEach((p, i) => { const x = toX(p.spin), y = toY(p.balance); i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y); });
+  ctx.strokeStyle = lineColor; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.lineTo(toX(maxS), pad.top + cH); ctx.lineTo(toX(0), pad.top + cH); ctx.closePath();
+  const grad = ctx.createLinearGradient(0, pad.top, 0, pad.top + cH);
+  grad.addColorStop(0, lineColor === '#2EE85A' ? 'rgba(46,232,90,.12)' : 'rgba(255,96,96,.10)');
+  grad.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = grad; ctx.fill();
+  const fx = toX(maxS), fy = toY(finalBal);
+  ctx.fillStyle = lineColor; ctx.beginPath(); ctx.arc(fx, fy, 4, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = lineColor; ctx.font = `800 10px ${CHART_FONT}`; ctx.textAlign = 'right';
+  ctx.fillText('$' + finalBal.toFixed(0), fx - 8, fy - 6);
+  ctx.fillStyle = '#3A6A80'; ctx.font = `600 9px ${CHART_FONT}`; ctx.textAlign = 'center';
+  for (let i = 0; i <= 4; i++) { const s = Math.round(maxS * i / 4); ctx.fillText(s.toLocaleString(), toX(s), h - pad.bottom + 16); }
+}
+
+function drawDonutChart(canvas, labels, values, colors) {
+  const { ctx, w, h } = prepCanvas(canvas);
+  const cx = w * 0.38, cy = h / 2;
+  const outerR = Math.min(cx - 8, cy - 8);
+  const innerR = outerR * 0.58;
+  const total = values.reduce((a, b) => a + b, 0) || 1;
+  let angle = -Math.PI / 2;
+  labels.forEach((label, i) => {
+    const slice = (values[i] / total) * Math.PI * 2;
+    if (slice < 0.005) { angle += slice; return; }
+    ctx.beginPath(); ctx.arc(cx, cy, outerR, angle, angle + slice);
+    ctx.arc(cx, cy, innerR, angle + slice, angle, true); ctx.closePath();
+    ctx.fillStyle = colors[i % colors.length]; ctx.fill();
+    ctx.strokeStyle = 'rgba(8,14,20,.8)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(cx + Math.cos(angle) * innerR, cy + Math.sin(angle) * innerR);
+    ctx.lineTo(cx + Math.cos(angle) * outerR, cy + Math.sin(angle) * outerR); ctx.stroke();
+    const mid = angle + slice / 2;
+    const pct = (values[i] / total * 100);
+    if (pct > 2.5) {
+      const lx = cx + Math.cos(mid) * (outerR + 14);
+      const ly = cy + Math.sin(mid) * (outerR + 14);
+      ctx.fillStyle = '#5A9AAA'; ctx.font = `700 8px ${CHART_FONT}`;
+      ctx.textAlign = lx > cx ? 'left' : 'right';
+      ctx.fillText(label, lx, ly + 2);
+      ctx.fillStyle = '#80C0D0';
+      ctx.fillText(pct.toFixed(1) + '%', lx, ly + 13);
+    }
+    angle += slice;
+  });
+  ctx.fillStyle = '#40D8FF'; ctx.font = `800 13px 'Rye', serif`; ctx.textAlign = 'center';
+  ctx.fillText(total.toLocaleString(), cx, cy + 4);
+  ctx.fillStyle = '#3A6A80'; ctx.font = `700 7px ${CHART_FONT}`;
+  ctx.fillText('TOTAL SPINS', cx, cy + 16);
+}
+
+/* ══════════════════════════════════════════
+   STATS HELPERS
+══════════════════════════════════════════ */
+function percentile(sortedArr, p) {
+  if (!sortedArr.length) return 0;
+  const idx = (p / 100) * (sortedArr.length - 1);
+  const lo = Math.floor(idx), hi = Math.ceil(idx);
+  return lo === hi ? sortedArr[lo] : sortedArr[lo] + (sortedArr[hi] - sortedArr[lo]) * (idx - lo);
+}
+function confidenceInterval95(multipliers, n) {
+  const mean = multipliers.reduce((a, b) => a + b, 0) / n;
+  const variance = multipliers.reduce((s, m) => s + (m - mean) ** 2, 0) / n;
+  const margin = 1.96 * Math.sqrt(variance / n);
+  return { mean, lower: (mean - margin) * 100, upper: (mean + margin) * 100, margin: margin * 100 };
+}
+
+/* ══════════════════════════════════════════
+   DASHBOARD
+══════════════════════════════════════════ */
+function renderDashboard(R, totalSpins, bet) {
+  dashboard.classList.remove('hidden');
+  const rtp = (R.totalWon / R.totalWagered) * 100;
+  const hitRate = (R.wins / totalSpins) * 100;
+  const bonusFreq = R.bonusTriggers > 0 ? totalSpins / R.bonusTriggers : Infinity;
+  const avgWin = R.wins > 0 ? R.totalWon / R.wins : 0;
+  const baseRtp = (R.baseWon / R.totalWagered) * 100;
+  const bonusRtp = (R.bonusWon / R.totalWagered) * 100;
+
+  const meanM = R.allMultipliers.reduce((a, b) => a + b, 0) / R.allMultipliers.length;
+  const variance = R.allMultipliers.reduce((s, m) => s + (m - meanM) ** 2, 0) / R.allMultipliers.length;
+  const stdDev = Math.sqrt(variance);
+  let volLabel, volClass;
+  if (stdDev < 2)       { volLabel = 'LOW';       volClass = 'is-good'; }
+  else if (stdDev < 5)  { volLabel = 'MEDIUM';    volClass = 'is-warn'; }
+  else if (stdDev < 15) { volLabel = 'HIGH';      volClass = 'is-warn'; }
+  else                  { volLabel = 'VERY HIGH'; volClass = 'is-bad'; }
+
+  const ci = confidenceInterval95(R.allMultipliers, totalSpins);
+  const sorted = [...R.allMultipliers].sort((a, b) => a - b);
+  const medianMult = percentile(sorted, 50);
+
+  const set = (id, text, cls) => { const el = document.getElementById(id); if (el) { el.textContent = text; if (cls !== undefined) el.className = cls; } };
+  const sub = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
+
+  set('kpi-rtp', rtp.toFixed(2) + '%', 'sim-kpi-value ' + (rtp >= 94 ? 'is-good' : rtp >= 88 ? 'is-warn' : 'is-bad'));
+  sub('kpi-rtp-sub', `$${R.totalWon.toFixed(0)} won / $${R.totalWagered.toFixed(0)} wagered`);
+  const ciEl = document.getElementById('kpi-rtp-ci');
+  if (ciEl) ciEl.textContent = `95% CI: ${ci.lower.toFixed(2)}% – ${ci.upper.toFixed(2)}% (±${ci.margin.toFixed(2)}%)`;
+  set('kpi-hitrate', hitRate.toFixed(1) + '%', 'sim-kpi-value');
+  sub('kpi-hitrate-sub', `${R.wins.toLocaleString()} wins / ${totalSpins.toLocaleString()} spins`);
+  set('kpi-bonus', bonusFreq === Infinity ? 'N/A' : `1 : ${Math.round(bonusFreq)}`, 'sim-kpi-value');
+  sub('kpi-bonus-sub', `${R.bonusTriggers} triggers (${R.bonusTotalFS} free spins)`);
+  set('kpi-volatility', volLabel, 'sim-kpi-value ' + volClass);
+  sub('kpi-volatility-sub', `σ = ${stdDev.toFixed(2)} · Variance = ${variance.toFixed(2)}`);
+  set('kpi-maxwin', R.maxMult.toFixed(1) + '×', 'sim-kpi-value-sm is-warn');
+  sub('kpi-maxwin-sub', `$${R.maxWin.toFixed(2)}`);
+  set('kpi-avgwin', (avgWin / bet).toFixed(2) + '×', 'sim-kpi-value-sm');
+  sub('kpi-avgwin-sub', `$${avgWin.toFixed(2)} per hit`);
+  set('kpi-medwin', medianMult.toFixed(2) + '×', 'sim-kpi-value-sm');
+  sub('kpi-medwin-sub', medianMult === 0 ? 'Most spins lose' : `$${(medianMult * bet).toFixed(2)}`);
+  set('kpi-base-rtp', baseRtp.toFixed(1) + '%', 'sim-kpi-value-sm');
+  sub('kpi-base-rtp-sub', `$${R.baseWon.toFixed(0)} base wins`);
+  set('kpi-bonus-rtp', bonusRtp.toFixed(1) + '%', 'sim-kpi-value-sm' + (bonusRtp > 5 ? ' is-warn' : ''));
+  sub('kpi-bonus-rtp-sub', `$${R.bonusWon.toFixed(0)} bonus wins`);
+  set('kpi-maxloss', R.maxLossStreak + ' spins', 'sim-kpi-value-sm');
+  sub('kpi-maxloss-sub', `$${(R.maxLossStreak * bet).toFixed(2)} drawdown`);
+  set('kpi-maxwinstreak', R.maxWinStreak + ' spins', 'sim-kpi-value-sm is-good');
+  sub('kpi-maxwinstreak-sub', 'Consecutive wins');
+  const survived = R.bankrollSurvived;
+  set('kpi-survived', survived ? 'YES ✓' : 'NO ✗', 'sim-kpi-value-sm ' + (survived ? 'is-good' : 'is-bad'));
+  sub('kpi-survived-sub', survived ? `Final: $${R.finalBalance.toFixed(0)}` : `Bust at spin #${R.bustSpin.toLocaleString()}`);
+
+  const insights = [];
+  insights.push({ icon: '📊', text: `Over <strong>${totalSpins.toLocaleString()} spins</strong>, this game returned <strong>${rtp.toFixed(2)}%</strong> of total wagers. ${rtp >= 96 ? 'This is a generous RTP.' : rtp >= 92 ? 'This is a typical RTP for this volatility.' : 'This is below average RTP, likely due to variance.'}` });
+  if (R.bonusTriggers > 0) insights.push({ icon: '🎰', text: `The bonus triggered <strong>${R.bonusTriggers} times</strong> (1 in ${Math.round(bonusFreq)} spins), contributing <strong>${bonusRtp.toFixed(1)}%</strong> to total RTP — that's <strong>${(bonusRtp / rtp * 100).toFixed(0)}%</strong> of all returns.` });
+  insights.push({ icon: '📉', text: `Worst dry spell: <strong>${R.maxLossStreak} consecutive losses</strong> ($${(R.maxLossStreak * bet).toFixed(2)} lost). A player would need at least ${Math.ceil(R.maxLossStreak * 1.5)} bets in reserve to survive this.` });
+  if (!survived) insights.push({ icon: '💀', text: `Starting with <strong>$${R.startBankroll}</strong>, the bankroll was depleted at spin <strong>#${R.bustSpin.toLocaleString()}</strong>. This represents ${(R.bustSpin / totalSpins * 100).toFixed(0)}% of the simulation.` });
+  else { const pnl = R.finalBalance - R.startBankroll; insights.push({ icon: pnl >= 0 ? '💰' : '📉', text: `Starting with $${R.startBankroll}, the final balance was <strong>$${R.finalBalance.toFixed(2)}</strong> (${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}). Peak: $${R.peakBalance.toFixed(0)}, Trough: $${R.troughBalance.toFixed(0)}.` }); }
+  insights.push({ icon: '⏱️', text: `Simulation completed in <strong>${(R.elapsedMs / 1000).toFixed(2)}s</strong> (${Math.round(totalSpins / (R.elapsedMs / 1000)).toLocaleString()} spins/sec).` });
+  insightsEl.innerHTML = insights.map(i => `<div class="insight-item"><span class="insight-icon">${i.icon}</span><span>${i.text}</span></div>`).join('');
+
+  const balMeta = document.getElementById('chart-balance-meta');
+  if (balMeta) balMeta.textContent = `Start: $${R.startBankroll} · Final: $${R.finalBalance.toFixed(0)} · Peak: $${R.peakBalance.toFixed(0)}`;
+  drawLineChart(document.getElementById('chart-balance'), R.balanceHistory, R.startBankroll);
+
+  const buckets = [0, 0.5, 1, 2, 3, 5, 8, 15, 25, 50, 100, 500];
+  const bLabels = ['0×', '<0.5×', '<1×', '<2×', '<3×', '<5×', '<8×', '<15×', '<25×', '<50×', '<100×', '100×+'];
+  const bCounts = new Array(buckets.length).fill(0);
+  R.allMultipliers.forEach(m => {
+    if (m === 0) { bCounts[0]++; return; }
+    let placed = false;
+    for (let b = 1; b < buckets.length; b++) { if (m < buckets[b]) { bCounts[b]++; placed = true; break; } }
+    if (!placed) bCounts[buckets.length - 1]++;
+  });
+  const distMeta = document.getElementById('chart-dist-meta');
+  if (distMeta) distMeta.textContent = `Dead spins: ${((bCounts[0] / totalSpins) * 100).toFixed(1)}% · Any win: ${hitRate.toFixed(1)}%`;
+  const dColors = ['#1A2A35', '#1878A0', '#20A0CC', '#40D8FF', '#2EE85A', '#60EE80', '#FFD040', '#FF8800', '#FF5050', '#FF3080', '#CC30CC', '#8844FF'];
+  drawBarChart(document.getElementById('chart-win-dist'), bLabels, bCounts, dColors);
+
+  const symEntries = Object.entries(R.symbolWins).filter(([, v]) => v.count > 0).sort((a, b) => b[1].totalPaid - a[1].totalPaid);
+  const symLabels = symEntries.map(([id]) => (SYMBOLS[id] && SYMBOLS[id].label) || id);
+  const symPcts = symEntries.map(([, v]) => v.totalPaid / R.totalWagered * 100);
+  // all 6-digit hex — drawHBarChart appends an alpha suffix that needs 6-digit input
+  const sColors = ['#FFD040', '#40D8FF', '#2EE85A', '#FF8800', '#CC30CC', '#FF5050', '#22AACC', '#8844FF', '#60EE80', '#FF3080', '#AAAACC', '#DDAA44', '#44BBAA', '#BB6688'];
+  drawHBarChart(document.getElementById('chart-sym-freq'), symLabels, symPcts, sColors, v => v.toFixed(2) + '%');
+
+  const tLabels = ['Dead (0×)', 'Tiny (<1×)', 'Small (1-3×)', 'Med (3-8×)', 'Big (8-20×)', 'Mega (20×+)'];
+  const tValues = [R.winsByTier.dead, R.winsByTier.tiny, R.winsByTier.small, R.winsByTier.medium, R.winsByTier.big, R.winsByTier.mega];
+  const tColors = ['#182838', '#1878A0', '#40D8FF', '#2EE85A', '#FFD040', '#FF5050'];
+  drawDonutChart(document.getElementById('chart-win-type'), tLabels, tValues, tColors);
+
+  // tables
+  const sTable = document.getElementById('table-symbol-stats') && document.getElementById('table-symbol-stats').querySelector('tbody');
+  if (sTable) {
+    sTable.innerHTML = '';
+    symEntries.forEach(([id, v]) => {
+      const pctRtp = (v.totalPaid / R.totalWagered * 100).toFixed(2);
+      const avg = v.count > 0 ? (v.totalPaid / v.count).toFixed(2) : '0.00';
+      const maxSpan = SYMBOLS[id] && SYMBOLS[id].pays ? Object.keys(SYMBOLS[id].pays).length : '—';
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${(SYMBOLS[id] && SYMBOLS[id].label) || id}</td><td>${v.count.toLocaleString()}</td><td>$${v.totalPaid.toFixed(2)}</td><td>${pctRtp}%</td><td>$${avg}</td><td>${maxSpan} ways</td>`;
+      sTable.appendChild(tr);
+    });
+  }
+  const tTable = document.getElementById('table-win-tiers') && document.getElementById('table-win-tiers').querySelector('tbody');
+  if (tTable) {
+    tTable.innerHTML = '';
+    const tierKeys = ['dead', 'tiny', 'small', 'medium', 'big', 'mega'];
+    const tierNames = ['Dead Spin (0×)', 'Tiny (<1×)', 'Small (1-3×)', 'Medium (3-8×)', 'Big (8-20×)', 'Mega (20×+)'];
+    tierKeys.forEach((key, i) => {
+      const count = R.winsByTier[key], paid = R.winsByTierPaid[key] || 0;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${tierNames[i]}</td><td>${count.toLocaleString()}</td><td>${(count / totalSpins * 100).toFixed(1)}%</td><td>$${paid.toFixed(2)}</td><td>${(paid / R.totalWagered * 100).toFixed(2)}%</td><td>${count > 0 ? '$' + (paid / count).toFixed(2) : '—'}</td>`;
+      tTable.appendChild(tr);
+    });
+  }
+  const pTable = document.getElementById('table-percentiles') && document.getElementById('table-percentiles').querySelector('tbody');
+  if (pTable) {
+    pTable.innerHTML = '';
+    [{ p: 10, interp: 'Worst 10% of spins' }, { p: 25, interp: 'Below average spin (Q1)' }, { p: 50, interp: 'Median spin outcome' },
+     { p: 75, interp: 'Above average spin (Q3)' }, { p: 90, interp: 'Top 10% lucky spin' }, { p: 95, interp: 'Exceptionally good spin' },
+     { p: 99, interp: 'Top 1% — rare event' }, { p: 99.9, interp: 'Jackpot territory' }].forEach(({ p, interp }) => {
+      const m = percentile(sorted, p);
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>P${p}</td><td>${m.toFixed(2)}×</td><td>$${(m * bet).toFixed(2)}</td><td>${interp}</td>`;
+      pTable.appendChild(tr);
+    });
+  }
+  const bTable = document.getElementById('table-bonus-stats') && document.getElementById('table-bonus-stats').querySelector('tbody');
+  if (bTable) {
+    bTable.innerHTML = '';
+    const avgBonusWin = R.bonusTriggers > 0 ? R.bonusWon / R.bonusTriggers : 0;
+    const avgFS = R.bonusTriggers > 0 ? R.bonusTotalFS / R.bonusTriggers : 0;
+    [['Total Bonus Triggers', R.bonusTriggers.toLocaleString()],
+     ['Trigger Rate', bonusFreq === Infinity ? 'N/A' : `1 in ${Math.round(bonusFreq)} spins (${(1 / bonusFreq * 100).toFixed(3)}%)`],
+     ['Total Bonus Win', `$${R.bonusWon.toFixed(2)}`],
+     ['Avg Bonus Win', `$${avgBonusWin.toFixed(2)} (${(avgBonusWin / bet).toFixed(1)}× bet)`],
+     ['Total Free Spins Played', R.bonusTotalFS.toLocaleString()],
+     ['Avg Free Spins per Trigger', avgFS.toFixed(1)],
+     ['Bonus Contribution to RTP', `${bonusRtp.toFixed(2)}% (${(bonusRtp / rtp * 100).toFixed(0)}% of total)`],
+     ['Base Game RTP (without bonus)', `${baseRtp.toFixed(2)}%`]].forEach(([metric, value]) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${metric}</td><td>${value}</td>`;
+      bTable.appendChild(tr);
+    });
+  }
+}
+
+/* ══════════════════════════════════════════
+   WIRING
+══════════════════════════════════════════ */
+if (btnSim) {
+  btnSim.addEventListener('click', () => simModal.classList.remove('hidden'));
+  btnCloseSim.addEventListener('click', () => simModal.classList.add('hidden'));
+  simModal.addEventListener('click', e => { if (e.target === simModal) simModal.classList.add('hidden'); });
+  btnRunSim.addEventListener('click', async () => {
+    const totalSpins = parseInt(simSpinsEl.value);
+    const bet = parseFloat(simBetEl.value);
+    const bankroll = parseFloat(simBankrollEl.value);
+    btnRunSim.disabled = true;
+    runLabel.textContent = 'RUNNING…';
+    btnRunSim.classList.add('is-running');
+    progressWrap.classList.remove('hidden');
+    progressFill.style.width = '0%';
+    progressText.textContent = `0 / ${totalSpins.toLocaleString()} spins`;
+    elapsedEl.textContent = '';
+    dashboard.classList.add('hidden');
+    try {
+      const R = await runSimulation(totalSpins, bet, bankroll);
+      renderDashboard(R, totalSpins, bet);
+    } catch (err) {
+      console.error('Simulation error:', err);
+      insightsEl.innerHTML = `<div class="insight-item"><span class="insight-icon">❌</span><span>Simulation failed: ${err.message}</span></div>`;
+      dashboard.classList.remove('hidden');
+    }
+    btnRunSim.disabled = false;
+    runLabel.textContent = 'RUN SIMULATION';
+    btnRunSim.classList.remove('is-running');
+    progressWrap.classList.add('hidden');
+  });
+}
+
+Object.assign(exports, { runSimulation });
+
+  };
+
+  __mods["sizedata"] = function (exports, require) {
+/* AUTO-GENERATED by tools/build.js — folder-size snapshot. Do not edit. */
+
+const SIZE_MANIFEST = {
+  "totalBytes": 49826918,
+  "fileCount": 354,
+  "generatedAt": "2026-05-30",
+  "categories": [
+    {
+      "key": "audio",
+      "label": "Audio",
+      "bytes": 19769171,
+      "files": 300
+    },
+    {
+      "key": "video",
+      "label": "Videos",
+      "bytes": 18420506,
+      "files": 7
+    },
+    {
+      "key": "image",
+      "label": "Images",
+      "bytes": 11077711,
+      "files": 11
+    },
+    {
+      "key": "code",
+      "label": "Code",
+      "bytes": 558522,
+      "files": 35
+    },
+    {
+      "key": "other",
+      "label": "Other",
+      "bytes": 1008,
+      "files": 1
+    }
+  ]
+};
+
+Object.assign(exports, { SIZE_MANIFEST });
+
+  };
+
+  __mods["state"] = function (exports, require) {
+/**
+ * @module state
+ * @description Shared, mutable runtime state for the base game.
+ *
+ * ES module imports are read-only *bindings*, so modules can't reassign each
+ * other's `let` variables. Instead we export one plain object and everyone reads
+ * and writes its properties — that mutation is visible everywhere. Bonus-only
+ * state lives privately inside bonus.js; this is just the cross-module stuff.
+ */
+
+const { DEFAULT_BALANCE, DEFAULT_BET_INDEX, DEFAULT_RTP_MODEL } = require("config");
+
+const state = {
+  balance: DEFAULT_BALANCE,   // player's cash
+  betIndex: DEFAULT_BET_INDEX, // index into BET_LEVELS
+  spinning: false,            // a base-game spin is animating
+  turbo: false,               // turbo (fast spin) toggle
+  autoActive: false,          // auto-spin is on
+  autoTimer: null,            // setTimeout handle for auto-spin
+  currentGrid: null,          // the symbols currently shown (for spin scroll buffer)
+  musicAutoStarted: false,    // background music has been kicked off
+  rtpModelId: DEFAULT_RTP_MODEL, // selected RTP math model (see RTP_MODELS in config.js)
+};
+
+Object.assign(exports, { state });
+
+  };
+
+  __mods["ui"] = function (exports, require) {
+/**
+ * @module ui
+ * @description Small shared UI helpers and control-button references used by the
+ * base game, the bonus, and the buy-bonus flow: the cash/bet/win readouts, the
+ * status line, and enabling/disabling the control buttons. Kept separate so
+ * basegame and bonus can both use it without importing each other.
+ */
+
+const { BET_LEVELS } = require("config");
+const { state } = require("state");
+const { fmt } = require("utils");
+
+const elBalance = document.getElementById('display-balance');
+const elBet     = document.getElementById('display-bet');
+const elWin     = document.getElementById('display-win');
+const elStatus = document.getElementById('status-msg');
+
+const buttons = {
+  spin:    document.getElementById('btn-spin'),
+  betUp:   document.getElementById('btn-bet-up'),
+  betDown: document.getElementById('btn-bet-down'),
+  auto:    document.getElementById('btn-auto'),
+  buy:     document.getElementById('btn-buy-bonus'),
+};
+
+/** Refresh the cash and bet readouts from current state. */
+function updateDisplays() {
+  elBalance.textContent = fmt(state.balance);
+  elBet.textContent = fmt(BET_LEVELS[state.betIndex]);
+}
+
+const IDLE_MESSAGES = [
+  "GOOD LUCK – PRESS SPIN!",
+  "243 WAYS TO WIN EVERY SPIN!",
+  "6+ HARD HATS TRIGGER THE BONUS!",
+  "BUILD BRICK HOUSES FOR A CHANCE AT A MASSIVE 126X JACKPOT!",
+  "GET 3+ BRICK HOUSES IN THE BONUS FOR THE MANSION JACKPOT!",
+  "3 HARD HATS IN THE BONUS AWARDS +1 FREE SPIN!",
+  "HIGH VOLATILITY: THE BIGGEST WINS ARE HIDING IN THE BONUS!"
+];
+let idleIndex = 0;
+let idleInterval = null;
+
+/** Show a status message. `type` adds an `is-<type>` class (e.g. 'win','error'). */
+function setStatus(msg, type = '') {
+  elStatus.textContent = msg;
+  elStatus.className = type ? `is-${type}` : '';
+  
+  // Manage the idle message ticker
+  if (msg === 'GOOD LUCK – PRESS SPIN!') {
+    if (!idleInterval) {
+      idleIndex = 0; // Always start with the main greeting
+      idleInterval = setInterval(() => {
+        idleIndex = (idleIndex + 1) % IDLE_MESSAGES.length;
+        elStatus.textContent = IDLE_MESSAGES[idleIndex];
+      }, 3500);
+    }
+  } else {
+    if (idleInterval) {
+      clearInterval(idleInterval);
+      idleInterval = null;
+    }
+  }
+}
+
+/** Enable/disable all the player controls at once (used around the bonus). */
+function setControlsEnabled(on) {
+  for (const b of Object.values(buttons)) if (b) b.disabled = !on;
+}
+
+/** Stop auto-spin and reset its button. (startAuto lives in basegame.) */
+function stopAuto() {
+  state.autoActive = false;
+  if (buttons.auto) { buttons.auto.textContent = 'AUTO SPIN'; buttons.auto.classList.remove('is-active'); }
+  clearTimeout(state.autoTimer);
+  state.autoTimer = null;
+}
+
+Object.assign(exports, { elBalance, elBet, elWin, buttons, updateDisplays, setStatus, setControlsEnabled, stopAuto });
+
+  };
+
+  __mods["utils"] = function (exports, require) {
+/**
+ * @module utils
+ * @description Shared utility functions used across multiple modules.
+ */
+
+/**
+ * Async sleep — pauses execution for the given duration.
+ * @param {number} ms - Milliseconds to wait
+ * @returns {Promise<void>}
+ */
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Format a number as $X,XXX.XX currency string.
+ * @param {number} n - The amount to format
+ * @returns {string}
+ */
+function fmt(n) {
+  return '$' + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
+/**
+ * Schedule DOM element removal after a delay.
+ * Safely checks parentNode before removing.
+ * @param {HTMLElement} el - Element to remove
+ * @param {number} ms - Delay in milliseconds
+ */
+function scheduleRemove(el, ms) {
+  setTimeout(() => { if (el.parentNode) el.remove(); }, ms);
+}
+
+Object.assign(exports, { sleep, fmt, scheduleRemove });
+
+  };
+
+  require('main');
+})();
