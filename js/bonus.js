@@ -95,7 +95,8 @@ function playBonusIntro() {
 /**
  * Wolf-blow video (the tornado huff). Plays once, contained inside the reel
  * window — same containment as the bonus intro. Resolves when it ends, is
- * clicked (skip), errors, or hits a safety timeout, then fades out.
+ * errors, or hits a safety timeout, then fades out. Not click-skippable — it's
+ * the climactic blow, so it always plays through.
  */
 function playWolfTornado() {
   return new Promise(resolve => {
@@ -114,7 +115,8 @@ function playWolfTornado() {
     };
     wolfTornadoVideo.addEventListener('ended', finish, { once: true });
     wolfTornadoVideo.addEventListener('error', finish, { once: true });
-    wolfTornadoOverlay.addEventListener('click', finish, { once: true });
+    // NB: no click-to-skip here — this is the climactic "can the wolf blow the
+    // house down?" moment, so a stray click on the reels must not dismiss it.
     wolfTornadoOverlay.classList.remove('hidden');
     try { wolfTornadoVideo.currentTime = 0; } catch (e) {}
     wolfTornadoVideo.muted = true;                 // webm has no audio; the synth wolfHuff carries the sound
@@ -136,11 +138,14 @@ export async function startBonus(bet, triggerGrid) {
   prevFrameTiers = makeGrid();
   setControlsEnabled(false);
 
+  // silence the base music so it doesn't clash with the intro video's own audio
+  bgm.pauseForCutscene();
+
   // bonus intro video plays inside the reel window as soon as the bonus triggers
   await playBonusIntro();
 
-  // swap to the bigger, epic bonus score (crossfades from the base-game theme)
-  bgm.switchToBonus();
+  // music comes back right away (skip or finish) as the bigger, epic bonus score
+  bgm.switchToBonus(700);
 
   // trigger hats become the first straw frames
   for (let r = 0; r < 5; r++)

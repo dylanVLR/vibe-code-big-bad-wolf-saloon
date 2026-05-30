@@ -188,6 +188,24 @@ class BGMusic {
   switchToBonus(ms) { this.switchTo('bonus', ms); }
   switchToBase(ms)  { this.switchTo('base', ms); }
 
+  /**
+   * Silence the music while a cutscene with its own audio plays (e.g. the bonus
+   * intro video), without forgetting that it was playing. A later switchTo()/
+   * start() resumes cleanly. If music was off (muted), this stays a no-op.
+   */
+  pauseForCutscene() {
+    if (this._fadeTimer) { clearInterval(this._fadeTimer); this._fadeTimer = null; }
+    for (const a of Object.values(this.tracks)) a.pause();   // `playing` stays as-is
+  }
+
+  /** Resume the current track after a cutscene that called pauseForCutscene(). */
+  resumeFromCutscene(ms = 600) {
+    if (!this.playing) return;            // music was off — leave it off
+    const a = this.tracks[this.current];
+    a.play().catch(() => {});
+    this._fadeTo(this.current, ms);
+  }
+
   stop() {
     this.playing = false;
     if (this._fadeTimer) { clearInterval(this._fadeTimer); this._fadeTimer = null; }
@@ -218,6 +236,7 @@ Object.assign(exports, { synth, bgm });
  */
 
 const { BET_LEVELS } = require("config");
+const { DEV_MODE } = require("devmode");
 const { state } = require("state");
 const { sleep, fmt } = require("utils");
 const { synth } = require("audio");
@@ -412,7 +431,7 @@ if (chkTurbo) chkTurbo.addEventListener('change', () => { state.turbo = chkTurbo
 document.addEventListener('keydown', (e) => {
   if (e.code === 'Space' && !state.spinning && !isBonusActive()) { e.preventDefault(); triggerSpin(); }
   if (e.code === 'KeyA' && !isBonusActive()) { state.autoActive ? stopAuto() : startAuto(); }
-  if (e.code === 'Backquote') {
+  if (e.code === 'Backquote' && DEV_MODE) {
     const dbg = document.getElementById('debug-panel');
     if (dbg) dbg.classList.toggle('hidden');
   }
@@ -519,7 +538,8 @@ function playBonusIntro() {
 /**
  * Wolf-blow video (the tornado huff). Plays once, contained inside the reel
  * window — same containment as the bonus intro. Resolves when it ends, is
- * clicked (skip), errors, or hits a safety timeout, then fades out.
+ * errors, or hits a safety timeout, then fades out. Not click-skippable — it's
+ * the climactic blow, so it always plays through.
  */
 function playWolfTornado() {
   return new Promise(resolve => {
@@ -538,7 +558,8 @@ function playWolfTornado() {
     };
     wolfTornadoVideo.addEventListener('ended', finish, { once: true });
     wolfTornadoVideo.addEventListener('error', finish, { once: true });
-    wolfTornadoOverlay.addEventListener('click', finish, { once: true });
+    // NB: no click-to-skip here — this is the climactic "can the wolf blow the
+    // house down?" moment, so a stray click on the reels must not dismiss it.
     wolfTornadoOverlay.classList.remove('hidden');
     try { wolfTornadoVideo.currentTime = 0; } catch (e) {}
     wolfTornadoVideo.muted = true;                 // webm has no audio; the synth wolfHuff carries the sound
@@ -560,11 +581,14 @@ async function startBonus(bet, triggerGrid) {
   prevFrameTiers = makeGrid();
   setControlsEnabled(false);
 
+  // silence the base music so it doesn't clash with the intro video's own audio
+  bgm.pauseForCutscene();
+
   // bonus intro video plays inside the reel window as soon as the bonus triggers
   await playBonusIntro();
 
-  // swap to the bigger, epic bonus score (crossfades from the base-game theme)
-  bgm.switchToBonus();
+  // music comes back right away (skip or finish) as the bigger, epic bonus score
+  bgm.switchToBonus(700);
 
   // trigger hats become the first straw frames
   for (let r = 0; r < 5; r++)
@@ -1113,7 +1137,7 @@ const SYMBOLS = {
   'hat-red':        { id: 'hat-red',        src: 'assets/hat_red.png',        label: 'Red Hat',       pays: { 3: 1.4,  4: 5.6,  5: 28.0 }, isHat: true },
   'pig-suit':       { id: 'pig-suit',       src: 'assets/pig_suit.png',       label: 'Suit Pig',      pays: { 3: 2.8,  4: 10.5, 5: 52.0 } },
   'pig-contractor': { id: 'pig-contractor', src: 'assets/pig_builder.png',    label: 'Builder Pig',   pays: { 3: 2.1,  4: 8.4,  5: 42.0 } },
-  'pig-nature':     { id: 'pig-nature',     src: 'assets/pig_blueprint.png',  label: 'Blueprint Pig', pays: { 3: 1.4,  4: 5.6,  5: 28.0 } },
+  'pig-nature':     { id: 'pig-nature',     src: 'assets/vlr_medallion.png',  label: 'VLR Medallion', pays: { 3: 1.4,  4: 5.6,  5: 28.0 } },
   'toolbox':        { id: 'toolbox',        src: 'assets/toolbox.png',        label: 'Toolbox',       pays: { 3: 1.2,  4: 4.9,  5: 24.0 } },
   'wolf':           { id: 'wolf',           src: 'assets/wolf.png',           label: 'Wolf',          pays: { 3: 0.9,  4: 3.5,  5: 17.0 } },
   'buzzard':        { id: 'buzzard',        src: 'assets/buzzard.png',        label: 'Buzzard',       pays: { 3: 0.7,  4: 2.8,  5: 14.0 } },
@@ -1381,6 +1405,46 @@ if (btnDeposit && modal) {
     });
   });
 }
+
+  };
+
+  __mods["devmode"] = function (exports, require) {
+/**
+ * @module devmode
+ * @description Hides developer / admin tools on the public build. They are OFF
+ * by default. To turn them on, add ?dev=1 (or #dev) to the URL once — the choice
+ * is remembered in localStorage; ?dev=0 (or #nodev) turns it back off.
+ *
+ * When dev mode is OFF, anything tagged `.dev-tool` is hidden and the backtick
+ * debug panel shortcut is inert (gated via DEV_MODE in basegame.js).
+ *
+ * NOTE: this is a convenience gate to keep tools out of normal players' way, not
+ * hard security — these tools only hand out demo credits / change the local math
+ * model and expose no secrets, so client-side hiding is appropriate.
+ */
+
+function compute() {
+  try {
+    const params = new URLSearchParams(location.search);
+    const hash = location.hash.replace('#', '').toLowerCase();
+    if (params.get('dev') === '1' || hash === 'dev')   localStorage.setItem('bbw_dev', '1');
+    if (params.get('dev') === '0' || hash === 'nodev') localStorage.removeItem('bbw_dev');
+    return localStorage.getItem('bbw_dev') === '1';
+  } catch (e) {
+    return false;   // localStorage blocked → default to the safe (public) state
+  }
+}
+
+const DEV_MODE = compute();
+
+if (DEV_MODE) {
+  document.body.classList.add('dev-mode');
+} else {
+  // Remove every dev-only control from view for normal players.
+  document.querySelectorAll('.dev-tool').forEach(el => el.classList.add('hidden'));
+}
+
+Object.assign(exports, { DEV_MODE });
 
   };
 
@@ -1784,9 +1848,11 @@ const { startAmbientParticles } = require("particles");
 const { updateDisplays, setStatus } = require("ui");
 
 // Side-effect imports: these wire up their own controls on load.
+require("devmode");    // hide dev/admin tools on the public build (?dev=1 to show)
 require("intro");      // full-screen intro splash
 require("daynight");   // time-of-day background darkening
 require("reveal");     // post-intro: hold on the background, then fade the game in
+require("noon");       // hidden "High Noon" easter egg at exactly 12:00 PM
 require("options");    // right-side slide-out options drawer
 require("deposit");    // add-credit popup
 require("rtp");        // RTP / math-model picker popup
@@ -2435,6 +2501,75 @@ class Narrator {
 const narrator = new Narrator();
 
 Object.assign(exports, { narrator });
+
+  };
+
+  __mods["noon"] = function (exports, require) {
+/**
+ * @module noon
+ * @description Hidden "High Noon" easter egg. At exactly 12:00 PM by the
+ * browser's local clock, High_noon_standoff.webm takes over the full screen
+ * (with its own audio; the background music ducks out and returns afterward).
+ * Dismisses on end, on click (skip), on error, or via a safety timeout — and
+ * fires at most once per day.
+ */
+
+const { bgm } = require("audio");
+
+const overlay = document.getElementById('noon-overlay');
+const video   = document.getElementById('noon-video');
+
+let playing  = false;
+let firedKey = null;     // e.g. "Sat May 30 2026" — so noon only triggers once per day
+
+/** Take over the full screen with the standoff clip, then clean up. */
+function playNoonStandoff() {
+  if (!overlay || !video || playing) return;
+  playing = true;
+
+  bgm.pauseForCutscene();          // silence the game music under the clip's own audio
+
+  let done = false;
+  const finish = () => {
+    if (done) return;
+    done = true;
+    overlay.classList.add('fade-out');
+    try { video.pause(); } catch (e) {}
+    setTimeout(() => {
+      overlay.classList.add('hidden');
+      overlay.classList.remove('fade-out');
+      bgm.resumeFromCutscene();    // bring the music back
+      playing = false;
+    }, 600);
+  };
+
+  video.addEventListener('ended', finish, { once: true });
+  video.addEventListener('error', finish, { once: true });
+  overlay.addEventListener('click', finish, { once: true });
+
+  overlay.classList.remove('hidden');
+  try { video.currentTime = 0; } catch (e) {}
+  // Try with sound (the player has already interacted by mid-day); fall back to muted.
+  video.muted = false;
+  video.play().catch(() => {
+    video.muted = true;
+    video.play().catch(finish);
+  });
+
+  setTimeout(finish, 20000);       // hard safety cap (clip is ~10s)
+}
+
+/* ── Watch the real clock. Polling every 250ms reliably catches the 12:00:00
+   second and self-corrects (no drift); the per-day key prevents repeats. ── */
+if (overlay && video) {
+  setInterval(() => {
+    const now = new Date();
+    if (now.getHours() === 12 && now.getMinutes() === 0 && now.getSeconds() === 0) {
+      const key = now.toDateString();
+      if (firedKey !== key) { firedKey = key; playNoonStandoff(); }
+    }
+  }, 250);
+}
 
   };
 
@@ -3150,7 +3285,7 @@ Object.assign(exports, { PHRASES });
 const { revealDayNight } = require("daynight");
 
 const overlay = document.getElementById('day-night-overlay');
-const HOLD_MS = 1500;   // how long to linger on the clean background after the intro
+const HOLD_MS = 500;    // how long to linger on the clean background after the intro
 let revealed = false;
 
 // Start hidden, with the background full & undimmed (daynight already set the
@@ -3738,21 +3873,21 @@ Object.assign(exports, { runSimulation });
 /* AUTO-GENERATED by tools/build.js — folder-size snapshot. Do not edit. */
 
 const SIZE_MANIFEST = {
-  "totalBytes": 49826918,
-  "fileCount": 354,
+  "totalBytes": 53334163,
+  "fileCount": 358,
   "generatedAt": "2026-05-30",
   "categories": [
+    {
+      "key": "video",
+      "label": "Videos",
+      "bytes": 21914674,
+      "files": 8
+    },
     {
       "key": "audio",
       "label": "Audio",
       "bytes": 19769171,
       "files": 300
-    },
-    {
-      "key": "video",
-      "label": "Videos",
-      "bytes": 18420506,
-      "files": 7
     },
     {
       "key": "image",
@@ -3763,14 +3898,14 @@ const SIZE_MANIFEST = {
     {
       "key": "code",
       "label": "Code",
-      "bytes": 558522,
-      "files": 35
+      "bytes": 569584,
+      "files": 37
     },
     {
       "key": "other",
       "label": "Other",
-      "bytes": 1008,
-      "files": 1
+      "bytes": 3023,
+      "files": 2
     }
   ]
 };

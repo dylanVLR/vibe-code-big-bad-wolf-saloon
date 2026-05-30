@@ -170,6 +170,24 @@ class BGMusic {
   switchToBonus(ms) { this.switchTo('bonus', ms); }
   switchToBase(ms)  { this.switchTo('base', ms); }
 
+  /**
+   * Silence the music while a cutscene with its own audio plays (e.g. the bonus
+   * intro video), without forgetting that it was playing. A later switchTo()/
+   * start() resumes cleanly. If music was off (muted), this stays a no-op.
+   */
+  pauseForCutscene() {
+    if (this._fadeTimer) { clearInterval(this._fadeTimer); this._fadeTimer = null; }
+    for (const a of Object.values(this.tracks)) a.pause();   // `playing` stays as-is
+  }
+
+  /** Resume the current track after a cutscene that called pauseForCutscene(). */
+  resumeFromCutscene(ms = 600) {
+    if (!this.playing) return;            // music was off — leave it off
+    const a = this.tracks[this.current];
+    a.play().catch(() => {});
+    this._fadeTo(this.current, ms);
+  }
+
   stop() {
     this.playing = false;
     if (this._fadeTimer) { clearInterval(this._fadeTimer); this._fadeTimer = null; }

@@ -14,7 +14,7 @@
 import { revealDayNight } from './daynight.js';
 
 const overlay = document.getElementById('day-night-overlay');
-const HOLD_MS = 1500;   // how long to linger on the clean background after the intro
+const HOLD_MS = 500;    // how long to linger on the clean background after the intro
 let revealed = false;
 
 // Start hidden, with the background full & undimmed (daynight already set the

@@ -24,9 +24,11 @@ import { startAmbientParticles } from './particles.js';
 import { updateDisplays, setStatus } from './ui.js';
 
 // Side-effect imports: these wire up their own controls on load.
+import './devmode.js';    // hide dev/admin tools on the public build (?dev=1 to show)
 import './intro.js';      // full-screen intro splash
 import './daynight.js';   // time-of-day background darkening
 import './reveal.js';     // post-intro: hold on the background, then fade the game in
+import './noon.js';       // hidden "High Noon" easter egg at exactly 12:00 PM
 import './options.js';    // right-side slide-out options drawer
 import './deposit.js';    // add-credit popup
 import './rtp.js';        // RTP / math-model picker popup

@@ -1517,8 +1517,8 @@
         <div class="pt-pays">5&#9733; &times; 7.0 &nbsp;|&nbsp; 4&#9733; &times; 2.5 &nbsp;|&nbsp; 3&#9733; &times; 1.0</div>
       </div>
       <div class="pt-item">
-        <img src="assets/pig_blueprint.png" alt="Blueprint Pig" class="pt-img">
-        <div class="pt-name">Blueprint Pig</div>
+        <img src="assets/vlr_medallion.png" alt="VLR Medallion" class="pt-img">
+        <div class="pt-name">VLR Medallion</div>
         <div class="pt-pays">5&#9733; &times; 5.0 &nbsp;|&nbsp; 4&#9733; &times; 2.0 &nbsp;|&nbsp; 3&#9733; &times; 0.8</div>
       </div>
       <div class="pt-item">
@@ -1737,13 +1737,13 @@
       </div>
     </div>
 
-    <button id="btn-rtp" class="drawer-btn drawer-rtp" title="Choose the RTP / math model">🎚️ RTP</button>
+    <button id="btn-rtp" class="drawer-btn drawer-rtp dev-tool" title="Choose the RTP / math model">🎚️ RTP</button>
 
-    <button id="btn-size" class="drawer-btn drawer-size" title="See how many megabytes the game uses">📦 GAME SIZE</button>
+    <button id="btn-size" class="drawer-btn drawer-size dev-tool" title="See how many megabytes the game uses">📦 GAME SIZE</button>
 
-    <button id="btn-deposit" class="drawer-btn drawer-deposit" title="Add credit to the machine">💵 ADD CREDIT</button>
+    <button id="btn-deposit" class="drawer-btn drawer-deposit dev-tool" title="Add credit to the machine">💵 ADD CREDIT</button>
 
-    <button id="btn-buy-bonus" class="drawer-btn drawer-buy" title="Buy the bonus and skip to free spins">💰 BUY BONUS</button>
+    <button id="btn-buy-bonus" class="drawer-btn drawer-buy dev-tool" title="Buy the bonus and skip to free spins">💰 BUY BONUS</button>
 
     <!-- Paytable -->
     <button id="btn-info" class="drawer-btn" title="Paytable" aria-label="Open Paytable">
@@ -1764,6 +1764,12 @@
 <div id="intro-overlay">
   <video id="intro-video" src="assets/webm/Big_Bad_Wolf_intro.webm" muted playsinline preload="auto"></video>
   <div id="intro-skip">CLICK TO SKIP</div>
+</div>
+
+<!-- HIGH NOON easter egg — full-screen takeover at exactly 12:00 PM local time -->
+<div id="noon-overlay" class="hidden">
+  <video id="noon-video" src="assets/webm/High_noon_standoff.webm" playsinline preload="none"></video>
+  <div id="noon-skip">CLICK TO SKIP</div>
 </div>
 
 <!-- HIDDEN DEBUG PANEL for developer tools -->

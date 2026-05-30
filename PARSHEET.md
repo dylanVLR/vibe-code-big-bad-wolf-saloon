@@ -40,7 +40,7 @@ node tools/sim.js 10000000
 | 🔴 Red Hat *(scatter)* | 1.4 | 5.6 | 28 |
 | Suit Pig | 2.8 | 10.5 | 52 |
 | Builder Pig | 2.1 | 8.4 | 42 |
-| Blueprint Pig | 1.4 | 5.6 | 28 |
+| VLR Medallion | 1.4 | 5.6 | 28 |
 | Toolbox | 1.2 | 4.9 | 24 |
 | Wolf | 0.9 | 3.5 | 17 |
 | Buzzard | 0.7 | 2.8 | 14 |
@@ -65,7 +65,7 @@ window can show 2 hats — that's what makes a 6-hat trigger reachable).
 | Red Hat | 1 | 1 | 1 | 1 | 0 | 4 |
 | Suit Pig | 2 | 1 | 2 | 1 | 1 | 7 |
 | Builder Pig | 1 | 2 | 1 | 2 | 1 | 7 |
-| Blueprint Pig | 1 | 1 | 2 | 1 | 1 | 6 |
+| VLR Medallion | 1 | 1 | 2 | 1 | 1 | 6 |
 | Toolbox | 2 | 2 | 1 | 2 | 1 | 8 |
 | Wolf | 2 | 2 | 2 | 2 | 2 | 10 |
 | Buzzard | 1 | 1 | 1 | 1 | 1 | 5 |
