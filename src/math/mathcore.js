@@ -19,7 +19,7 @@
 'use strict';
 
 import {
-  SYMBOLS, SYMBOL_IDS, HAT_IDS, REEL_STRIPS, BONUS_CONFIG,
+  SYMBOLS, SYMBOL_IDS, HAT_IDS, WILD_ID, REEL_STRIPS, BONUS_CONFIG,
   REEL_COUNT, ROWS_PER_REEL, MIN_WIN_SPAN, MAX_FRAME_TIER,
 } from './par-sheet.js';
 
@@ -39,6 +39,30 @@ export function generateGrid() {
     const start = Math.floor(Math.random() * len);
     return [strip[start % len], strip[(start + 1) % len], strip[(start + 2) % len]];
   });
+}
+
+/* ══════════════════════════════════════════
+   EXPANDING WILDS
+   ─────────────────────────────────────────
+   The Wolf Wild lands only on the middle reels (2-4). When at least one shows on
+   a reel, the WHOLE reel turns wild — except hat (scatter) cells, which are left
+   alone so the bonus trigger is unaffected. A wild substitutes for every paying
+   symbol but the hats. The wild has no pay of its own.
+══════════════════════════════════════════ */
+
+/**
+ * Expand any reel that contains a wild so the whole reel reads as wild (hats kept).
+ * Returns a NEW grid (the input is never mutated) plus which reels expanded.
+ * @returns {{ grid: string[][], wildReels: number[] }}
+ */
+export function expandWilds(grid) {
+  const wildReels = [];
+  const out = grid.map((col, r) => {
+    if (!col.includes(WILD_ID)) return col.slice();
+    wildReels.push(r);
+    return col.map(s => (HAT_IDS.includes(s) ? s : WILD_ID));   // keep hats, fill the rest
+  });
+  return { grid: out, wildReels };
 }
 
 /* ══════════════════════════════════════════
@@ -73,11 +97,20 @@ export function evaluateGrid(grid, bet) {
   let totalWin = 0;
   const winners = [];
 
+  // expand any wild reels first; wilds then substitute below (idempotent if the
+  // grid was already expanded by the caller)
+  const g = expandWilds(grid).grid;
+
   for (const symId of SYMBOL_IDS) {
     const sym = SYMBOLS[symId];
+    if (symId === WILD_ID || !sym.pays) continue;   // the wild has no pay of its own
+    const isHat = HAT_IDS.includes(symId);
+    // a cell counts for this symbol if it IS the symbol, or is a wild that may
+    // substitute for it (wilds don't substitute for the hat scatters)
+    const matches = s => s === symId || (!isHat && s === WILD_ID);
 
-    // how many times the symbol appears on each reel
-    const colCounts = grid.map(col => col.filter(s => s === symId).length);
+    // how many times the symbol (incl. substituting wilds) appears on each reel
+    const colCounts = g.map(col => col.filter(matches).length);
 
     // must be present on reel 1 to start a left-to-right win
     if (colCounts[0] === 0) continue;
@@ -101,7 +134,7 @@ export function evaluateGrid(grid, bet) {
     // record the contributing cells (for highlighting in the UI)
     const cells = [];
     for (let r = 0; r < span; r++) {
-      grid[r].forEach((s, row) => { if (s === symId) cells.push([r, row]); });
+      g[r].forEach((s, row) => { if (matches(s)) cells.push([r, row]); });
     }
     winners.push({ symId, span, ways, winAmount, cells });
   }
@@ -145,6 +178,20 @@ export function shouldAnticipate(grid) {
     if (consecutive >= 3) return true;
   }
   return countHats(grid).count >= 4;
+}
+
+/**
+ * Should the final reel spin in extreme anticipation?
+ * True if exactly 5 hats have landed on the first 4 reels.
+ */
+export function shouldExtremeAnticipate(grid) {
+  let count = 0;
+  for (let r = 0; r < REEL_COUNT - 1; r++) {
+    for (let row = 0; row < 3; row++) {
+      if (HAT_IDS.includes(grid[r][row])) count++;
+    }
+  }
+  return count === 5;
 }
 
 /* ══════════════════════════════════════════

@@ -16,8 +16,8 @@ import { state } from '../core/state.js';
 import { sleep, fmt } from '../core/utils.js';
 import { synth, bgm } from '../audio/sound.js';
 import { narrator } from '../audio/narrator.js';
-import { generateGrid, evaluateGrid, rollHouseAward, rollMansionAward } from '../math/mathcore.js';
-import { animateAllReels, highlightWinners, clearHighlights, animateWinCount, getReelStrips } from '../render/reels.js';
+import { generateGrid, evaluateGrid, rollHouseAward, rollMansionAward, expandWilds } from '../math/mathcore.js';
+import { animateAllReels, highlightWinners, clearHighlights, animateWinCount, getReelStrips, expandWildReel } from '../render/reels.js';
 import {
   spawnCoinShower, spawnCoinFountain, spawnDollarBills, spawnConfetti, spawnSparkles,
   spawnStarbursts, spawnWinVignette, spawnWinPopText,
@@ -185,10 +185,18 @@ async function runFreeSpins() {
     synth.startSpin();
     await animateAllReels(targetGrid);
     synth.stopSpin();
-    state.currentGrid = targetGrid;
+
+    // expanding wilds during free spins too
+    const { grid: shownGrid, wildReels } = expandWilds(targetGrid);
+    state.currentGrid = shownGrid;
+    if (wildReels.length > 0) {
+      synth.wolfHowl();
+      wildReels.forEach(r => expandWildReel(r, shownGrid[r]));
+      await sleep(650);
+    }
 
     // line wins still pay during free spins
-    const { totalWin, winners } = evaluateGrid(targetGrid, bonusBet);
+    const { totalWin, winners } = evaluateGrid(shownGrid, bonusBet);
     if (totalWin > 0) {
       highlightWinners(winners);
       synth.win(totalWin, bonusBet);

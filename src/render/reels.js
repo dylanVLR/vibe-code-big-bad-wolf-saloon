@@ -9,6 +9,7 @@
 import { SYMBOLS, SYMBOL_IDS, SPIN_DURATIONS, TURBO_DURATIONS, SCROLL_SYMBOLS, TURBO_SCROLL, ANTICIPATION_EXTRA } from '../math/par-sheet.js';
 import { state } from '../core/state.js';
 import { synth } from '../audio/sound.js';
+import { narrator } from '../audio/narrator.js';
 import { fmt } from '../core/utils.js';
 import { spawnSparkles } from './particles.js';
 
@@ -66,7 +67,7 @@ export function renderReel(reelIndex, symbolIds) {
  * Builds a tall strip [target] + [random blur] + [current], snaps it to the
  * bottom, then transitions to the top so the target lands in view.
  */
-export function animateReel(reelIndex, targetSymIds, onDone, anticipate = false) {
+export function animateReel(reelIndex, targetSymIds, onDone, anticipate = false, isExtreme = false) {
   const strip = reelStrips[reelIndex];
   const col   = reelCols[reelIndex];
   const cellH = getCellHeight();
@@ -77,6 +78,12 @@ export function animateReel(reelIndex, targetSymIds, onDone, anticipate = false)
     duration += ANTICIPATION_EXTRA;
     col.classList.add('is-anticipating');
     if (reelIndex === 3) synth.anticipation();
+  }
+  
+  if (isExtreme) {
+    duration += 1500; // Extra long spin for the 6th hat
+    col.classList.add('is-extreme-anticipating');
+    narrator.sayNow('extremeAnticipation', 8);
   }
 
   const current = (state.currentGrid && state.currentGrid[reelIndex]) || ['royal-a', 'royal-k', 'royal-q'];
@@ -102,7 +109,7 @@ export function animateReel(reelIndex, targetSymIds, onDone, anticipate = false)
       const finishAnimation = () => {
         if (isDone) return;
         isDone = true;
-        col.classList.remove('is-spinning', 'is-anticipating');
+        col.classList.remove('is-spinning', 'is-anticipating', 'is-extreme-anticipating');
         renderReel(reelIndex, targetSymIds);
         strip.classList.add('bounce-stop');
         setTimeout(() => strip.classList.remove('bounce-stop'), 350);
@@ -124,13 +131,32 @@ export function animateReel(reelIndex, targetSymIds, onDone, anticipate = false)
 }
 
 /** Spin all 5 reels; resolves once every reel has stopped. */
-export function animateAllReels(targetGrid, anticipate = false) {
+export function animateAllReels(targetGrid, anticipate = false, extremeAnticipate = false) {
   return new Promise(resolve => {
     let stopped = 0;
     for (let r = 0; r < 5; r++) {
-      animateReel(r, targetGrid[r], () => { if (++stopped === 5) resolve(); }, anticipate);
+      const isExtreme = extremeAnticipate && r === 4;
+      animateReel(r, targetGrid[r], () => { if (++stopped === 5) resolve(); }, anticipate, isExtreme);
     }
   });
+}
+
+/**
+ * Show an expanding wild filling a reel: swap the reel to its post-expansion
+ * symbols (`expandedCol`) and play a brass glow sweep + sparkles down the column.
+ */
+export function expandWildReel(reelIndex, expandedCol) {
+  const col = reelCols[reelIndex];
+  if (!col) return;
+  renderReel(reelIndex, expandedCol);
+  col.classList.add('wild-reel-flash');
+  setTimeout(() => col.classList.remove('wild-reel-flash'), 1000);
+  const rect = col.getBoundingClientRect();
+  const cr = particleContainer.getBoundingClientRect();
+  const cx = rect.left + rect.width / 2 - cr.left;
+  for (let i = 0; i < 3; i++) {
+    setTimeout(() => spawnSparkles(cx, rect.top + rect.height * (0.22 + i * 0.28) - cr.top, 8), i * 110);
+  }
 }
 
 /** Add the winner glow + sparkles to every winning cell. */

@@ -125,10 +125,13 @@ node tools/sim.js 10000000      # 10M spins
 
 ## Developer / admin tools
 
-The RTP picker, Add-Credit, Buy-Bonus, and the 📊 SIM / 🧮 MATH debug panel are
-**hidden on the public build**. Enable them by adding `?dev=1` to the URL once
-(the choice is remembered); `?dev=0` turns them back off. The backtick (`` ` ``)
-key toggles the SIM/MATH panel when dev mode is on.
+The **"GAFF MODE"** tools — RTP picker, GAME SIZE, Add-Credit, and the
+📊 SIM / 🧮 MATH debug panel — are **hidden on the public build** and grouped
+under a "GAFF MODE" header in the options drawer. Enable them by adding `?dev=1`
+to the URL once (the choice is remembered); `?dev=0` turns them back off. The
+backtick (`` ` ``) key toggles the SIM/MATH panel when dev mode is on.
+
+(Buy Bonus is a normal player feature, so it stays visible in regular mode.)
 
 ---
 

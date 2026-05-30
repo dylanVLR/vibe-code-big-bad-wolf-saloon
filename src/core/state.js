@@ -21,4 +21,5 @@ export const state = {
   currentGrid: null,          // the symbols currently shown (for spin scroll buffer)
   musicAutoStarted: false,    // background music has been kicked off
   rtpModelId: DEFAULT_RTP_MODEL, // selected RTP math model (see RTP_MODELS in par-sheet.js)
+  forceExtremeNextSpin: false,   // dev tool to force extreme anticipation on next spin
 };

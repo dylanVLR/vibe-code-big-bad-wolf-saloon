@@ -13,8 +13,8 @@ import { state } from '../core/state.js';
 import { sleep, fmt } from '../core/utils.js';
 import { synth } from '../audio/sound.js';
 import { narrator } from '../audio/narrator.js';
-import { generateGrid, evaluateGrid, countHats, shouldAnticipate } from '../math/mathcore.js';
-import { animateReel, getReelStrips, highlightWinners, clearHighlights, animateWinCount } from '../render/reels.js';
+import { generateGrid, evaluateGrid, countHats, shouldAnticipate, shouldExtremeAnticipate, expandWilds } from '../math/mathcore.js';
+import { animateReel, getReelStrips, highlightWinners, clearHighlights, animateWinCount, expandWildReel } from '../render/reels.js';
 import {
   spawnStarbursts, spawnSideWaterfall, spawnWinVignette, spawnWinPopText,
   playWinPresentation
@@ -71,21 +71,47 @@ export function triggerSpin() {
   if (state.balance < bet * 3) narrator.onLowBalance();
 
   const targetGrid = generateGrid();
+  
+  if (state.forceExtremeNextSpin) {
+    state.forceExtremeNextSpin = false;
+    targetGrid[0][0] = 'hat-yellow';
+    targetGrid[1][0] = 'hat-yellow';
+    targetGrid[2][0] = 'hat-yellow';
+    targetGrid[3][0] = 'hat-yellow';
+    targetGrid[3][1] = 'hat-yellow';
+    for (let i = 0; i < 3; i++) {
+      if (targetGrid[4][i].startsWith('hat')) targetGrid[4][i] = 'royal-a';
+    }
+  }
+
   const anticipate = shouldAnticipate(targetGrid);
+  const extremeAnticipate = shouldExtremeAnticipate(targetGrid);
 
   let stopped = 0;
   for (let r = 0; r < 5; r++) {
-    animateReel(r, targetGrid[r], () => { if (++stopped === 5) finalizeSpin(targetGrid, bet); }, anticipate);
+    // Pass extremeAnticipate flag to reel 4 (the 5th reel)
+    const isExtreme = extremeAnticipate && r === 4;
+    animateReel(r, targetGrid[r], () => { if (++stopped === 5) finalizeSpin(targetGrid, bet); }, anticipate, isExtreme);
   }
 }
 
 async function finalizeSpin(targetGrid, bet) {
   synth.stopSpin();
-  state.currentGrid = targetGrid;
-  const reelStrips = getReelStrips();
 
-  // bonus trigger takes priority over line wins
-  const { count: hatCount, hatCells } = countHats(targetGrid);
+  // Expanding Wolf Wild: any reel that landed a wild fills with wilds (hats kept).
+  // Animate the expansion before anything pays, and evaluate the expanded screen.
+  const { grid: shownGrid, wildReels } = expandWilds(targetGrid);
+  state.currentGrid = shownGrid;
+  const reelStrips = getReelStrips();
+  if (wildReels.length > 0) {
+    synth.wolfHowl();
+    setStatus(wildReels.length > 1 ? 'WOLF WILDS!' : 'WOLF WILD!', 'win');
+    wildReels.forEach(r => expandWildReel(r, shownGrid[r]));
+    await sleep(750);
+  }
+
+  // bonus trigger takes priority over line wins (hats survive the wild expansion)
+  const { count: hatCount, hatCells } = countHats(shownGrid);
   if (hatCount >= 6) {
     hatCells.forEach(([r, row]) => {
       const cell = reelStrips[r].querySelectorAll('.sym-cell')[row];
@@ -208,3 +234,11 @@ document.addEventListener('keydown', (e) => {
     if (dbg) dbg.classList.toggle('hidden');
   }
 });
+
+const btnForceExtreme = document.getElementById('btn-force-extreme');
+if (btnForceExtreme) {
+  btnForceExtreme.addEventListener('click', () => {
+    state.forceExtremeNextSpin = true;
+    setStatus('EXTREME ANTICIPATION FORCED NEXT SPIN', 'win');
+  });
+}

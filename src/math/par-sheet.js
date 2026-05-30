@@ -109,10 +109,16 @@ export const SYMBOLS = {
   'hat-red':        { id: 'hat-red',        src: 'assets/hat_red.png',        label: 'Red Hat',       pays: { 3: 1.4,  4: 5.6,  5: 28.0 }, isHat: true },
   'pig-suit':       { id: 'pig-suit',       src: 'assets/pig_suit.png',       label: 'Suit Pig',      pays: { 3: 2.8,  4: 10.5, 5: 52.0 } },
   'pig-contractor': { id: 'pig-contractor', src: 'assets/pig_builder.png',    label: 'Builder Pig',   pays: { 3: 2.1,  4: 8.4,  5: 42.0 } },
-  'pig-nature':     { id: 'pig-nature',     src: 'assets/vlr_medallion.png',  label: 'VLR Medallion', pays: { 3: 1.4,  4: 5.6,  5: 28.0 } },
+  'pig-nature':     { id: 'pig-nature',     src: 'assets/shotglass.png',  label: 'Shotglass', pays: { 3: 1.4,  4: 5.6,  5: 28.0 } },
   'toolbox':        { id: 'toolbox',        src: 'assets/toolbox.png',        label: 'Toolbox',       pays: { 3: 1.2,  4: 4.9,  5: 24.0 } },
   'wolf':           { id: 'wolf',           src: 'assets/wolf.png',           label: 'Wolf',          pays: { 3: 0.9,  4: 3.5,  5: 17.0 } },
   'buzzard':        { id: 'buzzard',        src: 'assets/buzzard.png',        label: 'Buzzard',       pays: { 3: 0.7,  4: 2.8,  5: 14.0 } },
+
+  // ── WOLF WILD (expanding) ──
+  // Lands only on reels 2-4. When one lands it fills its whole reel and
+  // substitutes for every paying symbol EXCEPT the hats (scatters). It has no
+  // pay of its own — it only helps the other symbols form wins.
+  'wild':           { id: 'wild',           svgId: '#sym-wild',     label: 'Wolf Wild', pays: null, isWild: true },
 
   // ── Inline SVG Royals (low-pay filler) ──
   'royal-a':        { id: 'royal-a',        svgId: '#sym-royal-a',  label: 'Ace',    pays: { 3: 0.5,  4: 1.75, 5: 8.75 } },
@@ -124,6 +130,9 @@ export const SYMBOLS = {
 
 /** All hat symbol IDs for bonus detection */
 export const HAT_IDS = ['hat-yellow', 'hat-green', 'hat-red'];
+
+/** The expanding wild symbol id (see SYMBOLS['wild']). */
+export const WILD_ID = 'wild';
 
 /** All symbol IDs as an array (cached for perf) */
 export const SYMBOL_IDS = Object.keys(SYMBOLS);
@@ -175,15 +184,15 @@ export const BONUS_CONFIG = {
 ══════════════════════════════════════════ */
 
 export const REEL_COUNTS = [
-  // Reel 1 (leftmost — slightly looser)
+  // Reel 1 (leftmost — slightly looser)   ·   no wild
   { 'hat-yellow': 2, 'hat-green': 1, 'hat-red': 1, 'pig-suit': 2, 'pig-contractor': 1, 'pig-nature': 1, 'toolbox': 2, 'wolf': 2, 'buzzard': 1, 'royal-a': 4, 'royal-k': 4, 'royal-q': 4, 'royal-j': 4, 'royal-10': 5 },
-  // Reel 2
+  // Reel 2   ·   no wild
   { 'hat-yellow': 1, 'hat-green': 1, 'hat-red': 1, 'pig-suit': 1, 'pig-contractor': 2, 'pig-nature': 1, 'toolbox': 2, 'wolf': 2, 'buzzard': 1, 'royal-a': 4, 'royal-k': 4, 'royal-q': 4, 'royal-j': 4, 'royal-10': 4 },
-  // Reel 3 (middle)
-  { 'hat-yellow': 1, 'hat-green': 1, 'hat-red': 1, 'pig-suit': 1, 'pig-contractor': 1, 'pig-nature': 1, 'toolbox': 1, 'wolf': 2, 'buzzard': 1, 'royal-a': 4, 'royal-k': 4, 'royal-q': 4, 'royal-j': 4, 'royal-10': 6 },
-  // Reel 4
+  // Reel 3 (middle)   ·   1 expanding wild  (classic center-reel wild)
+  { 'hat-yellow': 1, 'hat-green': 1, 'hat-red': 1, 'pig-suit': 1, 'pig-contractor': 1, 'pig-nature': 1, 'toolbox': 1, 'wolf': 2, 'buzzard': 1, 'wild': 1, 'royal-a': 4, 'royal-k': 4, 'royal-q': 4, 'royal-j': 4, 'royal-10': 6 },
+  // Reel 4   ·   no wild
   { 'hat-yellow': 1, 'hat-green': 1, 'hat-red': 1, 'pig-suit': 1, 'pig-contractor': 1, 'pig-nature': 1, 'toolbox': 2, 'wolf': 2, 'buzzard': 1, 'royal-a': 4, 'royal-k': 4, 'royal-q': 4, 'royal-j': 4, 'royal-10': 6 },
-  // Reel 5 (rightmost — fewest premiums)
+  // Reel 5 (rightmost — fewest premiums)   ·   no wild
   { 'hat-yellow': 1, 'hat-green': 1, 'hat-red': 0, 'pig-suit': 1, 'pig-contractor': 1, 'pig-nature': 1, 'toolbox': 1, 'wolf': 2, 'buzzard': 1, 'royal-a': 4, 'royal-k': 4, 'royal-q': 4, 'royal-j': 4, 'royal-10': 6 },
 ];
 

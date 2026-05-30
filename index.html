@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Big Bad Wolf – Slot Machine</title>
-  <meta name="description" content="Big Bad Wolf slot machine clone – 5 reels, 243 ways to win, vibrant clover theme with 3D pig characters and glossy hard hat symbols.">
+  <title>Big Bad Wolf Saloon – Slot Machine</title>
+  <meta name="description" content="Big Bad Wolf Saloon slot machine clone – 5 reels, 243 ways to win, vibrant clover theme with 3D pig characters and glossy hard hat symbols.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Rye&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
@@ -927,6 +927,33 @@
       </circle>
     </symbol>
 
+    <!-- ══════════════════════════════════════════
+         SYMBOL: WOLF WILD — brass sheriff star badge
+    ══════════════════════════════════════════ -->
+    <symbol id="sym-wild" viewBox="0 0 200 200">
+      <linearGradient id="g-wild-brass" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#F0DCAE"/>
+        <stop offset="0.45" stop-color="#C9A24B"/>
+        <stop offset="1" stop-color="#8A6A2E"/>
+      </linearGradient>
+      <g transform="translate(100,100)">
+        <circle r="94" fill="#1A1208" opacity="0.85"/>
+        <!-- 5-point sheriff star -->
+        <path d="M 0,-88 L 23.5,-32.4 L 83.7,-27.2 L 38,12.4 L 51.7,71.2 L 0,40 L -51.7,71.2 L -38,12.4 L -83.7,-27.2 L -23.5,-32.4 Z"
+              fill="url(#g-wild-brass)" stroke="#5A4422" stroke-width="5" stroke-linejoin="round"/>
+        <!-- star-point bobbles -->
+        <g fill="#5A4422">
+          <circle cx="0" cy="-86" r="5"/><circle cx="83" cy="-27" r="5"/>
+          <circle cx="51" cy="70" r="5"/><circle cx="-51" cy="70" r="5"/><circle cx="-83" cy="-27" r="5"/>
+        </g>
+        <!-- center disc -->
+        <circle r="47" fill="#241A0E" stroke="#E6CF9A" stroke-width="3"/>
+        <circle r="47" fill="none" stroke="#5A4422" stroke-width="1" transform="scale(1.08)"/>
+        <!-- WILD text -->
+        <text x="0" y="13" text-anchor="middle" font-family="Rye, serif" font-size="33"
+              fill="#F0DCAE" stroke="#3A2A12" stroke-width="1.4" paint-order="stroke">WILD</text>
+      </g>
+    </symbol>
 
   </defs>
 </svg>
@@ -1073,47 +1100,11 @@
         <div id="logo-text">
           <span class="logo-red">BIG BAD</span>
           <span class="logo-gold">WOLF</span>
+          <span class="logo-red">SALOON</span>
         </div>
         
         <div class="logo-clovers">
-          <svg viewBox="0 0 100 100">
-            <!-- Clovers -->
-            <defs>
-              <radialGradient id="clover-grad" cx="30%" cy="30%" r="70%">
-                <stop offset="0%" stop-color="#5AFF5A"/>
-                <stop offset="100%" stop-color="#0E6B0E"/>
-              </radialGradient>
-              <filter id="clover-shadow">
-                <feDropShadow dx="1" dy="2" stdDeviation="2" flood-color="#000" flood-opacity="0.6"/>
-              </filter>
-            </defs>
-            <g filter="url(#clover-shadow)">
-              <!-- Large Clover Bottom -->
-              <g transform="translate(60, 65) scale(1.2)">
-                <path d="M 0,0 C -15,-20 -25,0 0,5 C 25,0 15,-20 0,0" fill="url(#clover-grad)" transform="rotate(45)"/>
-                <path d="M 0,0 C -15,-20 -25,0 0,5 C 25,0 15,-20 0,0" fill="url(#clover-grad)" transform="rotate(135)"/>
-                <path d="M 0,0 C -15,-20 -25,0 0,5 C 25,0 15,-20 0,0" fill="url(#clover-grad)" transform="rotate(225)"/>
-                <path d="M 0,0 C -15,-20 -25,0 0,5 C 25,0 15,-20 0,0" fill="url(#clover-grad)" transform="rotate(315)"/>
-                <path d="M 0,0 Q 5,15 15,20" fill="none" stroke="#0E6B0E" stroke-width="2"/>
-              </g>
-              <!-- Medium Clover Top Right -->
-              <g transform="translate(75, 25) scale(0.9) rotate(-20)">
-                <path d="M 0,0 C -15,-20 -25,0 0,5 C 25,0 15,-20 0,0" fill="url(#clover-grad)" transform="rotate(45)"/>
-                <path d="M 0,0 C -15,-20 -25,0 0,5 C 25,0 15,-20 0,0" fill="url(#clover-grad)" transform="rotate(135)"/>
-                <path d="M 0,0 C -15,-20 -25,0 0,5 C 25,0 15,-20 0,0" fill="url(#clover-grad)" transform="rotate(225)"/>
-                <path d="M 0,0 C -15,-20 -25,0 0,5 C 25,0 15,-20 0,0" fill="url(#clover-grad)" transform="rotate(315)"/>
-                <path d="M 0,0 Q -5,15 -10,20" fill="none" stroke="#0E6B0E" stroke-width="2"/>
-              </g>
-              <!-- Small Clover Top Left -->
-              <g transform="translate(35, 25) scale(0.6) rotate(30)">
-                <path d="M 0,0 C -15,-20 -25,0 0,5 C 25,0 15,-20 0,0" fill="url(#clover-grad)" transform="rotate(45)"/>
-                <path d="M 0,0 C -15,-20 -25,0 0,5 C 25,0 15,-20 0,0" fill="url(#clover-grad)" transform="rotate(135)"/>
-                <path d="M 0,0 C -15,-20 -25,0 0,5 C 25,0 15,-20 0,0" fill="url(#clover-grad)" transform="rotate(225)"/>
-                <path d="M 0,0 C -15,-20 -25,0 0,5 C 25,0 15,-20 0,0" fill="url(#clover-grad)" transform="rotate(315)"/>
-                <path d="M 0,0 Q 5,15 10,20" fill="none" stroke="#0E6B0E" stroke-width="2"/>
-              </g>
-            </g>
-          </svg>
+          <img src="assets/vlr_medallion.png" alt="VLR Medallion" class="logo-medallion-img">
         </div>
       </div>
       
@@ -1517,8 +1508,8 @@
         <div class="pt-pays">5&#9733; &times; 7.0 &nbsp;|&nbsp; 4&#9733; &times; 2.5 &nbsp;|&nbsp; 3&#9733; &times; 1.0</div>
       </div>
       <div class="pt-item">
-        <img src="assets/vlr_medallion.png" alt="VLR Medallion" class="pt-img">
-        <div class="pt-name">VLR Medallion</div>
+        <img src="assets/shotglass.png" alt="Shotglass" class="pt-img">
+        <div class="pt-name">Shotglass</div>
         <div class="pt-pays">5&#9733; &times; 5.0 &nbsp;|&nbsp; 4&#9733; &times; 2.0 &nbsp;|&nbsp; 3&#9733; &times; 0.8</div>
       </div>
       <div class="pt-item">
@@ -1738,19 +1729,21 @@
       </div>
     </div>
 
-    <button id="btn-rtp" class="drawer-btn drawer-rtp dev-tool" title="Choose the RTP / math model">🎚️ RTP</button>
-
-    <button id="btn-size" class="drawer-btn drawer-size dev-tool" title="See how many megabytes the game uses">📦 GAME SIZE</button>
-
-    <button id="btn-deposit" class="drawer-btn drawer-deposit dev-tool" title="Add credit to the machine">💵 ADD CREDIT</button>
-
-    <button id="btn-buy-bonus" class="drawer-btn drawer-buy dev-tool" title="Buy the bonus and skip to free spins">💰 BUY BONUS</button>
+    <!-- Buy Bonus — a real player feature, always visible (regular mode) -->
+    <button id="btn-buy-bonus" class="drawer-btn drawer-buy" title="Buy the bonus and skip to free spins">💰 BUY BONUS</button>
 
     <!-- Paytable -->
     <button id="btn-info" class="drawer-btn" title="Paytable" aria-label="Open Paytable">
       <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M11 7h2v2h-2zm0 4h2v6h-2zm1-9C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
       <span>PAYTABLE</span>
     </button>
+
+    <!-- ══ GAFF MODE — dev/admin tools, only shown with ?dev=1 ══ -->
+    <div class="drawer-gaff-header dev-tool">GAFF MODE</div>
+    <button id="btn-rtp" class="drawer-btn drawer-rtp dev-tool" title="Choose the RTP / math model">🎚️ RTP</button>
+    <button id="btn-size" class="drawer-btn drawer-size dev-tool" title="See how many megabytes the game uses">📦 GAME SIZE</button>
+    <button id="btn-deposit" class="drawer-btn drawer-deposit dev-tool" title="Add credit to the machine">💵 ADD CREDIT</button>
+    <button id="btn-force-extreme" class="drawer-btn dev-tool" title="Force Extreme Anticipation">🥵 EXTREME ANT.</button>
     <!-- Developer simulation and math buttons moved to hidden debug panel -->
 
   </div>

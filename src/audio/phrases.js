@@ -158,6 +158,13 @@ export const PHRASES = {
     "Right there! It was RIGHT there, partner!",
     "Close enough to feel the wind change!",
   ],
+  extremeAnticipation: [
+    "Ooooh! Five hats! One more and we blow the house down!",
+    "Hold yer breath partner... we just need one more!",
+    "Five hats! Come on, number six! Awooo!",
+    "One more hat and it's bonus time! Let's go!",
+    "The anticipation is killin' me! Drop that hat!"
+  ],
   bonusTrigger: [
     "AWOOO! Them hard hats opened the gate — FREE SPINS!",
     "WELL BUST MY BRITCHES — IT'S THE BONUS, PARTNER!",

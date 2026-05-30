@@ -337,6 +337,13 @@ const PHRASES = {
     "Right there! It was RIGHT there, partner!",
     "Close enough to feel the wind change!",
   ],
+  extremeAnticipation: [
+    "Ooooh! Five hats! One more and we blow the house down!",
+    "Hold yer breath partner... we just need one more!",
+    "Five hats! Come on, number six! Awooo!",
+    "One more hat and it's bonus time! Let's go!",
+    "The anticipation is killin' me! Drop that hat!"
+  ],
   bonusTrigger: [
     "AWOOO! Them hard hats opened the gate — FREE SPINS!",
     "WELL BUST MY BRITCHES — IT'S THE BONUS, PARTNER!",
@@ -756,6 +763,7 @@ const state = {
   currentGrid: null,          // the symbols currently shown (for spin scroll buffer)
   musicAutoStarted: false,    // background music has been kicked off
   rtpModelId: DEFAULT_RTP_MODEL, // selected RTP math model (see RTP_MODELS in par-sheet.js)
+  forceExtremeNextSpin: false,   // dev tool to force extreme anticipation on next spin
 };
 
 Object.assign(exports, { state });
@@ -815,8 +823,8 @@ const { state } = require("state");
 const { sleep, fmt } = require("utils");
 const { synth } = require("sound");
 const { narrator } = require("narrator");
-const { generateGrid, evaluateGrid, countHats, shouldAnticipate } = require("mathcore");
-const { animateReel, getReelStrips, highlightWinners, clearHighlights, animateWinCount } = require("reels");
+const { generateGrid, evaluateGrid, countHats, shouldAnticipate, shouldExtremeAnticipate, expandWilds } = require("mathcore");
+const { animateReel, getReelStrips, highlightWinners, clearHighlights, animateWinCount, expandWildReel } = require("reels");
 const {
   spawnStarbursts, spawnSideWaterfall, spawnWinVignette, spawnWinPopText,
   playWinPresentation
@@ -873,21 +881,47 @@ function triggerSpin() {
   if (state.balance < bet * 3) narrator.onLowBalance();
 
   const targetGrid = generateGrid();
+  
+  if (state.forceExtremeNextSpin) {
+    state.forceExtremeNextSpin = false;
+    targetGrid[0][0] = 'hat-yellow';
+    targetGrid[1][0] = 'hat-yellow';
+    targetGrid[2][0] = 'hat-yellow';
+    targetGrid[3][0] = 'hat-yellow';
+    targetGrid[3][1] = 'hat-yellow';
+    for (let i = 0; i < 3; i++) {
+      if (targetGrid[4][i].startsWith('hat')) targetGrid[4][i] = 'royal-a';
+    }
+  }
+
   const anticipate = shouldAnticipate(targetGrid);
+  const extremeAnticipate = shouldExtremeAnticipate(targetGrid);
 
   let stopped = 0;
   for (let r = 0; r < 5; r++) {
-    animateReel(r, targetGrid[r], () => { if (++stopped === 5) finalizeSpin(targetGrid, bet); }, anticipate);
+    // Pass extremeAnticipate flag to reel 4 (the 5th reel)
+    const isExtreme = extremeAnticipate && r === 4;
+    animateReel(r, targetGrid[r], () => { if (++stopped === 5) finalizeSpin(targetGrid, bet); }, anticipate, isExtreme);
   }
 }
 
 async function finalizeSpin(targetGrid, bet) {
   synth.stopSpin();
-  state.currentGrid = targetGrid;
-  const reelStrips = getReelStrips();
 
-  // bonus trigger takes priority over line wins
-  const { count: hatCount, hatCells } = countHats(targetGrid);
+  // Expanding Wolf Wild: any reel that landed a wild fills with wilds (hats kept).
+  // Animate the expansion before anything pays, and evaluate the expanded screen.
+  const { grid: shownGrid, wildReels } = expandWilds(targetGrid);
+  state.currentGrid = shownGrid;
+  const reelStrips = getReelStrips();
+  if (wildReels.length > 0) {
+    synth.wolfHowl();
+    setStatus(wildReels.length > 1 ? 'WOLF WILDS!' : 'WOLF WILD!', 'win');
+    wildReels.forEach(r => expandWildReel(r, shownGrid[r]));
+    await sleep(750);
+  }
+
+  // bonus trigger takes priority over line wins (hats survive the wild expansion)
+  const { count: hatCount, hatCells } = countHats(shownGrid);
   if (hatCount >= 6) {
     hatCells.forEach(([r, row]) => {
       const cell = reelStrips[r].querySelectorAll('.sym-cell')[row];
@@ -1011,6 +1045,14 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
+const btnForceExtreme = document.getElementById('btn-force-extreme');
+if (btnForceExtreme) {
+  btnForceExtreme.addEventListener('click', () => {
+    state.forceExtremeNextSpin = true;
+    setStatus('EXTREME ANTICIPATION FORCED NEXT SPIN', 'win');
+  });
+}
+
 Object.assign(exports, { triggerSpin, startAuto });
 
   };
@@ -1033,8 +1075,8 @@ const { state } = require("state");
 const { sleep, fmt } = require("utils");
 const { synth, bgm } = require("sound");
 const { narrator } = require("narrator");
-const { generateGrid, evaluateGrid, rollHouseAward, rollMansionAward } = require("mathcore");
-const { animateAllReels, highlightWinners, clearHighlights, animateWinCount, getReelStrips } = require("reels");
+const { generateGrid, evaluateGrid, rollHouseAward, rollMansionAward, expandWilds } = require("mathcore");
+const { animateAllReels, highlightWinners, clearHighlights, animateWinCount, getReelStrips, expandWildReel } = require("reels");
 const {
   spawnCoinShower, spawnCoinFountain, spawnDollarBills, spawnConfetti, spawnSparkles,
   spawnStarbursts, spawnWinVignette, spawnWinPopText,
@@ -1202,10 +1244,18 @@ async function runFreeSpins() {
     synth.startSpin();
     await animateAllReels(targetGrid);
     synth.stopSpin();
-    state.currentGrid = targetGrid;
+
+    // expanding wilds during free spins too
+    const { grid: shownGrid, wildReels } = expandWilds(targetGrid);
+    state.currentGrid = shownGrid;
+    if (wildReels.length > 0) {
+      synth.wolfHowl();
+      wildReels.forEach(r => expandWildReel(r, shownGrid[r]));
+      await sleep(650);
+    }
 
     // line wins still pay during free spins
-    const { totalWin, winners } = evaluateGrid(targetGrid, bonusBet);
+    const { totalWin, winners } = evaluateGrid(shownGrid, bonusBet);
     if (totalWin > 0) {
       highlightWinners(winners);
       synth.win(totalWin, bonusBet);
@@ -1791,7 +1841,7 @@ init();
  */
 
 const {
-  SYMBOLS, SYMBOL_IDS, HAT_IDS, REEL_STRIPS, BONUS_CONFIG,
+  SYMBOLS, SYMBOL_IDS, HAT_IDS, WILD_ID, REEL_STRIPS, BONUS_CONFIG,
   REEL_COUNT, ROWS_PER_REEL, MIN_WIN_SPAN, MAX_FRAME_TIER,
 } = require("par-sheet");
 
@@ -1811,6 +1861,30 @@ function generateGrid() {
     const start = Math.floor(Math.random() * len);
     return [strip[start % len], strip[(start + 1) % len], strip[(start + 2) % len]];
   });
+}
+
+/* ══════════════════════════════════════════
+   EXPANDING WILDS
+   ─────────────────────────────────────────
+   The Wolf Wild lands only on the middle reels (2-4). When at least one shows on
+   a reel, the WHOLE reel turns wild — except hat (scatter) cells, which are left
+   alone so the bonus trigger is unaffected. A wild substitutes for every paying
+   symbol but the hats. The wild has no pay of its own.
+══════════════════════════════════════════ */
+
+/**
+ * Expand any reel that contains a wild so the whole reel reads as wild (hats kept).
+ * Returns a NEW grid (the input is never mutated) plus which reels expanded.
+ * @returns {{ grid: string[][], wildReels: number[] }}
+ */
+function expandWilds(grid) {
+  const wildReels = [];
+  const out = grid.map((col, r) => {
+    if (!col.includes(WILD_ID)) return col.slice();
+    wildReels.push(r);
+    return col.map(s => (HAT_IDS.includes(s) ? s : WILD_ID));   // keep hats, fill the rest
+  });
+  return { grid: out, wildReels };
 }
 
 /* ══════════════════════════════════════════
@@ -1845,11 +1919,20 @@ function evaluateGrid(grid, bet) {
   let totalWin = 0;
   const winners = [];
 
+  // expand any wild reels first; wilds then substitute below (idempotent if the
+  // grid was already expanded by the caller)
+  const g = expandWilds(grid).grid;
+
   for (const symId of SYMBOL_IDS) {
     const sym = SYMBOLS[symId];
+    if (symId === WILD_ID || !sym.pays) continue;   // the wild has no pay of its own
+    const isHat = HAT_IDS.includes(symId);
+    // a cell counts for this symbol if it IS the symbol, or is a wild that may
+    // substitute for it (wilds don't substitute for the hat scatters)
+    const matches = s => s === symId || (!isHat && s === WILD_ID);
 
-    // how many times the symbol appears on each reel
-    const colCounts = grid.map(col => col.filter(s => s === symId).length);
+    // how many times the symbol (incl. substituting wilds) appears on each reel
+    const colCounts = g.map(col => col.filter(matches).length);
 
     // must be present on reel 1 to start a left-to-right win
     if (colCounts[0] === 0) continue;
@@ -1873,7 +1956,7 @@ function evaluateGrid(grid, bet) {
     // record the contributing cells (for highlighting in the UI)
     const cells = [];
     for (let r = 0; r < span; r++) {
-      grid[r].forEach((s, row) => { if (s === symId) cells.push([r, row]); });
+      g[r].forEach((s, row) => { if (matches(s)) cells.push([r, row]); });
     }
     winners.push({ symId, span, ways, winAmount, cells });
   }
@@ -1917,6 +2000,20 @@ function shouldAnticipate(grid) {
     if (consecutive >= 3) return true;
   }
   return countHats(grid).count >= 4;
+}
+
+/**
+ * Should the final reel spin in extreme anticipation?
+ * True if exactly 5 hats have landed on the first 4 reels.
+ */
+function shouldExtremeAnticipate(grid) {
+  let count = 0;
+  for (let r = 0; r < REEL_COUNT - 1; r++) {
+    for (let row = 0; row < 3; row++) {
+      if (HAT_IDS.includes(grid[r][row])) count++;
+    }
+  }
+  return count === 5;
 }
 
 /* ══════════════════════════════════════════
@@ -2008,7 +2105,7 @@ function simulateBonusOutcome(bet, triggerGrid) {
   return { bonusWin, freeSpins: spinsPlayed, mansions };
 }
 
-Object.assign(exports, { generateGrid, evaluateGrid, countHats, shouldAnticipate, rollHouseAward, rollMansionAward, simulateBonusOutcome });
+Object.assign(exports, { generateGrid, expandWilds, evaluateGrid, countHats, shouldAnticipate, shouldExtremeAnticipate, rollHouseAward, rollMansionAward, simulateBonusOutcome });
 
   };
 
@@ -2123,10 +2220,16 @@ const SYMBOLS = {
   'hat-red':        { id: 'hat-red',        src: 'assets/hat_red.png',        label: 'Red Hat',       pays: { 3: 1.4,  4: 5.6,  5: 28.0 }, isHat: true },
   'pig-suit':       { id: 'pig-suit',       src: 'assets/pig_suit.png',       label: 'Suit Pig',      pays: { 3: 2.8,  4: 10.5, 5: 52.0 } },
   'pig-contractor': { id: 'pig-contractor', src: 'assets/pig_builder.png',    label: 'Builder Pig',   pays: { 3: 2.1,  4: 8.4,  5: 42.0 } },
-  'pig-nature':     { id: 'pig-nature',     src: 'assets/vlr_medallion.png',  label: 'VLR Medallion', pays: { 3: 1.4,  4: 5.6,  5: 28.0 } },
+  'pig-nature':     { id: 'pig-nature',     src: 'assets/shotglass.png',  label: 'Shotglass', pays: { 3: 1.4,  4: 5.6,  5: 28.0 } },
   'toolbox':        { id: 'toolbox',        src: 'assets/toolbox.png',        label: 'Toolbox',       pays: { 3: 1.2,  4: 4.9,  5: 24.0 } },
   'wolf':           { id: 'wolf',           src: 'assets/wolf.png',           label: 'Wolf',          pays: { 3: 0.9,  4: 3.5,  5: 17.0 } },
   'buzzard':        { id: 'buzzard',        src: 'assets/buzzard.png',        label: 'Buzzard',       pays: { 3: 0.7,  4: 2.8,  5: 14.0 } },
+
+  // ── WOLF WILD (expanding) ──
+  // Lands only on reels 2-4. When one lands it fills its whole reel and
+  // substitutes for every paying symbol EXCEPT the hats (scatters). It has no
+  // pay of its own — it only helps the other symbols form wins.
+  'wild':           { id: 'wild',           svgId: '#sym-wild',     label: 'Wolf Wild', pays: null, isWild: true },
 
   // ── Inline SVG Royals (low-pay filler) ──
   'royal-a':        { id: 'royal-a',        svgId: '#sym-royal-a',  label: 'Ace',    pays: { 3: 0.5,  4: 1.75, 5: 8.75 } },
@@ -2138,6 +2241,9 @@ const SYMBOLS = {
 
 /** All hat symbol IDs for bonus detection */
 const HAT_IDS = ['hat-yellow', 'hat-green', 'hat-red'];
+
+/** The expanding wild symbol id (see SYMBOLS['wild']). */
+const WILD_ID = 'wild';
 
 /** All symbol IDs as an array (cached for perf) */
 const SYMBOL_IDS = Object.keys(SYMBOLS);
@@ -2189,15 +2295,15 @@ const BONUS_CONFIG = {
 ══════════════════════════════════════════ */
 
 const REEL_COUNTS = [
-  // Reel 1 (leftmost — slightly looser)
+  // Reel 1 (leftmost — slightly looser)   ·   no wild
   { 'hat-yellow': 2, 'hat-green': 1, 'hat-red': 1, 'pig-suit': 2, 'pig-contractor': 1, 'pig-nature': 1, 'toolbox': 2, 'wolf': 2, 'buzzard': 1, 'royal-a': 4, 'royal-k': 4, 'royal-q': 4, 'royal-j': 4, 'royal-10': 5 },
-  // Reel 2
+  // Reel 2   ·   no wild
   { 'hat-yellow': 1, 'hat-green': 1, 'hat-red': 1, 'pig-suit': 1, 'pig-contractor': 2, 'pig-nature': 1, 'toolbox': 2, 'wolf': 2, 'buzzard': 1, 'royal-a': 4, 'royal-k': 4, 'royal-q': 4, 'royal-j': 4, 'royal-10': 4 },
-  // Reel 3 (middle)
-  { 'hat-yellow': 1, 'hat-green': 1, 'hat-red': 1, 'pig-suit': 1, 'pig-contractor': 1, 'pig-nature': 1, 'toolbox': 1, 'wolf': 2, 'buzzard': 1, 'royal-a': 4, 'royal-k': 4, 'royal-q': 4, 'royal-j': 4, 'royal-10': 6 },
-  // Reel 4
+  // Reel 3 (middle)   ·   1 expanding wild  (classic center-reel wild)
+  { 'hat-yellow': 1, 'hat-green': 1, 'hat-red': 1, 'pig-suit': 1, 'pig-contractor': 1, 'pig-nature': 1, 'toolbox': 1, 'wolf': 2, 'buzzard': 1, 'wild': 1, 'royal-a': 4, 'royal-k': 4, 'royal-q': 4, 'royal-j': 4, 'royal-10': 6 },
+  // Reel 4   ·   no wild
   { 'hat-yellow': 1, 'hat-green': 1, 'hat-red': 1, 'pig-suit': 1, 'pig-contractor': 1, 'pig-nature': 1, 'toolbox': 2, 'wolf': 2, 'buzzard': 1, 'royal-a': 4, 'royal-k': 4, 'royal-q': 4, 'royal-j': 4, 'royal-10': 6 },
-  // Reel 5 (rightmost — fewest premiums)
+  // Reel 5 (rightmost — fewest premiums)   ·   no wild
   { 'hat-yellow': 1, 'hat-green': 1, 'hat-red': 0, 'pig-suit': 1, 'pig-contractor': 1, 'pig-nature': 1, 'toolbox': 1, 'wolf': 2, 'buzzard': 1, 'royal-a': 4, 'royal-k': 4, 'royal-q': 4, 'royal-j': 4, 'royal-10': 6 },
 ];
 
@@ -2252,7 +2358,7 @@ const INITIAL_GRID = [
   ['royal-a',    'royal-k',    'toolbox' ],
 ];
 
-Object.assign(exports, { REEL_COUNT, ROWS_PER_REEL, MIN_WIN_SPAN, BONUS_TRIGGER_HATS, FREE_SPINS_INITIAL, RETRIGGER_HATS, MAX_FRAME_TIER, TIER_NAMES, TIER_EMOJIS, SCROLL_SYMBOLS, TURBO_SCROLL, SPIN_DURATIONS, TURBO_DURATIONS, ANTICIPATION_EXTRA, BET_LEVELS, DEFAULT_BET_INDEX, DEFAULT_BALANCE, RTP_MODELS, DEFAULT_RTP_MODEL, SYMBOLS, HAT_IDS, SYMBOL_IDS, BONUS_CONFIG, REEL_COUNTS, buildStrip, REEL_STRIPS, INITIAL_GRID });
+Object.assign(exports, { REEL_COUNT, ROWS_PER_REEL, MIN_WIN_SPAN, BONUS_TRIGGER_HATS, FREE_SPINS_INITIAL, RETRIGGER_HATS, MAX_FRAME_TIER, TIER_NAMES, TIER_EMOJIS, SCROLL_SYMBOLS, TURBO_SCROLL, SPIN_DURATIONS, TURBO_DURATIONS, ANTICIPATION_EXTRA, BET_LEVELS, DEFAULT_BET_INDEX, DEFAULT_BALANCE, RTP_MODELS, DEFAULT_RTP_MODEL, SYMBOLS, HAT_IDS, WILD_ID, SYMBOL_IDS, BONUS_CONFIG, REEL_COUNTS, buildStrip, REEL_STRIPS, INITIAL_GRID });
 
   };
 
@@ -2527,7 +2633,7 @@ if (drawer && tab) {
   });
 
   // tidy up: close the drawer when an option opens a full-screen modal
-  ['btn-rtp', 'btn-size', 'btn-deposit', 'btn-buy-bonus', 'btn-info', 'btn-simulate', 'btn-math'].forEach(id => {
+  ['btn-rtp', 'btn-size', 'btn-deposit', 'btn-buy-bonus', 'btn-info', 'btn-simulate', 'btn-math', 'btn-force-extreme'].forEach(id => {
     const b = document.getElementById(id);
     if (b) b.addEventListener('click', () => drawer.classList.remove('open'));
   });
@@ -3100,39 +3206,39 @@ Object.assign(exports, { runSimulation });
 /* AUTO-GENERATED by tools/build.js — folder-size snapshot. Do not edit. */
 
 const SIZE_MANIFEST = {
-  "totalBytes": 53348370,
-  "fileCount": 358,
+  "totalBytes": 51125059,
+  "fileCount": 363,
   "generatedAt": "2026-05-30",
   "categories": [
     {
-      "key": "video",
-      "label": "Videos",
-      "bytes": 21914674,
-      "files": 8
-    },
-    {
       "key": "audio",
       "label": "Audio",
-      "bytes": 19769171,
-      "files": 300
+      "bytes": 20174811,
+      "files": 305
+    },
+    {
+      "key": "video",
+      "label": "Videos",
+      "bytes": 19764586,
+      "files": 7
     },
     {
       "key": "image",
       "label": "Images",
-      "bytes": 11077711,
+      "bytes": 10584837,
       "files": 10
     },
     {
       "key": "code",
       "label": "Code",
-      "bytes": 583791,
+      "bytes": 596879,
       "files": 38
     },
     {
       "key": "other",
       "label": "Other",
-      "bytes": 3023,
-      "files": 2
+      "bytes": 3946,
+      "files": 3
     }
   ]
 };
@@ -3554,6 +3660,7 @@ Object.assign(exports, { elBalance, elBet, elWin, buttons, updateDisplays, setSt
 const { SYMBOLS, SYMBOL_IDS, SPIN_DURATIONS, TURBO_DURATIONS, SCROLL_SYMBOLS, TURBO_SCROLL, ANTICIPATION_EXTRA } = require("par-sheet");
 const { state } = require("state");
 const { synth } = require("sound");
+const { narrator } = require("narrator");
 const { fmt } = require("utils");
 const { spawnSparkles } = require("particles");
 
@@ -3611,7 +3718,7 @@ function renderReel(reelIndex, symbolIds) {
  * Builds a tall strip [target] + [random blur] + [current], snaps it to the
  * bottom, then transitions to the top so the target lands in view.
  */
-function animateReel(reelIndex, targetSymIds, onDone, anticipate = false) {
+function animateReel(reelIndex, targetSymIds, onDone, anticipate = false, isExtreme = false) {
   const strip = reelStrips[reelIndex];
   const col   = reelCols[reelIndex];
   const cellH = getCellHeight();
@@ -3622,6 +3729,12 @@ function animateReel(reelIndex, targetSymIds, onDone, anticipate = false) {
     duration += ANTICIPATION_EXTRA;
     col.classList.add('is-anticipating');
     if (reelIndex === 3) synth.anticipation();
+  }
+  
+  if (isExtreme) {
+    duration += 1500; // Extra long spin for the 6th hat
+    col.classList.add('is-extreme-anticipating');
+    narrator.sayNow('extremeAnticipation', 8);
   }
 
   const current = (state.currentGrid && state.currentGrid[reelIndex]) || ['royal-a', 'royal-k', 'royal-q'];
@@ -3647,7 +3760,7 @@ function animateReel(reelIndex, targetSymIds, onDone, anticipate = false) {
       const finishAnimation = () => {
         if (isDone) return;
         isDone = true;
-        col.classList.remove('is-spinning', 'is-anticipating');
+        col.classList.remove('is-spinning', 'is-anticipating', 'is-extreme-anticipating');
         renderReel(reelIndex, targetSymIds);
         strip.classList.add('bounce-stop');
         setTimeout(() => strip.classList.remove('bounce-stop'), 350);
@@ -3669,13 +3782,32 @@ function animateReel(reelIndex, targetSymIds, onDone, anticipate = false) {
 }
 
 /** Spin all 5 reels; resolves once every reel has stopped. */
-function animateAllReels(targetGrid, anticipate = false) {
+function animateAllReels(targetGrid, anticipate = false, extremeAnticipate = false) {
   return new Promise(resolve => {
     let stopped = 0;
     for (let r = 0; r < 5; r++) {
-      animateReel(r, targetGrid[r], () => { if (++stopped === 5) resolve(); }, anticipate);
+      const isExtreme = extremeAnticipate && r === 4;
+      animateReel(r, targetGrid[r], () => { if (++stopped === 5) resolve(); }, anticipate, isExtreme);
     }
   });
+}
+
+/**
+ * Show an expanding wild filling a reel: swap the reel to its post-expansion
+ * symbols (`expandedCol`) and play a brass glow sweep + sparkles down the column.
+ */
+function expandWildReel(reelIndex, expandedCol) {
+  const col = reelCols[reelIndex];
+  if (!col) return;
+  renderReel(reelIndex, expandedCol);
+  col.classList.add('wild-reel-flash');
+  setTimeout(() => col.classList.remove('wild-reel-flash'), 1000);
+  const rect = col.getBoundingClientRect();
+  const cr = particleContainer.getBoundingClientRect();
+  const cx = rect.left + rect.width / 2 - cr.left;
+  for (let i = 0; i < 3; i++) {
+    setTimeout(() => spawnSparkles(cx, rect.top + rect.height * (0.22 + i * 0.28) - cr.top, 8), i * 110);
+  }
 }
 
 /** Add the winner glow + sparkles to every winning cell. */
@@ -3719,7 +3851,7 @@ function animateWinCount(targetAmount, durationMs = 1200) {
   });
 }
 
-Object.assign(exports, { getReelStrips, makeCell, renderReel, animateReel, animateAllReels, highlightWinners, clearHighlights, animateWinCount });
+Object.assign(exports, { getReelStrips, makeCell, renderReel, animateReel, animateAllReels, expandWildReel, highlightWinners, clearHighlights, animateWinCount });
 
   };
 
