@@ -969,8 +969,9 @@
 
     <!-- WOLF CHARACTER ON PLATFORM (transparent looping video) -->
     <div id="wolf-container">
+      <div id="wolf-animation-label" style="display: none;"></div>
       <div id="wolf-platform"></div>
-      <video id="side-wolf" src="assets/webm/Sidewolf.webm" autoplay muted playsinline preload="auto"></video>
+      <video id="side-wolf" src="assets/webm/Sidewolf.webm" autoplay loop muted playsinline preload="auto"></video>
     </div>
 
     <!-- ═══ ORNATE ART DECO CABINET DECORATIONS ═══ -->
@@ -1059,8 +1060,6 @@
     </svg>
 
     <!-- Side border accent strips -->
-    <div class="cabinet-side-border left"></div>
-    <div class="cabinet-side-border right"></div>
     <div class="cabinet-bottom-border"></div>
 
 
@@ -1071,35 +1070,7 @@
       
       <div class="logo-content">
         <div class="logo-badge">
-          <svg viewBox="0 0 100 100">
-            <!-- Sheriff Badge -->
-            <defs>
-              <linearGradient id="badge-gold" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stop-color="#E5C158"/>
-                <stop offset="20%" stop-color="#FFF4CA"/>
-                <stop offset="40%" stop-color="#C29B38"/>
-                <stop offset="60%" stop-color="#A87C22"/>
-                <stop offset="80%" stop-color="#E5C158"/>
-                <stop offset="100%" stop-color="#4A3406"/>
-              </linearGradient>
-              <linearGradient id="badge-inner" x1="0" y1="1" x2="1" y2="0">
-                <stop offset="0%" stop-color="#4A3406"/>
-                <stop offset="30%" stop-color="#A87C22"/>
-                <stop offset="70%" stop-color="#E5C158"/>
-                <stop offset="100%" stop-color="#FFF4CA"/>
-              </linearGradient>
-            </defs>
-            <polygon points="50,2 62,35 98,35 69,57 80,92 50,71 20,92 31,57 2,35 38,35" fill="url(#badge-gold)" stroke="#3A2A00" stroke-width="2" stroke-linejoin="round"/>
-            <polygon points="50,10 59,37 88,37 65,54 74,83 50,65 26,83 35,54 12,37 41,37" fill="url(#badge-inner)" stroke="#5A4000" stroke-width="1" stroke-linejoin="round"/>
-            <circle cx="50" cy="50" r="15" fill="url(#badge-gold)" stroke="#5A4000" stroke-width="2"/>
-            <circle cx="50" cy="50" r="11" fill="none" stroke="#5A4000" stroke-width="1" stroke-dasharray="2,2"/>
-            <text x="50" y="58" text-anchor="middle" font-family="Rye, serif" font-size="22" fill="#2E1C00" style="text-shadow: 1px 1px 0 rgba(255,255,255,0.4)">B</text>
-            <circle cx="50" cy="14" r="2.5" fill="#2E1C00"/>
-            <circle cx="83" cy="38" r="2.5" fill="#2E1C00"/>
-            <circle cx="71" cy="80" r="2.5" fill="#2E1C00"/>
-            <circle cx="29" cy="80" r="2.5" fill="#2E1C00"/>
-            <circle cx="17" cy="38" r="2.5" fill="#2E1C00"/>
-          </svg>
+            <img src="assets/bbw_medallion.png" alt="Big Bad Wolf Medallion">
         </div>
         
         <div id="logo-text">
@@ -1693,6 +1664,9 @@
 
 <!-- RIGHT-SIDE OPTIONS DRAWER — a handle that slides open to reveal game options -->
 <div id="options-drawer">
+  <button id="options-tab" aria-label="Show or hide options" title="Options">
+    <span class="opt-chevron">‹</span>
+  </button>
   <div id="options-panel">
 
     <!-- Auto spin -->
@@ -1707,19 +1681,6 @@
       </label>
     </div>
 
-    <div id="time-control-wrap" class="drawer-sub">
-      <button id="btn-time" class="drawer-btn" title="Time of day" aria-label="Time of day">
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm0 18a8 8 0 110-16 8 8 0 010 16zM12.5 7H11v6l5.25 3.15.75-1.23-4.5-2.67V7z"/></svg>
-        <span>TIME</span>
-      </button>
-      <div id="time-panel" class="hidden">
-        <div class="vol-panel-title">TIME OF DAY</div>
-        <input type="range" id="time-slider" class="vol-slider" min="0" max="1439" value="720" step="5">
-        <div id="time-readout"><span id="time-label">12:00 PM</span></div>
-        <button id="time-auto" class="time-auto-btn">USE REAL TIME</button>
-        <button id="btn-high-noon" class="time-noon-btn" title="Strike high noon">🤠 HIGH NOON ☀️</button>
-      </div>
-    </div>
 
     <div id="volume-control-wrap" class="drawer-sub">
       <button id="btn-sound" class="drawer-btn sound-on" title="Volume" aria-label="Volume controls">
@@ -1746,17 +1707,28 @@
 
     <!-- ══ GAFF MODE — dev/admin tools, only shown with ?dev=1 ══ -->
     <div class="drawer-gaff-header dev-tool">GAFF MODE</div>
+    <div id="time-control-wrap" class="drawer-sub dev-tool">
+      <button id="btn-time" class="drawer-btn" title="Time of day" aria-label="Time of day">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm0 18a8 8 0 110-16 8 8 0 010 16zM12.5 7H11v6l5.25 3.15.75-1.23-4.5-2.67V7z"/></svg>
+        <span>TIME</span>
+      </button>
+      <div id="time-panel" class="hidden">
+        <div class="vol-panel-title">TIME OF DAY</div>
+        <input type="range" id="time-slider" class="vol-slider" min="0" max="1439" value="720" step="5">
+        <div id="time-readout"><span id="time-label">12:00 PM</span></div>
+        <button id="time-auto" class="time-auto-btn">USE REAL TIME</button>
+        <button id="btn-high-noon" class="time-noon-btn" title="Strike high noon">🤠 HIGH NOON ☀️</button>
+      </div>
+    </div>
     <button id="btn-rtp" class="drawer-btn drawer-rtp dev-tool" title="Choose the RTP / math model">🎚️ RTP</button>
     <button id="btn-size" class="drawer-btn drawer-size dev-tool" title="See how many megabytes the game uses">📦 GAME SIZE</button>
     <button id="btn-deposit" class="drawer-btn drawer-deposit dev-tool" title="Add credit to the machine">💵 ADD CREDIT</button>
-    <button id="btn-force-extreme" class="drawer-btn dev-tool" title="Force Extreme Anticipation">🥵 EXTREME ANT.</button>
-    <button id="btn-force-wild" class="drawer-btn drawer-wild dev-tool" title="Spin and land an expanding Wolf Wild">🐺 SHOW WILD</button>
+    <button id="btn-force-extreme" class="drawer-btn dev-tool" title="Force Extreme Anticipation">Anticipation</button>
+    <button id="btn-force-wild" class="drawer-btn drawer-wild dev-tool" title="Spin and land an expanding Wolf Wild">Expanding Wild</button>
+    <button id="btn-show-animations" class="drawer-btn dev-tool" title="Show animation names">Animations</button>
     <!-- Developer simulation and math buttons moved to hidden debug panel -->
 
   </div>
-  <button id="options-tab" aria-label="Show or hide options" title="Options">
-    <span class="opt-chevron">‹</span>
-  </button>
 </div>
 
 <!-- Removed side-wolf -->

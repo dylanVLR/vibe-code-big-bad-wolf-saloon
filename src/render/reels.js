@@ -70,6 +70,7 @@ export function renderReel(reelIndex, symbolIds) {
 export function animateReel(reelIndex, targetSymIds, onDone, anticipate = false, isExtreme = false) {
   const strip = reelStrips[reelIndex];
   const col   = reelCols[reelIndex];
+  clearWildReel(col);                    // drop any expanded-wild panel from last spin
   const cellH = getCellHeight();
   const scrollN = state.turbo ? TURBO_SCROLL : SCROLL_SYMBOLS;
   let duration  = state.turbo ? TURBO_DURATIONS[reelIndex] : SPIN_DURATIONS[reelIndex];
@@ -142,21 +143,48 @@ export function animateAllReels(targetGrid, anticipate = false, extremeAnticipat
 }
 
 /**
- * Show an expanding wild filling a reel: swap the reel to its post-expansion
- * symbols (`expandedCol`) and play a brass glow sweep + sparkles down the column.
+ * Show an expanding wild filling a reel as ONE unified brass plaque that
+ * "expands open" vertically — instead of three separate icons. The three wild
+ * cells stay underneath (for win highlighting + data); a single full-reel panel
+ * is laid over them and animated.
  */
 export function expandWildReel(reelIndex, expandedCol) {
   const col = reelCols[reelIndex];
   if (!col) return;
-  renderReel(reelIndex, expandedCol);
-  col.classList.add('wild-reel-flash');
-  setTimeout(() => col.classList.remove('wild-reel-flash'), 1000);
+  renderReel(reelIndex, expandedCol);   // wild cells underneath (data + highlight)
+  col.classList.add('wild-reel');        // hide per-cell emblems; show the unified panel
+
+  // one full-reel plaque carrying the WILD emblem
+  let panel = col.querySelector('.wild-panel');
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.className = 'wild-panel';
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+    use.setAttribute('href', '#sym-wild');
+    use.setAttributeNS('http://www.w3.org/1999/xlink', 'href', '#sym-wild');
+    svg.appendChild(use);
+    panel.appendChild(svg);
+    col.appendChild(panel);
+  }
+  panel.classList.remove('expand');
+  void panel.offsetWidth;                // reflow so the entrance animation restarts
+  panel.classList.add('expand');
+
+  // sparkle burst down the unified reel
   const rect = col.getBoundingClientRect();
   const cr = particleContainer.getBoundingClientRect();
   const cx = rect.left + rect.width / 2 - cr.left;
   for (let i = 0; i < 3; i++) {
-    setTimeout(() => spawnSparkles(cx, rect.top + rect.height * (0.22 + i * 0.28) - cr.top, 8), i * 110);
+    setTimeout(() => spawnSparkles(cx, rect.top + rect.height * (0.22 + i * 0.28) - cr.top, 9), i * 110);
   }
+}
+
+/** Remove a reel's expanded-wild panel (called when the reel respins). */
+function clearWildReel(col) {
+  col.classList.remove('wild-reel');
+  const panel = col.querySelector('.wild-panel');
+  if (panel) panel.remove();
 }
 
 /** Add the winner glow + sparkles to every winning cell. */

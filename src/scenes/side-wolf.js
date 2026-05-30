@@ -17,6 +17,10 @@ import { SIDEWOLF } from './sidewolf-clips.js';
 const video = document.getElementById('side-wolf');
 const IDLE_LOOPS = 1;        // loop the default this many times before a reaction
 
+// Gaff dev tool: the "Animations" button toggles a label showing the clip name.
+const animLabel = document.getElementById('wolf-animation-label');
+const animBtn   = document.getElementById('btn-show-animations');
+
 if (video && SIDEWOLF.default) {
   video.loop = false;        // we manage looping ourselves so we can count
   video.muted = true;
@@ -31,6 +35,7 @@ if (video && SIDEWOLF.default) {
     if (video.getAttribute('src') !== src) video.setAttribute('src', src);
     try { video.currentTime = 0; } catch (e) {}
     video.play().catch(() => {});
+    if (animLabel) animLabel.textContent = src.split('/').pop();   // keep the dev label current
   }
 
   function playIdle() { mode = 'idle'; play(SIDEWOLF.default); }
@@ -61,6 +66,16 @@ if (video && SIDEWOLF.default) {
   // click / tap the wolf to QUEUE a random reaction for the moment the current
   // clip ends (he finishes the loop and returns to default first — no jarring cut)
   video.addEventListener('pointerdown', () => { queued = true; });
+
+  // "Animations" gaff button → show/hide the current clip name under the wolf
+  if (animBtn && animLabel) {
+    animBtn.addEventListener('click', () => {
+      const on = animLabel.style.display === 'none' || !animLabel.style.display;
+      animLabel.style.display = on ? 'block' : 'none';
+      animBtn.classList.toggle('is-active', on);
+      if (on) animLabel.textContent = (video.getAttribute('src') || '').split('/').pop();
+    });
+  }
 
   // start the idle loop (muted autoplay; if the browser blocks it, kick off on
   // the first interaction)
