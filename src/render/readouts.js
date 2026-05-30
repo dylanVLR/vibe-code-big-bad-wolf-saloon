@@ -1,5 +1,5 @@
 /**
- * @module ui
+ * @module readouts
  * @description Small shared UI helpers and control-button references used by the
  * base game, the bonus, and the buy-bonus flow: the cash/bet/win readouts, the
  * status line, and enabling/disabling the control buttons. Kept separate so
@@ -7,9 +7,9 @@
  */
 'use strict';
 
-import { BET_LEVELS } from './config.js';
-import { state } from './state.js';
-import { fmt } from './utils.js';
+import { BET_LEVELS } from '../math/par-sheet.js';
+import { state } from '../core/state.js';
+import { fmt } from '../core/utils.js';
 
 export const elBalance = document.getElementById('display-balance');
 export const elBet     = document.getElementById('display-bet');

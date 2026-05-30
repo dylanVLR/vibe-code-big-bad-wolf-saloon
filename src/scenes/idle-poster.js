@@ -1,5 +1,5 @@
 /**
- * @module idleposter
+ * @module idle-poster
  * @description Attract-mode flourish for the reel-background "Wanted" poster
  * (Wanted_poster.webm). When the base game sits idle — nobody pressing anything,
  * no spin/auto/bonus running — the poster slowly glows up from its usual faint
@@ -12,8 +12,8 @@
  */
 'use strict';
 
-import { state } from './state.js';
-import { isBonusActive } from './bonus.js';
+import { state } from '../core/state.js';
+import { isBonusActive } from '../game/bonus.js';
 
 const video  = document.getElementById('reel-bg-video');
 const IDLE_MS = 12000;   // how long with zero input before the poster glows up

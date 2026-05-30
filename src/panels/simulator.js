@@ -1,13 +1,13 @@
 /**
- * @module simulation
+ * @module simulator
  * @description The 📊 SIM dashboard: a chunked Monte-Carlo run over the real
  * game math (from mathcore) plus zero-dependency Canvas 2D charts. Exports
  * `runSimulation` so the MATH panel can reuse the exact same engine.
  */
 'use strict';
 
-import { SYMBOLS, HAT_IDS, BONUS_CONFIG } from './config.js';
-import { generateGrid, evaluateGrid, simulateBonusOutcome } from './mathcore.js';
+import { SYMBOLS, HAT_IDS, BONUS_CONFIG } from '../math/par-sheet.js';
+import { generateGrid, evaluateGrid, simulateBonusOutcome } from '../math/mathcore.js';
 
 const btnSim        = document.getElementById('btn-simulate');
 const simModal      = document.getElementById('sim-modal');

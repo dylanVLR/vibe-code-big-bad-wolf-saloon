@@ -1,11 +1,11 @@
 /**
  * @module mathcore
- * @description The math of Huff N' More Puff — and nothing else.
+ * @description The math of Big Bad Wolf — and nothing else.
  *
  * This module is intentionally PURE: no DOM, no audio, no animation. That means
  * the browser game AND the headless verifier (tools/sim.js) import the SAME
  * functions, so what you test is exactly what players get. If a number feels
- * wrong, it is decided here or in the par sheet (js/config.js) — nowhere else.
+ * wrong, it is decided here or in the par sheet (par-sheet.js) — nowhere else.
  *
  * Contents:
  *   generateGrid()            – draw a random 5×3 screen from the reel strips
@@ -21,7 +21,7 @@
 import {
   SYMBOLS, SYMBOL_IDS, HAT_IDS, REEL_STRIPS, BONUS_CONFIG,
   REEL_COUNT, ROWS_PER_REEL, MIN_WIN_SPAN, MAX_FRAME_TIER,
-} from './config.js';
+} from './par-sheet.js';
 
 /* ══════════════════════════════════════════
    DRAWING A SCREEN
@@ -174,8 +174,8 @@ export function rollMansionAward(brickCount, bet) {
 
 /* ══════════════════════════════════════════
    HEADLESS BONUS PLAY-THROUGH
-   Mirrors the live feature (js/bonus.js) but with no animation — just the money.
-   Used by the Monte-Carlo simulators. Keep in lock-step with js/bonus.js.
+   Mirrors the live feature (game/bonus.js) but with no animation — just the money.
+   Used by the Monte-Carlo simulators. Keep in lock-step with game/bonus.js.
 ══════════════════════════════════════════ */
 
 const round2 = n => Math.round(n * 100) / 100;

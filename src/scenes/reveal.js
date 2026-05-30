@@ -11,7 +11,7 @@
  */
 'use strict';
 
-import { revealDayNight } from './daynight.js';
+import { revealDayNight } from './day-night.js';
 
 const overlay = document.getElementById('day-night-overlay');
 const HOLD_MS = 500;    // how long to linger on the clean background after the intro

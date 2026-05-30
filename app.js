@@ -1,7 +1,7 @@
 /* ════════════════════════════════════════════════════════════════
    AUTO-GENERATED — do not edit by hand.
-   Bundled from js/*.js by tools/build.js so the game runs from a
-   double-clicked file:// page. Edit the modules in js/, then rebuild:
+   Bundled from src/ by tools/build.js so the game runs from a double-clicked
+   file:// page (and on static hosts). Edit the modules under src/, then rebuild:
        node tools/build.js
 ════════════════════════════════════════════════════════════════ */
 (function () {
@@ -16,10 +16,517 @@
     return __cache[name];
   }
 
-  __mods["audio"] = function (exports, require) {
+  __mods["narrator"] = function (exports, require) {
 /**
- * @module audio
- * @description Sound for Huff N' More Puff. Exports two ready-to-use singletons:
+ * @module narrator
+ * @description The BIG BAD WOLF's play-by-play voice — a gruff cowboy wolf who
+ * narrates every spin. Plays pre-rendered MP3s from assets/audio/narrator/ named
+ * `<category>_<index>.mp3`. The script (what each clip says) lives in js/phrases.js
+ * so the generator tool and the game share one source; here we only need the
+ * category names and how many clips each has, to pick a valid random index.
+ * Exports a single shared `narrator` instance.
+ *
+ * Game code calls the on*() event hooks (onSpin, onWin, onBonusTrigger, …); the
+ * narrator decides whether/what to say, respecting a cooldown so it doesn't talk
+ * over itself, and fills silence with idle chatter.
+ */
+
+const { PHRASES } = require("phrases");
+
+class Narrator {
+  constructor() {
+    this.audio = new Audio();
+    this.audio.addEventListener('play',  () => { this._speaking = true; });
+    this.audio.addEventListener('ended', () => { this._speaking = false; });
+    this.audio.addEventListener('error', () => { this._speaking = false; });
+
+    this.enabled = true;
+    this._volume = 0.8;
+    this._lastSpoke = 0;
+    this._cooldownMs = 1500;    // short cooldown — talks constantly
+    this._speaking = false;
+    this._spinCount = 0;
+    this._lossStreak = 0;
+    this._winStreak = 0;
+    this._totalSpins = 0;
+    this._sessionWins = 0;
+    this._lastEvent = '';
+    this._lastPhraseIndex = -1;
+    this._excitement = 0;      // 0-10 excitement meter
+
+    // Phrase banks — one array per game event, loaded from the shared script in
+    // js/phrases.js. Each line maps to <category>_<index>.mp3 on disk.
+    this.phrases = PHRASES;
+
+    this._idleTimer = null;
+    this._resetIdleTimer();
+  }
+
+  setVolume(v) { this._volume = Math.max(0, Math.min(1, v)); this.audio.volume = this._volume; }
+
+  _playAudio(filename) {
+    if (!this.enabled || this._volume === 0) return;
+    this.audio.pause();
+    this.audio.src = `assets/audio/narrator/${filename}`;
+    this.audio.volume = this._volume;
+    this.audio.play().catch(() => {});   // play() can be interrupted; ignore
+    this._lastSpoke = Date.now();
+  }
+
+  /** Pick and play a random clip from a category, respecting the cooldown. */
+  say(category, forceCooldown = null, excitementBoost = 0) {
+    if (!this.enabled || this._volume === 0) return;
+    const cooldown = forceCooldown ?? this._cooldownMs;
+    if (Date.now() - this._lastSpoke < cooldown) return;
+
+    const pool = this.phrases[category];
+    if (!pool || !pool.length) return;
+
+    let index;
+    if (pool.length === 1) {
+      index = 0;
+    } else {
+      do { index = Math.floor(Math.random() * pool.length); }
+      while (index === this._lastPhraseIndex && pool.length > 1 && category === this._lastEvent);
+    }
+    this._lastPhraseIndex = index;
+    this._lastEvent = category;
+    this._playAudio(`${category}_${index}.mp3`);
+    this._resetIdleTimer();
+  }
+
+  sayNow(category, excitementBoost = 0) { this.say(category, 0, excitementBoost); }
+
+  _hype(d) { this._excitement = Math.max(0, Math.min(10, this._excitement + d)); }
+  _decayExcitement() { if (this._excitement > 0) this._excitement = Math.max(0, this._excitement - 0.5); }
+
+  /* ── game event hooks ── */
+  onSpin() {
+    this._totalSpins++;
+    this._spinCount++;
+    this._resetIdleTimer();
+    this._decayExcitement();
+    if (this._totalSpins === 1) { this._hype(2); this.sayNow('firstSpin', 2); return; }
+    if (Math.random() < 0.75) this.say('spin');
+  }
+
+  onWin(amount, bet) {
+    this._lossStreak = 0;
+    this._winStreak++;
+    this._sessionWins++;
+    const ratio = amount / bet;
+    if (ratio >= 8) {
+      this._hype(5);
+      this.sayNow('bigWin', 5);
+      setTimeout(() => { if (this.enabled) this.say('postWin', 2000, 3); }, 3500);
+    } else if (ratio >= 2) {
+      this._hype(3);
+      this.sayNow('mediumWin', 3);
+    } else {
+      this._hype(1);
+      this.say('smallWin', 800, 1);
+    }
+    if (this._winStreak >= 3) {
+      setTimeout(() => { if (this.enabled) this.say('winStreak', 1500, 2); }, 2500);
+    }
+  }
+
+  onLoss() {
+    this._winStreak = 0;
+    this._lossStreak++;
+    this._decayExcitement();
+    if (this._lossStreak >= 6) this.say('lossStreak', 1000);
+    else if (this._lossStreak >= 3 && Math.random() < 0.70) this.say('lossStreak');
+    else if (Math.random() < 0.60) this.say('loss');
+  }
+
+  onNearMiss() { this._hype(2); this.sayNow('nearMiss', 2); }
+  onBonusTrigger() { this._hype(8); this.sayNow('bonusTrigger', 6); }
+  onFreeSpin() { if (Math.random() < 0.60) this.say('freeSpin', 1000, 1); }
+  onFrameUpgrade(tier) {
+    if (tier === 3) { this._hype(5); this.sayNow('brickAchieved', 4); }
+    else { this._hype(1); if (Math.random() < 0.70) this.say('frameUpgrade', 1000, 1); }
+  }
+  onWolfReveal() { this._hype(6); this.sayNow('wolfReveal', 4); }
+  onWolfBlow(tier) {
+    const cats = ['', 'wolfStraw', 'wolfStick', 'wolfBrick'];
+    this._hype(tier * 2);
+    this.say(cats[tier], 800, tier * 2);
+  }
+  onMansionJackpot() { this._excitement = 10; this.sayNow('mansionJackpot', 8); }
+  onMiniJackpot() { this._hype(6); this.sayNow('miniJackpot', 5); }
+  onRetrigger() { this._hype(5); this.sayNow('retrigger', 4); }
+  onBonusComplete(totalWin) { this._hype(4); this.sayNow('bonusComplete', 3); }
+  onBetChange(direction) { this.say(direction === 'up' ? 'betUp' : 'betDown', 500, 1); }
+  onLowBalance() { this.say('lowBalance', 8000); }
+  onInsufficientFunds() { this.sayNow('noFunds', 0); }
+
+  _resetIdleTimer() {
+    if (this._idleTimer) clearTimeout(this._idleTimer);
+    this._idleTimer = setTimeout(() => {
+      if (this.enabled && this._volume > 0) { this.say('idle', 0); this._resetIdleTimer(); }
+    }, 8000 + Math.random() * 7000); // 8-15 seconds idle
+  }
+
+  stop() { this.audio.pause(); this.audio.currentTime = 0; this._speaking = false; }
+}
+
+const narrator = new Narrator();
+
+Object.assign(exports, { narrator });
+
+  };
+
+  __mods["phrases"] = function (exports, require) {
+/**
+ * @module phrases
+ * @description Every line the narrator can say, in the voice of the BIG BAD WOLF —
+ * a gruff cowboy wolf straight out of the Three Little Pigs. Grouped by game event.
+ *
+ * This is the SINGLE source of truth for the narrator script. It's imported by:
+ *   • js/narrator.js   – picks a random line per event and plays the matching MP3
+ *   • tools/voice.js   – generates the MP3s from ElevenLabs (one file per line)
+ *
+ * Files live at  assets/audio/narrator/<category>_<index>.mp3  where <index> is the
+ * line's position in its array. So the array order here defines which file is which —
+ * if you re-order or change counts, re-run `node tools/voice.js all <voiceId>`.
+ */
+
+const PHRASES = {
+  spin: [
+    "Alright partner, let's give them reels a spin!",
+    "Heeere we go now — round and round she goes!",
+    "Spin 'em up, and let's see what the wind blows in!",
+    "Ooo-wee! Let's rattle them reels, partner!",
+    "Come on now, daddy needs a new pair o' boots!",
+    "Awooo! Let 'er rip!",
+    "Let's huff up a storm and spin this thing!",
+    "Round the reels go — where they stop, heh, only I know!",
+    "Crank 'er up, partner — I got a hankerin' for a win!",
+    "Spinnin' faster'n a tumbleweed in a twister!",
+    "Let's see if them pigs left us anything good!",
+    "Hold onto your hat — here she spins!",
+    "I feel a lucky wind a-blowin', partner!",
+    "Saddle up! These reels are about to ride!",
+    "One good huff oughta get these reels movin'!",
+    "Come on, sugar — show ol' Wolf somethin' sweet!",
+    "Reels a-turnin', and my belly's a-rumblin'!",
+    "Yeehaw! Down the trail we go!",
+    "Spin it like you mean it, partner!",
+    "Let's blow the doors off this one!",
+    "Here comes the big bad spin, little piggies!",
+    "My whiskers are twitchin' — that means money!",
+    "Let's kick up some dust on these here reels!",
+    "Come on now, line 'em up like ducks in a row!",
+    "Easy does it... and... SPIN!",
+    "Wind's at our back, partner — let 'er fly!",
+    "Give 'er a whirl! Fortune favors the hungry!",
+    "Round we go — I can almost taste them winnins!",
+  ],
+  smallWin: [
+    "Well lookie there — a lil' nibble!",
+    "Heh, ain't much, but a wolf don't turn down a snack!",
+    "A few coins for the den! I'll take it!",
+    "That there's an appetizer, partner!",
+    "Small bite, but tasty all the same!",
+    "Cha-ching — that's some kibble money!",
+    "Not a feast, but it'll hold me over!",
+    "A lil' somethin' for the chinny-chin-chin!",
+    "Coins in the coat, partner — every bit counts!",
+    "Heh heh, them pigs dropped a few on the way out!",
+    "A modest haul, but ol' Wolf is patient!",
+    "That'll buy me a new neckerchief at least!",
+    "Small win, big appetite — keep 'em comin'!",
+    "Pocket change, but my pockets run deep!",
+    "A nibble here, a nibble there — adds up, partner!",
+    "Yeehaw, a little drizzle 'fore the storm!",
+    "I've et smaller, partner — we'll take it!",
+    "Couple coins jingle-jangle — music to my ears!",
+  ],
+  mediumWin: [
+    "Now we're cookin' with bacon grease!",
+    "Ooo-wee! That's a proper meal right there!",
+    "Heh heh HEH! The pigs are payin' up!",
+    "Now THAT'S a haul worth howlin' about! Awooo!",
+    "Look at them coins runnin' like scared piggies!",
+    "That's the good stuff, partner — sink yer teeth in!",
+    "A solid bite outta this here game!",
+    "Yeehaw! The wind's blowin' our way!",
+    "That'll fill the den AND the belly!",
+    "Mighty fine payout, partner — mighty fine!",
+    "Them reels finally came to their senses!",
+    "Oh, I'm lickin' my chops over this one!",
+    "Now we're talkin' real wolf money!",
+    "That's a wagon-load of coins, partner!",
+    "Huff, puff, and PAYDAY! Beautiful!",
+    "The pigs are squealin' and I'm grinnin'!",
+    "A fine cut of winnins, served up hot!",
+    "Ringin' the dinner bell on that one!",
+  ],
+  bigWin: [
+    "AWOOOOO! Now THAT is a feast, partner!",
+    "WELL SLAP MY TAIL AND CALL ME LUCKY!",
+    "HOO-WEE! The whole dang henhouse just paid out!",
+    "I HUFFED, I PUFFED, AND I BLEW THE BANK WIDE OPEN!",
+    "GREAT GALLOPIN' GOLD! LOOK AT THEM COINS!",
+    "NOT BY THE HAIR — THIS HERE'S A MONSTER, PARTNER!",
+    "YEEEEHAW! BIGGEST HAUL THIS SIDE O' THE FOREST!",
+    "THEM PIGS DONE LEFT THE WHOLE TREASURE BEHIND!",
+    "I'M HOWLIN' AT THE MOON OVER THIS ONE! AWOOO!",
+    "STAMPEDE OF COINS, PARTNER — GET OUTTA THE WAY!",
+    "MY CHINNY-CHIN-CHIN IS TREMBLIN' WITH JOY!",
+    "BLOW ME DOWN — THAT'S A FORTUNE!",
+    "HOT DIGGITY WOLF, WE STRUCK IT RICH!",
+    "RING THE DINNER BELL — IT'S A BANQUET!",
+    "I AIN'T NEVER SEEN SO MANY COINS IN ALL MY DAYS!",
+    "THE BIG BAD WOLF HITS THE BIG BAD JACKPOT!",
+    "GRAB A BUCKET, PARTNER — IT'S RAININ' GOLD!",
+    "MY WHISKERS 'BOUT FELL OFF — WHAT A WIN!",
+    "WOOOO! TELL THE WHOLE FOREST WE DONE IT!",
+    "THIS HERE'S A WIN FER THE STORYBOOKS!",
+  ],
+  loss: [
+    "Aw, shucks — empty as a pig pen at suppertime.",
+    "Nothin' but tumbleweeds on that one, partner.",
+    "Hmph. Them pigs got away clean that round.",
+    "Dry as the desert. Shake it off, partner.",
+    "No bacon this time. We huff again!",
+    "Ah well — even a wolf misses a meal now and then.",
+    "The wind died down on that one. Reload them lungs!",
+    "Nothin' in the henhouse. Onward!",
+    "Them reels are playin' coy. I like a challenge.",
+    "Missed 'em by a whisker. We'll get 'em next time.",
+    "No coins, no problem — a wolf is patient.",
+    "That house didn't budge. Bigger huff next round!",
+    "Empty-pawed, but not for long, partner.",
+    "Heh, them pigs think they're safe. Cute.",
+    "Dust in the wind. Let's spin her again.",
+    "A swing and a miss. Sharpen them claws!",
+    "Not a crumb that time. My belly grumbles on.",
+    "Quiet round. Calm 'fore the big bad storm.",
+  ],
+  lossStreak: [
+    "Come on now — them pigs can't hide forever!",
+    "Dang it all, this dry spell's testin' my patience!",
+    "A wolf's gotta eat! Throw me a bone here!",
+    "Been a long, dusty trail without a meal...",
+    "I've huffed till I'm blue — somethin's gotta give!",
+    "Them three pigs are gettin' cocky. Won't last!",
+    "Every drought ends in a downpour, partner. Hold fast!",
+    "I can smell a big win comin' over the ridge!",
+    "These reels OWE me — and a wolf always collects!",
+    "Lean times, partner — but the wolf endures!",
+    "I've gone hungrier'n this and still ate good!",
+    "The bricks are holdin' for now. Keep huffin'!",
+    "Patience, partner. Even the moon takes its time.",
+    "My luck's 'bout to turn like the prairie wind!",
+    "Storm's been brewin' — any spin now she breaks!",
+    "Keep the faith — the big bad payday's comin'!",
+  ],
+  nearMiss: [
+    "Ooo! Nearly had them pigs by the tail!",
+    "One whisker away! ONE! Dadgummit!",
+    "So close I could smell the bacon fryin'!",
+    "Argh — that house near 'bout came down!",
+    "Them pigs slipped out the back door, partner!",
+    "A hair! Not by the hair of my chinny-chin-chin!",
+    "Teasin' me, are ya? Them reels are cruel!",
+    "I had 'em cornered and they wriggled free!",
+    "Almost blew it down! One more gust!",
+    "My chops were waterin' — and POOF, gone!",
+    "Right there! It was RIGHT there, partner!",
+    "Close enough to feel the wind change!",
+  ],
+  bonusTrigger: [
+    "AWOOO! Them hard hats opened the gate — FREE SPINS!",
+    "WELL BUST MY BRITCHES — IT'S THE BONUS, PARTNER!",
+    "THE PIGS ARE BUILDIN' AND WE'RE COMIN' FOR 'EM!",
+    "SIX HATS! TIME TO HUFF AND PUFF FER REAL!",
+    "BONUS ROUND, PARTNER — THE HUNT IS ON!",
+    "YEEHAW! THE BIG BAD BONUS DONE TRIGGERED!",
+    "RING THE BELL — FREE SPINS AT THE PIG FARM!",
+    "I BEEN WAITIN' ALL DAY FER THIS — BONUS TIME!",
+    "GRAB YER HAT — WE'RE GOIN' HOUSE TO HOUSE!",
+    "THE WHOLE FOREST HEARD THAT ONE! BONUS, BABY!",
+    "HOO-WEE! Now the real huffin' begins!",
+  ],
+  freeSpin: [
+    "Another free one — build them houses, piggies!",
+    "Free spin a-comin' — more straw to blow down!",
+    "On the house, partner — just how I like it!",
+    "Stack them frames up — I'll huff 'em all down!",
+    "Come on, hard hats — show yer faces!",
+    "Free spin! Let's fatten up that prize!",
+    "More bricks, more loot — keep 'em comin'!",
+    "Round on the house — yeehaw!",
+    "Let's see them pigs work fer MY supper!",
+    "Another crack at the henhouse — free!",
+    "Spin's on me, partner — well, on the pigs!",
+  ],
+  frameUpgrade: [
+    "A hat! That house just got a sight bigger!",
+    "Buildin' up, partner — more to blow down later!",
+    "Ooo, them walls are risin'! Good, GOOD!",
+    "Upgrade! The bigger they are, the harder I huff!",
+    "Another hat on the pile — keep stackin'!",
+    "Them pigs are workin' hard fer my benefit!",
+    "Walls goin' up means winnins goin' up!",
+  ],
+  brickAchieved: [
+    "A BRICK HOUSE! Oh, that's the GOOD eatin' right there!",
+    "FULL BRICK, partner — top dollar inside!",
+    "Them pigs built it solid — and I built it RICH!",
+    "Brick by brick, that's a fortune waitin'!",
+    "Solid as a mountain — and twice as valuable!",
+    "Now THAT house has somethin' worth blowin' fer!",
+  ],
+  wolfReveal: [
+    "Step aside — the BIG BAD WOLF is here!",
+    "Heh heh... I'll huff, and I'll puff, partner!",
+    "Time to do what a wolf does best!",
+    "Knock knock, little pigs — guess who?",
+    "The wind's got teeth now, partner!",
+    "Here comes the huffin', here comes the puffin'!",
+    "Awooo! Let me at them houses!",
+  ],
+  wolfStraw: [
+    "HUFF! And the straw goes flyin'! Easy pickins!",
+    "One puff and that straw house is GONE!",
+    "Ha! Straw don't stand a chance against me!",
+    "Down she goes — straw all over the prairie!",
+    "Barely a breath and POOF — straw's history!",
+  ],
+  wolfStick: [
+    "PUFF! Them sticks are scatterin' ever' which way!",
+    "A bigger blow and TIMBER — sticks down!",
+    "Heh, had to put a little muscle in that one!",
+    "Stick house crumbles like a dry biscuit!",
+    "Whoosh! Kindlin' fer my campfire now!",
+  ],
+  wolfBrick: [
+    "HUFF AND PUFF — I'm givin' her all I got!",
+    "Them bricks are stubborn... but the PRIZE inside, ooo-wee!",
+    "Not by the hair of my chinny-chin-chin — but LOOK at that payout!",
+    "The brick house stands... and pays a wolf's ransom!",
+    "Couldn't blow it down, but I'll take the treasure!",
+    "Solid bricks, solid GOLD, partner!",
+  ],
+  mansionJackpot: [
+    "MANSION JACKPOT! WELL I'LL BE A HORNSWOGGLED WOLF!",
+    "THREE MANSIONS! THE WHOLE PIG EMPIRE IS OURS!",
+    "JACKPOT! JACKPOT! AWOOOO! THE BIG ONE, PARTNER!",
+    "I COULDN'T BLOW 'EM DOWN, SO I'M CASHIN' 'EM IN!",
+    "THE GRANDEST HAUL IN ALL THE FOREST! YEEHAW!",
+  ],
+  miniJackpot: [
+    "JACKPOT, partner! Treasure in the chimney!",
+    "Well lookie — a pot o' gold in that house!",
+    "Mini jackpot! Them pigs were hidin' loot!",
+    "Found the stash, partner! Heh heh heh!",
+  ],
+  retrigger: [
+    "MORE free spins?! Don't mind if I DO!",
+    "Retrigger! The hunt keeps on goin'!",
+    "Three more hats — extra spins on the house!",
+    "Awooo! We ain't done feastin' yet!",
+    "The bonus keeps givin' like a generous pig!",
+  ],
+  bonusComplete: [
+    "And that's a wrap, partner — fine huntin' today!",
+    "Bonus done — the pigs live to build another day!",
+    "Belly's full, den's richer — what a round!",
+    "We blew through them houses good, partner!",
+    "Last puff's been puffed — let's count the loot!",
+  ],
+  idle: [
+    "Reels are quiet... too quiet fer my likin', partner.",
+    "I can smell them three little pigs from here...",
+    "Go on, give 'er a spin — the wolf gets restless!",
+    "Just me, the moon, and a hankerin' fer bacon.",
+    "Press that button, partner — daylight's burnin'!",
+    "I hear them pigs hammerin' away... let 'em build.",
+    "A wolf waits... but not too patient-like, ya hear?",
+    "Tumbleweed just rolled by. That's your cue, partner.",
+    "The henhouse ain't gonna raid itself, ya know.",
+    "I been sharpenin' my huffin' fer the next round.",
+    "Quiet as a church mouse out here — spin somethin'!",
+    "My whiskers are gettin' dusty. Let's ride!",
+    "Them reels are just sittin' there, tauntin' me.",
+    "Story goes the wolf always gets his supper. Eventually.",
+    "Take yer time, partner. The pigs sure are.",
+    "I could go fer a spin... and a snack.",
+    "Wind's pickin' up. Perfect weather fer huffin'.",
+    "Fortune favors the hungry — and I'm STARVIN'.",
+    "Out here narratin' to the cactus again, I see.",
+    "Even the moon's waitin' on ya, partner.",
+    "A good wolf knows patience. A great one knows when to POUNCE.",
+    "Reckon them pigs think they're safe. Reckon they're wrong.",
+    "Spin the reels 'fore I start chewin' the furniture!",
+    "Long as there's pigs to chase, ol' Wolf's stickin' around.",
+  ],
+  firstSpin: [
+    "Well howdy, partner — welcome to BIG BAD WOLF! Let's hunt!",
+    "Saddle up! First spin of the day — make it a good 'un!",
+    "The wolf is hungry and the pigs are nervous — here we GO!",
+    "Welcome to my neck o' the woods, partner! First spin's a-comin'!",
+  ],
+  lowBalance: [
+    "Careful now, partner — the purse is gettin' light.",
+    "We're runnin' lean, like a wolf in winter...",
+    "Balance is thin as straw. Need a big huff soon!",
+    "Pockets near empty, partner — time fer a comeback!",
+    "Low on coin, but a wolf's luck can turn quick!",
+  ],
+  betUp: [
+    "Raisin' the stakes! I LIKE yer appetite, partner!",
+    "Bigger bet, bigger bacon! Now yer talkin'!",
+    "Ooo-wee, goin' for the whole hog, are ya?",
+    "More on the line — that's the wolf spirit!",
+  ],
+  betDown: [
+    "Easin' off a touch — smart, partner, smart.",
+    "Playin' it cagey. A wise wolf does the same.",
+    "Smaller bet, longer hunt. I respect it.",
+    "Dialin' it back to live and huff another day.",
+  ],
+  postWin: [
+    "Look at them coins pile up — purty as a sunset!",
+    "Keep 'em comin', partner — fill the den!",
+    "That counter's climbin' like a cat up a tree!",
+    "Sweetest sound there is — coins and squealin' pigs!",
+    "I could watch this all dang day, partner!",
+    "The loot just keeps a-rollin' in! Yeehaw!",
+    "My belly AND my coin purse are happy now!",
+    "That's a payout worth howlin' over! Awooo!",
+  ],
+  winStreak: [
+    "Another'n?! We're on a TEAR, partner!",
+    "Back to back — this machine's runnin' scared!",
+    "Hotter'n a brandin' iron! Keep it up!",
+    "The pigs can't build fast enough fer us!",
+    "Win after win — the wolf is on the PROWL!",
+    "Don't nobody touch nothin' — we're blazin'!",
+    "Three in a row! I'm howlin' at the moon!",
+    "This here's a winnin' streak fer the ages!",
+    "Stampede o' luck, partner — ride it!",
+  ],
+  noFunds: [
+    "Aw, partner — the purse is plumb empty.",
+    "Den's bare and the pockets are dry. Reload to ride!",
+    "That's all she wrote — outta coin, partner.",
+    "Even a big bad wolf runs outta supper sometime.",
+    "Empty-handed, but full of stories! Refill to hunt again!",
+  ],
+};
+
+Object.assign(exports, { PHRASES });
+
+  };
+
+  __mods["sound"] = function (exports, require) {
+/**
+ * @module sound
+ * @description Sound for Big Bad Wolf. Exports two ready-to-use singletons:
  *   `synth` – one-shot sound effects (pre-rendered MP3s in assets/audio/sfx/)
  *   `bgm`   – looping background music (base-game + bonus tracks, crossfaded)
  * Both are created once here and shared via ES-module caching.
@@ -226,28 +733,95 @@ Object.assign(exports, { synth, bgm });
 
   };
 
-  __mods["basegame"] = function (exports, require) {
+  __mods["state"] = function (exports, require) {
 /**
- * @module basegame
+ * @module state
+ * @description Shared, mutable runtime state for the base game.
+ *
+ * ES module imports are read-only *bindings*, so modules can't reassign each
+ * other's `let` variables. Instead we export one plain object and everyone reads
+ * and writes its properties — that mutation is visible everywhere. Bonus-only
+ * state lives privately inside bonus.js; this is just the cross-module stuff.
+ */
+
+const { DEFAULT_BALANCE, DEFAULT_BET_INDEX, DEFAULT_RTP_MODEL } = require("par-sheet");
+
+const state = {
+  balance: DEFAULT_BALANCE,   // player's cash
+  betIndex: DEFAULT_BET_INDEX, // index into BET_LEVELS
+  spinning: false,            // a base-game spin is animating
+  turbo: false,               // turbo (fast spin) toggle
+  autoActive: false,          // auto-spin is on
+  autoTimer: null,            // setTimeout handle for auto-spin
+  currentGrid: null,          // the symbols currently shown (for spin scroll buffer)
+  musicAutoStarted: false,    // background music has been kicked off
+  rtpModelId: DEFAULT_RTP_MODEL, // selected RTP math model (see RTP_MODELS in par-sheet.js)
+};
+
+Object.assign(exports, { state });
+
+  };
+
+  __mods["utils"] = function (exports, require) {
+/**
+ * @module utils
+ * @description Shared utility functions used across multiple modules.
+ */
+
+/**
+ * Async sleep — pauses execution for the given duration.
+ * @param {number} ms - Milliseconds to wait
+ * @returns {Promise<void>}
+ */
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Format a number as $X,XXX.XX currency string.
+ * @param {number} n - The amount to format
+ * @returns {string}
+ */
+function fmt(n) {
+  return '$' + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
+/**
+ * Schedule DOM element removal after a delay.
+ * Safely checks parentNode before removing.
+ * @param {HTMLElement} el - Element to remove
+ * @param {number} ms - Delay in milliseconds
+ */
+function scheduleRemove(el, ms) {
+  setTimeout(() => { if (el.parentNode) el.remove(); }, ms);
+}
+
+Object.assign(exports, { sleep, fmt, scheduleRemove });
+
+  };
+
+  __mods["base-game"] = function (exports, require) {
+/**
+ * @module base-game
  * @description The normal spin: take the bet, spin the reels, then present the
  * result (loss, small/medium/big/mega win, or bonus trigger). Also handles the
  * bet +/- buttons, turbo toggle, auto-spin, and the spin keyboard shortcuts.
  * Wins are computed by mathcore; this file is presentation + flow.
  */
 
-const { BET_LEVELS } = require("config");
-const { DEV_MODE } = require("devmode");
+const { BET_LEVELS } = require("par-sheet");
+const { DEV_MODE } = require("dev-mode");
 const { state } = require("state");
 const { sleep, fmt } = require("utils");
-const { synth } = require("audio");
+const { synth } = require("sound");
 const { narrator } = require("narrator");
 const { generateGrid, evaluateGrid, countHats, shouldAnticipate } = require("mathcore");
-const { animateReel, getReelStrips, highlightWinners, clearHighlights, animateWinCount } = require("engine");
+const { animateReel, getReelStrips, highlightWinners, clearHighlights, animateWinCount } = require("reels");
 const {
   spawnStarbursts, spawnSideWaterfall, spawnWinVignette, spawnWinPopText,
   playWinPresentation
 } = require("particles");
-const { setStatus, updateDisplays, elWin, buttons, stopAuto } = require("ui");
+const { setStatus, updateDisplays, elWin, buttons, stopAuto } = require("readouts");
 const { startBonus, isBonusActive } = require("bonus");
 
 const cabinet    = document.getElementById('cabinet');
@@ -454,19 +1028,19 @@ Object.assign(exports, { triggerSpin, startAuto });
  * *money* (kept identical to the headless simulateBonusOutcome).
  */
 
-const { HAT_IDS, MAX_FRAME_TIER, BONUS_CONFIG } = require("config");
+const { HAT_IDS, MAX_FRAME_TIER, BONUS_CONFIG } = require("par-sheet");
 const { state } = require("state");
 const { sleep, fmt } = require("utils");
-const { synth, bgm } = require("audio");
+const { synth, bgm } = require("sound");
 const { narrator } = require("narrator");
 const { generateGrid, evaluateGrid, rollHouseAward, rollMansionAward } = require("mathcore");
-const { animateAllReels, highlightWinners, clearHighlights, animateWinCount, getReelStrips } = require("engine");
+const { animateAllReels, highlightWinners, clearHighlights, animateWinCount, getReelStrips } = require("reels");
 const {
   spawnCoinShower, spawnCoinFountain, spawnDollarBills, spawnConfetti, spawnSparkles,
   spawnStarbursts, spawnWinVignette, spawnWinPopText,
   playWinPresentation
 } = require("particles");
-const { setStatus, updateDisplays, setControlsEnabled, stopAuto, elWin } = require("ui");
+const { setStatus, updateDisplays, setControlsEnabled, stopAuto, elWin } = require("readouts");
 
 /* ── DOM ── */
 const cabinet         = document.getElementById('cabinet');
@@ -924,24 +1498,24 @@ Object.assign(exports, { isBonusActive, startBonus });
 
   };
 
-  __mods["buybonus"] = function (exports, require) {
+  __mods["buy-bonus"] = function (exports, require) {
 /**
- * @module buybonus
+ * @module buy-bonus
  * @description "Buy Bonus": pay buyCostMult × bet (80×) to skip the base game
  * and go straight into the feature. Priced (in config) so the buy's RTP matches
  * the game's ~97% — see PARSHEET.md. The trigger screen is rejection-sampled
  * from real spins so a bought bonus is worth exactly what a natural one is.
  */
 
-const { BET_LEVELS, BONUS_CONFIG, HAT_IDS } = require("config");
+const { BET_LEVELS, BONUS_CONFIG, HAT_IDS } = require("par-sheet");
 const { state } = require("state");
 const { fmt } = require("utils");
-const { synth } = require("audio");
+const { synth } = require("sound");
 const { narrator } = require("narrator");
 const { generateGrid, countHats } = require("mathcore");
-const { animateReel, getReelStrips } = require("engine");
+const { animateReel, getReelStrips } = require("reels");
 const { spawnCoinShower } = require("particles");
-const { setStatus, updateDisplays, elWin, buttons } = require("ui");
+const { setStatus, updateDisplays, elWin, buttons } = require("readouts");
 const { startBonus, isBonusActive } = require("bonus");
 
 const cabinet      = document.getElementById('cabinet');
@@ -1026,21 +1600,433 @@ Object.assign(exports, { bonusBuyCost });
 
   };
 
-  __mods["config"] = function (exports, require) {
+  __mods["main"] = function (exports, require) {
 /**
- * @module config
+ * @module main
+ * @description Entry point for Big Bad Wolf. Importing the feature modules runs
+ * their setup (each wires its own buttons), then init() renders the starting
+ * screen, wires the volume/paytable/sound controls, and kicks off ambient
+ * effects + music.
+ *
+ * The source tree (see README.md for the full tour):
+ *   math/    par-sheet (the par sheet) + mathcore (243-ways & bonus math)
+ *   core/    state (shared runtime state) + utils (helpers)
+ *   audio/   sound (sfx + music), narrator, phrases
+ *   render/  reels (reel animation), particles (eye-candy), readouts (HUD)
+ *   game/    base-game, bonus, buy-bonus
+ *   panels/  the drawer pop-ups: options-drawer, deposit, rtp-picker,
+ *            game-size, simulator (📊 SIM), math-breakdown (🧮 MATH)
+ *   scenes/  intro, reveal, day-night, high-noon, idle-poster
+ *   system/  dev-mode (hides admin tools on the public build)
+ */
+
+const { INITIAL_GRID, SYMBOLS } = require("par-sheet");
+const { state } = require("state");
+const { synth, bgm } = require("sound");
+const { narrator } = require("narrator");
+const { renderReel } = require("reels");
+const { startAmbientParticles } = require("particles");
+const { updateDisplays, setStatus } = require("readouts");
+
+// Side-effect imports: these wire up their own controls on load.
+require("dev-mode");    // hide dev/admin tools on the public build (?dev=1 to show)
+require("intro");      // full-screen intro splash
+require("day-night");   // time-of-day background darkening
+require("reveal");     // post-intro: hold on the background, then fade the game in
+require("high-noon");       // hidden "High Noon" easter egg at exactly 12:00 PM
+require("options-drawer");    // right-side slide-out options drawer
+require("deposit");    // add-credit popup
+require("rtp-picker");        // RTP / math-model picker popup
+require("game-size");   // folder-size breakdown popup
+require("idle-poster"); // idle "attract mode" — glows up the Wanted poster
+require("base-game");
+require("bonus");
+require("buy-bonus");
+require("simulator");
+require("math-breakdown");
+
+/* ══════════════════════════════════════════
+   VOLUME / SOUND CONTROLS
+══════════════════════════════════════════ */
+function wireSoundControls() {
+  const btnSound     = document.getElementById('btn-sound');
+  const volumePanel  = document.getElementById('volume-panel');
+  const sliderSfx    = document.getElementById('slider-sfx');
+  const sliderMusic  = document.getElementById('slider-music');
+  const sliderNarr   = document.getElementById('slider-narrator');
+  const sfxPct       = document.getElementById('sfx-pct');
+  const musicPct     = document.getElementById('music-pct');
+  const narrPct      = document.getElementById('narrator-pct');
+  const iconOn       = document.getElementById('icon-sound-on');
+  const iconOff      = document.getElementById('icon-sound-off');
+
+  btnSound.addEventListener('click', e => { e.stopPropagation(); volumePanel.classList.toggle('hidden'); });
+  document.addEventListener('click', e => {
+    if (!volumePanel.classList.contains('hidden') && !volumePanel.contains(e.target) && !btnSound.contains(e.target)) {
+      volumePanel.classList.add('hidden');
+    }
+  });
+  volumePanel.addEventListener('click', e => e.stopPropagation());
+
+  sliderSfx.addEventListener('input', () => {
+    const v = parseInt(sliderSfx.value);
+    sfxPct.textContent = v + '%';
+    synth.setVolume(v / 100);
+    const off = v === 0;
+    iconOn.classList.toggle('hidden', off);
+    iconOff.classList.toggle('hidden', !off);
+    btnSound.classList.toggle('sound-on', !off);
+    synth.enabled = !off;
+  });
+
+  sliderMusic.addEventListener('input', () => {
+    const v = parseInt(sliderMusic.value);
+    musicPct.textContent = v + '%';
+    bgm.setVolume(v / 100);
+    if (v === 0) bgm.stop();
+    else if (!bgm.isPlaying()) bgm.start();
+  });
+
+  sliderNarr.addEventListener('input', () => {
+    const v = parseInt(sliderNarr.value);
+    narrPct.textContent = v + '%';
+    narrator.setVolume(v / 100);
+    if (v === 0) { narrator.enabled = false; narrator.stop(); }
+    else narrator.enabled = true;
+  });
+}
+
+/* ══════════════════════════════════════════
+   MUSIC AUTOSTART (browsers block audible autoplay until a gesture)
+══════════════════════════════════════════ */
+function wireMusicAutostart() {
+  function tryStart() {
+    if (state.musicAutoStarted) return;
+    bgm.start().then(started => {
+      if (started) {
+        state.musicAutoStarted = true;
+        document.removeEventListener('click', tryStart);
+        document.removeEventListener('keydown', tryStart);
+      }
+    });
+  }
+  tryStart();                                  // attempt immediately…
+  document.addEventListener('click', tryStart); // …fall back to first interaction
+  document.addEventListener('keydown', tryStart);
+}
+
+/* ══════════════════════════════════════════
+   PAYTABLE MODAL (pays auto-filled from the par sheet)
+══════════════════════════════════════════ */
+function wirePaytable() {
+  const btnInfo = document.getElementById('btn-info');
+  const modal   = document.getElementById('paytable-modal');
+  const btnClose = document.getElementById('btn-close-paytable');
+  if (btnInfo) btnInfo.addEventListener('click', () => modal.classList.remove('hidden'));
+  if (btnClose) btnClose.addEventListener('click', () => modal.classList.add('hidden'));
+  if (modal) modal.addEventListener('click', e => { if (e.target === modal) modal.classList.add('hidden'); });
+
+  // keep displayed pays in sync with SYMBOLS
+  const order = ['hat-yellow', 'hat-green', 'hat-red', 'pig-suit', 'pig-contractor', 'pig-nature', 'toolbox', 'wolf', 'buzzard'];
+  const items = document.querySelectorAll('#paytable-modal .pt-item:not(.pt-royals)');
+  order.forEach((id, i) => {
+    const el = items[i] && items[i].querySelector('.pt-pays');
+    const p = SYMBOLS[id] && SYMBOLS[id].pays;
+    if (el && p) el.innerHTML = `5&#9733; &times; ${p[5]} &nbsp;|&nbsp; 4&#9733; &times; ${p[4]} &nbsp;|&nbsp; 3&#9733; &times; ${p[3]}`;
+  });
+  const royalEl = document.querySelector('#paytable-modal .pt-royals .pt-pays');
+  if (royalEl) {
+    const hi = SYMBOLS['royal-a'].pays, lo = SYMBOLS['royal-10'].pays;
+    royalEl.innerHTML = `5&#9733; &times; ${lo[5]}–${hi[5]} &nbsp;|&nbsp; 4&#9733; &times; ${lo[4]}–${hi[4]} &nbsp;|&nbsp; 3&#9733; &times; ${lo[3]}–${hi[3]}`;
+  }
+}
+
+/* ══════════════════════════════════════════
+   INIT
+══════════════════════════════════════════ */
+function init() {
+  state.currentGrid = INITIAL_GRID.map(col => [...col]);
+  updateDisplays();
+  for (let r = 0; r < 5; r++) renderReel(r, state.currentGrid[r]);
+  setStatus('GOOD LUCK – PRESS SPIN!');
+
+  wireSoundControls();
+  wirePaytable();
+  wireMusicAutostart();
+
+  // close the big-win overlay on click
+  const bigWin = document.getElementById('big-win-overlay');
+  if (bigWin) bigWin.addEventListener('click', () => bigWin.classList.add('hidden'));
+
+  // nudge the looping side wolf to play (muted autoplay; harmless if blocked)
+  const sideWolf = document.getElementById('side-wolf');
+  if (sideWolf) sideWolf.play().catch(() => {});
+
+  startAmbientParticles();
+}
+
+// Module scripts run after the DOM is parsed, so it's safe to init now.
+init();
+
+  };
+
+  __mods["mathcore"] = function (exports, require) {
+/**
+ * @module mathcore
+ * @description The math of Big Bad Wolf — and nothing else.
+ *
+ * This module is intentionally PURE: no DOM, no audio, no animation. That means
+ * the browser game AND the headless verifier (tools/sim.js) import the SAME
+ * functions, so what you test is exactly what players get. If a number feels
+ * wrong, it is decided here or in the par sheet (par-sheet.js) — nowhere else.
+ *
+ * Contents:
+ *   generateGrid()            – draw a random 5×3 screen from the reel strips
+ *   evaluateGrid()            – the 243-ways payout calculation
+ *   countHats()               – how many scatter hats are showing
+ *   shouldAnticipate()        – cosmetic "near win" slow-down hint
+ *   rollHouseAward()          – value of one blown-down house in the bonus
+ *   rollMansionAward()        – value of the mansion jackpot
+ *   simulateBonusOutcome()    – headless play-through of a whole bonus
+ */
+
+const {
+  SYMBOLS, SYMBOL_IDS, HAT_IDS, REEL_STRIPS, BONUS_CONFIG,
+  REEL_COUNT, ROWS_PER_REEL, MIN_WIN_SPAN, MAX_FRAME_TIER,
+} = require("par-sheet");
+
+/* ══════════════════════════════════════════
+   DRAWING A SCREEN
+══════════════════════════════════════════ */
+
+/**
+ * Pick a random visible 5×3 grid from the reel strips.
+ * For each reel we pick a random stop position and take the 3 symbols there
+ * (wrapping around the end of the strip). grid[reel][row] = symbol id.
+ * @returns {string[][]}
+ */
+function generateGrid() {
+  return REEL_STRIPS.map(strip => {
+    const len = strip.length;
+    const start = Math.floor(Math.random() * len);
+    return [strip[start % len], strip[(start + 1) % len], strip[(start + 2) % len]];
+  });
+}
+
+/* ══════════════════════════════════════════
+   243-WAYS PAYOUT
+   ─────────────────────────────────────────
+   "Ways" (not paylines): a symbol pays when it lands on adjacent reels starting
+   from reel 1, in ANY rows. The number of "ways" is the product of how many
+   times the symbol shows on each of those reels.
+
+       payout = ways × pays[span] × bet
+
+   where `span` = how many consecutive reels (from reel 1) the symbol covers
+   (3, 4, or 5). With 3 rows per reel the theoretical max is 3×3×3×3×3 = 243 ways.
+══════════════════════════════════════════ */
+
+/**
+ * @typedef {Object} WinResult
+ * @property {string} symId
+ * @property {number} span       consecutive reels matched (≥ MIN_WIN_SPAN)
+ * @property {number} ways       number of ways this symbol hit
+ * @property {number} winAmount  ways × pays[span] × bet
+ * @property {Array<[number,number]>} cells  [reel,row] of each contributing cell
+ */
+
+/**
+ * Evaluate every winning symbol on a grid.
+ * @param {string[][]} grid grid[reel][row] = symbol id
+ * @param {number} bet
+ * @returns {{ totalWin: number, winners: WinResult[] }}
+ */
+function evaluateGrid(grid, bet) {
+  let totalWin = 0;
+  const winners = [];
+
+  for (const symId of SYMBOL_IDS) {
+    const sym = SYMBOLS[symId];
+
+    // how many times the symbol appears on each reel
+    const colCounts = grid.map(col => col.filter(s => s === symId).length);
+
+    // must be present on reel 1 to start a left-to-right win
+    if (colCounts[0] === 0) continue;
+
+    // extend the win across consecutive reels, multiplying the ways
+    let span = 1;
+    let ways = colCounts[0];
+    for (let r = 1; r < REEL_COUNT; r++) {
+      if (colCounts[r] === 0) break;
+      span++;
+      ways *= colCounts[r];
+    }
+
+    if (span < MIN_WIN_SPAN) continue;          // need 3+ in a row to pay
+    const payout = sym.pays[span];
+    if (!payout) continue;
+
+    const winAmount = ways * payout * bet;
+    totalWin += winAmount;
+
+    // record the contributing cells (for highlighting in the UI)
+    const cells = [];
+    for (let r = 0; r < span; r++) {
+      grid[r].forEach((s, row) => { if (s === symId) cells.push([r, row]); });
+    }
+    winners.push({ symId, span, ways, winAmount, cells });
+  }
+
+  return { totalWin, winners };
+}
+
+/* ══════════════════════════════════════════
+   SCATTER HATS (bonus trigger)
+══════════════════════════════════════════ */
+
+/**
+ * Count the hard hats anywhere on the grid (they are the bonus scatter).
+ * @returns {{ count: number, hatCells: Array<[number,number]> }}
+ */
+function countHats(grid) {
+  let count = 0;
+  const hatCells = [];
+  for (let r = 0; r < REEL_COUNT; r++) {
+    for (let row = 0; row < ROWS_PER_REEL; row++) {
+      if (HAT_IDS.includes(grid[r][row])) { count++; hatCells.push([r, row]); }
+    }
+  }
+  return { count, hatCells };
+}
+
+/** Symbols that, when stacking across reels, trigger the anticipation slow-down. */
+const ANTICIPATION_SYMS = ['hat-yellow', 'pig-suit', 'pig-contractor'];
+
+/**
+ * Cosmetic only: should later reels slow down for suspense? True when a big
+ * symbol is building across the first reels, or a bonus is one hat away.
+ */
+function shouldAnticipate(grid) {
+  for (const symId of ANTICIPATION_SYMS) {
+    let consecutive = 0;
+    for (let r = 0; r < REEL_COUNT; r++) {
+      if (grid[r].includes(symId)) consecutive++;
+      else break;
+    }
+    if (consecutive >= 3) return true;
+  }
+  return countHats(grid).count >= 4;
+}
+
+/* ══════════════════════════════════════════
+   BONUS AWARD MATH
+   All magnitudes come from BONUS_CONFIG (the par sheet); these helpers are the
+   ONE place the formulas live, shared by the live bonus and the simulators.
+══════════════════════════════════════════ */
+
+/**
+ * Value of a single house when the wolf blows it down, in dollars.
+ * tier 1 = straw, 2 = stick, 3 = brick. Tiers 2 & 3 have a small jackpot chance.
+ * @returns {{ amount: number, isJackpot: boolean }}
+ */
+function rollHouseAward(tier, bet) {
+  const t = BONUS_CONFIG.tiers[tier];
+  if (t.jackpotChance && Math.random() < t.jackpotChance) {
+    return { amount: bet * t.jackpotMult, isJackpot: true };
+  }
+  return { amount: bet * (t.min + Math.random() * (t.max - t.min)), isJackpot: false };
+}
+
+/** Value of the mansion jackpot for a given number of brick houses, in dollars. */
+function rollMansionAward(brickCount, bet) {
+  const m = BONUS_CONFIG.mansion;
+  return bet * (m.baseMult + Math.random() * (m.perBrickMult * brickCount));
+}
+
+/* ══════════════════════════════════════════
+   HEADLESS BONUS PLAY-THROUGH
+   Mirrors the live feature (game/bonus.js) but with no animation — just the money.
+   Used by the Monte-Carlo simulators. Keep in lock-step with game/bonus.js.
+══════════════════════════════════════════ */
+
+const round2 = n => Math.round(n * 100) / 100;
+
+/**
+ * Play a whole bonus and return what it paid.
+ * @param {number} bet
+ * @param {string[][]} triggerGrid the 6+ hat screen that started it
+ * @returns {{ bonusWin: number, freeSpins: number, mansions: number }}
+ */
+function simulateBonusOutcome(bet, triggerGrid) {
+  const C = BONUS_CONFIG;
+  let freeSpins = C.freeSpins, bonusWin = 0, spinsPlayed = 0, mansions = 0;
+  const frames = Array.from({ length: REEL_COUNT }, () => Array(ROWS_PER_REEL).fill(0));
+
+  // trigger hats place the first straw frames
+  for (let r = 0; r < REEL_COUNT; r++)
+    for (let row = 0; row < ROWS_PER_REEL; row++)
+      if (HAT_IDS.includes(triggerGrid[r][row]))
+        frames[r][row] = Math.min(frames[r][row] + 1, MAX_FRAME_TIER);
+
+  while (freeSpins > 0) {
+    freeSpins--; spinsPlayed++;
+    const grid = generateGrid();
+    bonusWin += evaluateGrid(grid, bet).totalWin;       // free spins still pay lines
+
+    // each hat upgrades its cell's house: straw → stick → brick
+    let newHats = 0, newBricks = 0;
+    for (let r = 0; r < REEL_COUNT; r++)
+      for (let row = 0; row < ROWS_PER_REEL; row++)
+        if (HAT_IDS.includes(grid[r][row])) {
+          const old = frames[r][row];
+          frames[r][row] = Math.min(old + 1, MAX_FRAME_TIER);
+          newHats++;
+          if (old === MAX_FRAME_TIER - 1 && frames[r][row] === MAX_FRAME_TIER) newBricks++;
+        }
+
+    // mansion jackpot fires when a fresh brick lands and 3+ bricks are up
+    let bricks = 0;
+    for (let r = 0; r < REEL_COUNT; r++)
+      for (let row = 0; row < ROWS_PER_REEL; row++)
+        if (frames[r][row] === MAX_FRAME_TIER) bricks++;
+    if (bricks >= C.mansion.minBricks && newBricks > 0) {
+      bonusWin += round2(rollMansionAward(bricks, bet));
+      mansions++;
+    }
+
+    if (newHats >= C.retriggerHats) freeSpins += C.retriggerSpins;   // retrigger
+  }
+
+  // the wolf blows every built house down for its prize
+  for (let r = 0; r < REEL_COUNT; r++)
+    for (let row = 0; row < ROWS_PER_REEL; row++) {
+      const tier = frames[r][row];
+      if (tier) bonusWin += round2(rollHouseAward(tier, bet).amount);
+    }
+
+  return { bonusWin, freeSpins: spinsPlayed, mansions };
+}
+
+Object.assign(exports, { generateGrid, evaluateGrid, countHats, shouldAnticipate, rollHouseAward, rollMansionAward, simulateBonusOutcome });
+
+  };
+
+  __mods["par-sheet"] = function (exports, require) {
+/**
+ * @module par-sheet
  * @description Game configuration, symbol definitions, reel strip layouts,
- *              and shared constants for Huff N' More Puff.
+ *              and shared constants for Big Bad Wolf.
  *
  * ════════════════════════════════════════════════════════════════════════
  *  THIS FILE IS THE CANONICAL PAR SHEET (single source of truth for math).
  *  Human-readable summary + expected RTP decomposition lives in PARSHEET.md.
  *  Re-verify any change with:   node tools/sim.js
- *  Both the live game (js/main.js → modules) and the verifier import from here,
+ *  Both the live game (src/main.js → modules) and the verifier import from here,
  *  so there is exactly ONE copy of these numbers.
  * ════════════════════════════════════════════════════════════════════════
  *
- * Design target: ~97% RTP, high volatility (real "Huff N' More Puff" feel).
+ * Design target: ~97% RTP, high volatility (real "Big Bad Wolf" feel).
  *   • Base game  ≈ 50% RTP  (243-ways, fairly quiet between features)
  *   • Bonus      ≈ 47% RTP  (wolf/house feature drives most of the return)
  *   • Bonus trigger ≈ 1 in 175 spins (6+ hard-hat scatters)
@@ -1270,103 +2256,6 @@ Object.assign(exports, { REEL_COUNT, ROWS_PER_REEL, MIN_WIN_SPAN, BONUS_TRIGGER_
 
   };
 
-  __mods["daynight"] = function (exports, require) {
-/**
- * @module daynight
- * @description Darkens the background image based on the time of day.
- *
- * By default it follows the browser's real clock — brightest at noon, darkest
- * around midnight — and re-checks every minute. The clock button (🕐) opens a
- * slider to scrub the time of day manually; "USE REAL TIME" switches back to the
- * live clock.
- *
- * Mapping: a cosine of the hour gives a smooth day curve (1 = full light at
- * noon, 0 = full dark at midnight); the overlay opacity is MAX_DARK × (1 − light).
- */
-
-const overlay = document.getElementById('day-night-overlay');
-const btnTime = document.getElementById('btn-time');
-const panel   = document.getElementById('time-panel');
-const slider  = document.getElementById('time-slider');
-const label   = document.getElementById('time-label');
-const autoBtn = document.getElementById('time-auto');
-
-const MAX_DARK = 0.82;     // overlay opacity at the darkest point (midnight)
-let autoMode = true;
-let tick = null;
-
-/** Overlay opacity for a minute-of-day (0..1439): 0 at noon … MAX_DARK at midnight. */
-function darknessFor(minutes) {
-  const hour = minutes / 60;                                          // 0..24
-  const light = (1 + Math.cos(((hour - 12) / 24) * 2 * Math.PI)) / 2; // 1 noon, 0 midnight
-  return MAX_DARK * (1 - light);
-}
-
-/** Pretty 12-hour clock string, e.g. 615 → "10:15 AM". */
-function fmtTime(minutes) {
-  const h = Math.floor(minutes / 60), m = minutes % 60;
-  const ap = h < 12 ? 'AM' : 'PM';
-  const hh = (h % 12) || 12;
-  return `${hh}:${String(m).padStart(2, '0')} ${ap}`;
-}
-
-function apply(minutes) {
-  if (overlay) overlay.style.opacity = darknessFor(minutes).toFixed(3);
-  if (label) label.textContent = fmtTime(minutes);
-  if (slider) slider.value = String(minutes);
-}
-
-function nowMinutes() {
-  const d = new Date();
-  return d.getHours() * 60 + d.getMinutes();
-}
-
-/**
- * Animate the day/night darkening from its current value to the correct one for
- * the current time. Used by the intro reveal, which first parks the overlay at 0
- * (clean background) and then calls this to fade the darkening back in.
- */
-function revealDayNight(ms = 1100) {
-  if (!overlay) return;
-  overlay.style.transition = `opacity ${ms}ms ease`;
-  apply(autoMode ? nowMinutes() : parseInt(slider.value, 10));
-  setTimeout(() => { overlay.style.transition = ''; }, ms + 60);  // drop transition so the slider stays snappy
-}
-
-/** Follow the real clock and keep it updated each minute. */
-function goAuto() {
-  autoMode = true;
-  if (autoBtn) autoBtn.classList.add('is-active');
-  apply(nowMinutes());
-  clearInterval(tick);
-  tick = setInterval(() => { if (autoMode) apply(nowMinutes()); }, 60000);
-}
-
-if (overlay) {
-  if (slider) slider.addEventListener('input', () => {
-    autoMode = false;                                  // manual override
-    if (autoBtn) autoBtn.classList.remove('is-active');
-    apply(parseInt(slider.value, 10));
-  });
-  if (autoBtn) autoBtn.addEventListener('click', goAuto);
-
-  if (btnTime && panel) {
-    btnTime.addEventListener('click', e => { e.stopPropagation(); panel.classList.toggle('hidden'); });
-    panel.addEventListener('click', e => e.stopPropagation());
-    document.addEventListener('click', e => {
-      if (!panel.classList.contains('hidden') && !panel.contains(e.target) && !btnTime.contains(e.target)) {
-        panel.classList.add('hidden');
-      }
-    });
-  }
-
-  goAuto();   // start on the real time of day
-}
-
-Object.assign(exports, { revealDayNight });
-
-  };
-
   __mods["deposit"] = function (exports, require) {
 /**
  * @module deposit
@@ -1376,9 +2265,9 @@ Object.assign(exports, { revealDayNight });
  */
 
 const { state } = require("state");
-const { updateDisplays } = require("ui");
+const { updateDisplays } = require("readouts");
 const { fmt } = require("utils");
-const { synth } = require("audio");
+const { synth } = require("sound");
 
 const btnDeposit = document.getElementById('btn-deposit');
 const modal      = document.getElementById('deposit-modal');
@@ -1408,238 +2297,18 @@ if (btnDeposit && modal) {
 
   };
 
-  __mods["devmode"] = function (exports, require) {
+  __mods["game-size"] = function (exports, require) {
 /**
- * @module devmode
- * @description Hides developer / admin tools on the public build. They are OFF
- * by default. To turn them on, add ?dev=1 (or #dev) to the URL once — the choice
- * is remembered in localStorage; ?dev=0 (or #nodev) turns it back off.
- *
- * When dev mode is OFF, anything tagged `.dev-tool` is hidden and the backtick
- * debug panel shortcut is inert (gated via DEV_MODE in basegame.js).
- *
- * NOTE: this is a convenience gate to keep tools out of normal players' way, not
- * hard security — these tools only hand out demo credits / change the local math
- * model and expose no secrets, so client-side hiding is appropriate.
- */
-
-function compute() {
-  try {
-    const params = new URLSearchParams(location.search);
-    const hash = location.hash.replace('#', '').toLowerCase();
-    if (params.get('dev') === '1' || hash === 'dev')   localStorage.setItem('bbw_dev', '1');
-    if (params.get('dev') === '0' || hash === 'nodev') localStorage.removeItem('bbw_dev');
-    return localStorage.getItem('bbw_dev') === '1';
-  } catch (e) {
-    return false;   // localStorage blocked → default to the safe (public) state
-  }
-}
-
-const DEV_MODE = compute();
-
-if (DEV_MODE) {
-  document.body.classList.add('dev-mode');
-} else {
-  // Remove every dev-only control from view for normal players.
-  document.querySelectorAll('.dev-tool').forEach(el => el.classList.add('hidden'));
-}
-
-Object.assign(exports, { DEV_MODE });
-
-  };
-
-  __mods["engine"] = function (exports, require) {
-/**
- * @module engine
- * @description The reels' DOM + animation layer: building symbol cells, the
- * spin animation, win highlighting and the count-up. The actual win math lives
- * in mathcore.js — this module just shows it.
- */
-
-const { SYMBOLS, SYMBOL_IDS, SPIN_DURATIONS, TURBO_DURATIONS, SCROLL_SYMBOLS, TURBO_SCROLL, ANTICIPATION_EXTRA } = require("config");
-const { state } = require("state");
-const { synth } = require("audio");
-const { fmt } = require("utils");
-const { spawnSparkles } = require("particles");
-
-const reelCols   = [0, 1, 2, 3, 4].map(i => document.getElementById(`reel-${i}`));
-const reelStrips = [0, 1, 2, 3, 4].map(i => document.getElementById(`strip-${i}`));
-const particleContainer = document.getElementById('particle-container');
-const elWin = document.getElementById('display-win');
-
-function getReelStrips() { return reelStrips; }
-
-/** A random symbol id, used only to fill the blurry scroll buffer. */
-function randomSymbol() { return SYMBOL_IDS[Math.floor(Math.random() * SYMBOL_IDS.length)]; }
-
-/** Read the cell pixel height from the CSS custom property. */
-function getCellHeight() {
-  const val = getComputedStyle(document.documentElement).getPropertyValue('--cell-size').trim();
-  return parseInt(val, 10) || 130;
-}
-
-/** Build one symbol cell (PNG image, or inline-SVG for royals). */
-function makeCell(symId) {
-  const sym = SYMBOLS[symId];
-  const div = document.createElement('div');
-  div.className = 'sym-cell';
-  div.dataset.sym = symId;
-  if (sym.src) {
-    const img = document.createElement('img');
-    img.src = sym.src;
-    img.alt = sym.label || symId;
-    img.draggable = false;
-    img.className = 'sym-img';
-    div.appendChild(img);
-  } else {
-    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
-    use.setAttributeNS('http://www.w3.org/1999/xlink', 'href', sym.svgId);
-    use.setAttribute('href', sym.svgId);
-    svg.appendChild(use);
-    div.appendChild(svg);
-  }
-  return div;
-}
-
-/** Instantly show 3 symbols on a reel (no animation). */
-function renderReel(reelIndex, symbolIds) {
-  const strip = reelStrips[reelIndex];
-  strip.style.transition = 'none';
-  strip.style.transform  = 'translateY(0)';
-  strip.innerHTML = '';
-  symbolIds.forEach(id => strip.appendChild(makeCell(id)));
-}
-
-/**
- * Spin one reel from its current symbols to the target symbols.
- * Builds a tall strip [target] + [random blur] + [current], snaps it to the
- * bottom, then transitions to the top so the target lands in view.
- */
-function animateReel(reelIndex, targetSymIds, onDone, anticipate = false) {
-  const strip = reelStrips[reelIndex];
-  const col   = reelCols[reelIndex];
-  const cellH = getCellHeight();
-  const scrollN = state.turbo ? TURBO_SCROLL : SCROLL_SYMBOLS;
-  let duration  = state.turbo ? TURBO_DURATIONS[reelIndex] : SPIN_DURATIONS[reelIndex];
-
-  if (anticipate && reelIndex >= 3) {        // suspense slow-down on later reels
-    duration += ANTICIPATION_EXTRA;
-    col.classList.add('is-anticipating');
-    if (reelIndex === 3) synth.anticipation();
-  }
-
-  const current = (state.currentGrid && state.currentGrid[reelIndex]) || ['royal-a', 'royal-k', 'royal-q'];
-  const allIds = [...targetSymIds, ...Array.from({ length: scrollN }, randomSymbol), ...current];
-
-  strip.innerHTML = '';
-  allIds.forEach(id => strip.appendChild(makeCell(id)));
-
-  const startY = (allIds.length - 3) * cellH;
-  strip.style.transition = 'none';
-  strip.style.transform  = `translateY(-${startY}px)`;
-  col.classList.add('is-spinning');
-
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      const easing = anticipate && reelIndex >= 3
-        ? 'cubic-bezier(0.05, 0.9, 0.35, 1.12)'
-        : 'cubic-bezier(0.12, 0.85, 0.38, 1.08)';
-      strip.style.transition = `transform ${duration}ms ${easing}`;
-      strip.style.transform  = 'translateY(0)';
-
-      let isDone = false;
-      const finishAnimation = () => {
-        if (isDone) return;
-        isDone = true;
-        col.classList.remove('is-spinning', 'is-anticipating');
-        renderReel(reelIndex, targetSymIds);
-        strip.classList.add('bounce-stop');
-        setTimeout(() => strip.classList.remove('bounce-stop'), 350);
-        synth.reelStop(reelIndex);
-        onDone();
-      };
-
-      const fallbackTimer = setTimeout(finishAnimation, duration + 50);
-
-      strip.addEventListener('transitionend', function handler(e) {
-        if (e.propertyName === 'transform') {
-          strip.removeEventListener('transitionend', handler);
-          clearTimeout(fallbackTimer);
-          finishAnimation();
-        }
-      });
-    });
-  });
-}
-
-/** Spin all 5 reels; resolves once every reel has stopped. */
-function animateAllReels(targetGrid, anticipate = false) {
-  return new Promise(resolve => {
-    let stopped = 0;
-    for (let r = 0; r < 5; r++) {
-      animateReel(r, targetGrid[r], () => { if (++stopped === 5) resolve(); }, anticipate);
-    }
-  });
-}
-
-/** Add the winner glow + sparkles to every winning cell. */
-function highlightWinners(winners) {
-  clearHighlights();
-  winners.forEach(({ cells }) => {
-    cells.forEach(([reelIdx, rowIdx]) => {
-      const cell = reelStrips[reelIdx].querySelectorAll('.sym-cell')[rowIdx];
-      if (!cell) return;
-      cell.classList.add('is-winner');
-      const rect = cell.getBoundingClientRect();
-      const cr = particleContainer.getBoundingClientRect();
-      spawnSparkles(rect.left + rect.width / 2 - cr.left, rect.top + rect.height / 2 - cr.top, 6);
-    });
-  });
-}
-
-function clearHighlights() {
-  document.querySelectorAll('.sym-cell.is-winner').forEach(el => el.classList.remove('is-winner'));
-}
-
-/** Count the WIN display up from 0 to targetAmount. Resolves when done. */
-function animateWinCount(targetAmount, durationMs = 1200) {
-  return new Promise(resolve => {
-    const startTime = performance.now();
-    elWin.classList.add('counting', 'win-glow');
-    function tick(now) {
-      const progress = Math.min((now - startTime) / durationMs, 1);
-      const eased = 1 - Math.pow(1 - progress, 3);  // ease-out cubic
-      elWin.textContent = fmt(targetAmount * eased);
-      if (progress < 0.9 && Math.random() < 0.30) synth.coinTick();
-      if (progress < 1) {
-        requestAnimationFrame(tick);
-      } else {
-        elWin.textContent = fmt(targetAmount);
-        elWin.classList.remove('counting');
-        resolve();
-      }
-    }
-    requestAnimationFrame(tick);
-  });
-}
-
-Object.assign(exports, { getReelStrips, makeCell, renderReel, animateReel, animateAllReels, highlightWinners, clearHighlights, animateWinCount });
-
-  };
-
-  __mods["gamesize"] = function (exports, require) {
-/**
- * @module gamesize
+ * @module game-size
  * @description The "GAME SIZE" popup — opened from the options drawer. Shows the
  * total size of the whole game folder plus a color-coded breakdown (videos,
  * audio, images, code, other), styled to match the sim/math stat panels.
  *
- * The numbers come from SIZE_MANIFEST in js/sizedata.js, which is regenerated by
+ * The numbers come from SIZE_MANIFEST in src/panels/size-manifest.js, which is regenerated by
  * tools/build.js on every build — so the figure is accurate as of the last build.
  */
 
-const { SIZE_MANIFEST } = require("sizedata");
+const { SIZE_MANIFEST } = require("size-manifest");
 
 /* per-category icon + colour (matched to the manifest's category keys) */
 const CAT_META = {
@@ -1723,525 +2392,17 @@ if (btnSize && modal) {
 
   };
 
-  __mods["idleposter"] = function (exports, require) {
+  __mods["math-breakdown"] = function (exports, require) {
 /**
- * @module idleposter
- * @description Attract-mode flourish for the reel-background "Wanted" poster
- * (Wanted_poster.webm). When the base game sits idle — nobody pressing anything,
- * no spin/auto/bonus running — the poster slowly glows up from its usual faint
- * 0.55 opacity to full 100%. The moment the player interacts again it snaps
- * straight back to its normal opacity.
- *
- * The two speeds (slow up, instant down) come from CSS: the `.poster-idle` class
- * carries a long transition; the base rule carries a short one. This module only
- * adds/removes that class based on activity + game state.
- */
-
-const { state } = require("state");
-const { isBonusActive } = require("bonus");
-
-const video  = document.getElementById('reel-bg-video');
-const IDLE_MS = 12000;   // how long with zero input before the poster glows up
-
-let timer = null;
-
-/** The reels are "busy" (so don't glow up) during a spin, auto-spin, or bonus. */
-function isBusy() { return state.spinning || state.autoActive || isBonusActive(); }
-
-function scheduleIdle() {
-  clearTimeout(timer);
-  timer = setTimeout(tick, IDLE_MS);
-}
-
-function tick() {
-  if (!video) return;
-  if (isBusy()) { scheduleIdle(); return; }   // not truly idle yet — check again later
-  video.classList.add('poster-idle');          // slow ramp to 100%
-}
-
-/** Any interaction snaps the poster back and restarts the idle countdown. */
-function onActivity() {
-  if (video) video.classList.remove('poster-idle');
-  scheduleIdle();
-}
-
-if (video) {
-  // capture phase so we see every click/keypress, even ones that stopPropagation
-  document.addEventListener('pointerdown', onActivity, true);
-  document.addEventListener('keydown', onActivity, true);
-  scheduleIdle();
-}
-
-  };
-
-  __mods["intro"] = function (exports, require) {
-/**
- * @module intro
- * @description Full-screen intro splash. Plays assets/webm/Big_Bad_Wolf_intro.webm
- * over everything on load, then fades into the game. Dismisses when the clip
- * ends, on click (skip), on error, or if autoplay is blocked — so the player
- * can never get stuck on the splash. Muted, because browsers block autoplay
- * with sound before any user interaction.
- */
-
-const overlay = document.getElementById('intro-overlay');
-const video   = document.getElementById('intro-video');
-
-if (overlay && video) {
-  let dismissed = false;
-
-  function dismiss() {
-    if (dismissed) return;
-    dismissed = true;
-    overlay.classList.add('fade-out');     // CSS opacity transition
-    try { video.pause(); } catch (e) {}
-    setTimeout(() => {
-      overlay.classList.add('hidden');                       // remove after fade
-      window.dispatchEvent(new Event('intro:done'));         // cue the background hold + game reveal
-    }, 700);
-  }
-
-  video.addEventListener('ended', dismiss);
-  video.addEventListener('error', dismiss);
-  overlay.addEventListener('click', dismiss);              // click/tap to skip
-
-  // Backup: if 'ended' never fires, dismiss shortly after the clip's length.
-  video.addEventListener('loadedmetadata', () => {
-    if (isFinite(video.duration) && video.duration > 0) {
-      setTimeout(dismiss, video.duration * 1000 + 1500);
-    }
-  });
-
-  // Autoplay (muted). If the browser blocks it, skip the splash entirely.
-  const p = video.play();
-  if (p && typeof p.catch === 'function') p.catch(dismiss);
-
-  // Hard safety cap in case the video can't load at all.
-  setTimeout(dismiss, 20000);
-}
-
-  };
-
-  __mods["main"] = function (exports, require) {
-/**
- * @module main
- * @description Entry point. Importing the feature modules runs their setup
- * (each wires its own buttons), then init() renders the starting screen, wires
- * the volume/paytable/sound controls, and kicks off ambient effects + music.
- *
- * Module map:
- *   config      – the par sheet (symbols, reels, bonus, constants)
- *   mathcore    – pure game math (243-ways, bonus value)         ← also used by tools/sim.js
- *   utils/state – helpers + shared runtime state
- *   audio/narrator/particles – sound, voice, eye-candy
- *   engine/ui   – reel rendering & animation, readouts/status
- *   basegame/bonus/buybonus  – the actual gameplay
- *   simulation/mathpanel     – the 📊 SIM dashboard & 🧮 MATH panel
- */
-
-const { INITIAL_GRID, SYMBOLS } = require("config");
-const { state } = require("state");
-const { synth, bgm } = require("audio");
-const { narrator } = require("narrator");
-const { renderReel } = require("engine");
-const { startAmbientParticles } = require("particles");
-const { updateDisplays, setStatus } = require("ui");
-
-// Side-effect imports: these wire up their own controls on load.
-require("devmode");    // hide dev/admin tools on the public build (?dev=1 to show)
-require("intro");      // full-screen intro splash
-require("daynight");   // time-of-day background darkening
-require("reveal");     // post-intro: hold on the background, then fade the game in
-require("noon");       // hidden "High Noon" easter egg at exactly 12:00 PM
-require("options");    // right-side slide-out options drawer
-require("deposit");    // add-credit popup
-require("rtp");        // RTP / math-model picker popup
-require("gamesize");   // folder-size breakdown popup
-require("idleposter"); // idle "attract mode" — glows up the Wanted poster
-require("basegame");
-require("bonus");
-require("buybonus");
-require("simulation");
-require("mathpanel");
-
-/* ══════════════════════════════════════════
-   VOLUME / SOUND CONTROLS
-══════════════════════════════════════════ */
-function wireSoundControls() {
-  const btnSound     = document.getElementById('btn-sound');
-  const volumePanel  = document.getElementById('volume-panel');
-  const sliderSfx    = document.getElementById('slider-sfx');
-  const sliderMusic  = document.getElementById('slider-music');
-  const sliderNarr   = document.getElementById('slider-narrator');
-  const sfxPct       = document.getElementById('sfx-pct');
-  const musicPct     = document.getElementById('music-pct');
-  const narrPct      = document.getElementById('narrator-pct');
-  const iconOn       = document.getElementById('icon-sound-on');
-  const iconOff      = document.getElementById('icon-sound-off');
-
-  btnSound.addEventListener('click', e => { e.stopPropagation(); volumePanel.classList.toggle('hidden'); });
-  document.addEventListener('click', e => {
-    if (!volumePanel.classList.contains('hidden') && !volumePanel.contains(e.target) && !btnSound.contains(e.target)) {
-      volumePanel.classList.add('hidden');
-    }
-  });
-  volumePanel.addEventListener('click', e => e.stopPropagation());
-
-  sliderSfx.addEventListener('input', () => {
-    const v = parseInt(sliderSfx.value);
-    sfxPct.textContent = v + '%';
-    synth.setVolume(v / 100);
-    const off = v === 0;
-    iconOn.classList.toggle('hidden', off);
-    iconOff.classList.toggle('hidden', !off);
-    btnSound.classList.toggle('sound-on', !off);
-    synth.enabled = !off;
-  });
-
-  sliderMusic.addEventListener('input', () => {
-    const v = parseInt(sliderMusic.value);
-    musicPct.textContent = v + '%';
-    bgm.setVolume(v / 100);
-    if (v === 0) bgm.stop();
-    else if (!bgm.isPlaying()) bgm.start();
-  });
-
-  sliderNarr.addEventListener('input', () => {
-    const v = parseInt(sliderNarr.value);
-    narrPct.textContent = v + '%';
-    narrator.setVolume(v / 100);
-    if (v === 0) { narrator.enabled = false; narrator.stop(); }
-    else narrator.enabled = true;
-  });
-}
-
-/* ══════════════════════════════════════════
-   MUSIC AUTOSTART (browsers block audible autoplay until a gesture)
-══════════════════════════════════════════ */
-function wireMusicAutostart() {
-  function tryStart() {
-    if (state.musicAutoStarted) return;
-    bgm.start().then(started => {
-      if (started) {
-        state.musicAutoStarted = true;
-        document.removeEventListener('click', tryStart);
-        document.removeEventListener('keydown', tryStart);
-      }
-    });
-  }
-  tryStart();                                  // attempt immediately…
-  document.addEventListener('click', tryStart); // …fall back to first interaction
-  document.addEventListener('keydown', tryStart);
-}
-
-/* ══════════════════════════════════════════
-   PAYTABLE MODAL (pays auto-filled from the par sheet)
-══════════════════════════════════════════ */
-function wirePaytable() {
-  const btnInfo = document.getElementById('btn-info');
-  const modal   = document.getElementById('paytable-modal');
-  const btnClose = document.getElementById('btn-close-paytable');
-  if (btnInfo) btnInfo.addEventListener('click', () => modal.classList.remove('hidden'));
-  if (btnClose) btnClose.addEventListener('click', () => modal.classList.add('hidden'));
-  if (modal) modal.addEventListener('click', e => { if (e.target === modal) modal.classList.add('hidden'); });
-
-  // keep displayed pays in sync with SYMBOLS
-  const order = ['hat-yellow', 'hat-green', 'hat-red', 'pig-suit', 'pig-contractor', 'pig-nature', 'toolbox', 'wolf', 'buzzard'];
-  const items = document.querySelectorAll('#paytable-modal .pt-item:not(.pt-royals)');
-  order.forEach((id, i) => {
-    const el = items[i] && items[i].querySelector('.pt-pays');
-    const p = SYMBOLS[id] && SYMBOLS[id].pays;
-    if (el && p) el.innerHTML = `5&#9733; &times; ${p[5]} &nbsp;|&nbsp; 4&#9733; &times; ${p[4]} &nbsp;|&nbsp; 3&#9733; &times; ${p[3]}`;
-  });
-  const royalEl = document.querySelector('#paytable-modal .pt-royals .pt-pays');
-  if (royalEl) {
-    const hi = SYMBOLS['royal-a'].pays, lo = SYMBOLS['royal-10'].pays;
-    royalEl.innerHTML = `5&#9733; &times; ${lo[5]}–${hi[5]} &nbsp;|&nbsp; 4&#9733; &times; ${lo[4]}–${hi[4]} &nbsp;|&nbsp; 3&#9733; &times; ${lo[3]}–${hi[3]}`;
-  }
-}
-
-/* ══════════════════════════════════════════
-   INIT
-══════════════════════════════════════════ */
-function init() {
-  state.currentGrid = INITIAL_GRID.map(col => [...col]);
-  updateDisplays();
-  for (let r = 0; r < 5; r++) renderReel(r, state.currentGrid[r]);
-  setStatus('GOOD LUCK – PRESS SPIN!');
-
-  wireSoundControls();
-  wirePaytable();
-  wireMusicAutostart();
-
-  // close the big-win overlay on click
-  const bigWin = document.getElementById('big-win-overlay');
-  if (bigWin) bigWin.addEventListener('click', () => bigWin.classList.add('hidden'));
-
-  // nudge the looping side wolf to play (muted autoplay; harmless if blocked)
-  const sideWolf = document.getElementById('side-wolf');
-  if (sideWolf) sideWolf.play().catch(() => {});
-
-  startAmbientParticles();
-}
-
-// Module scripts run after the DOM is parsed, so it's safe to init now.
-init();
-
-  };
-
-  __mods["mathcore"] = function (exports, require) {
-/**
- * @module mathcore
- * @description The math of Huff N' More Puff — and nothing else.
- *
- * This module is intentionally PURE: no DOM, no audio, no animation. That means
- * the browser game AND the headless verifier (tools/sim.js) import the SAME
- * functions, so what you test is exactly what players get. If a number feels
- * wrong, it is decided here or in the par sheet (js/config.js) — nowhere else.
- *
- * Contents:
- *   generateGrid()            – draw a random 5×3 screen from the reel strips
- *   evaluateGrid()            – the 243-ways payout calculation
- *   countHats()               – how many scatter hats are showing
- *   shouldAnticipate()        – cosmetic "near win" slow-down hint
- *   rollHouseAward()          – value of one blown-down house in the bonus
- *   rollMansionAward()        – value of the mansion jackpot
- *   simulateBonusOutcome()    – headless play-through of a whole bonus
- */
-
-const {
-  SYMBOLS, SYMBOL_IDS, HAT_IDS, REEL_STRIPS, BONUS_CONFIG,
-  REEL_COUNT, ROWS_PER_REEL, MIN_WIN_SPAN, MAX_FRAME_TIER,
-} = require("config");
-
-/* ══════════════════════════════════════════
-   DRAWING A SCREEN
-══════════════════════════════════════════ */
-
-/**
- * Pick a random visible 5×3 grid from the reel strips.
- * For each reel we pick a random stop position and take the 3 symbols there
- * (wrapping around the end of the strip). grid[reel][row] = symbol id.
- * @returns {string[][]}
- */
-function generateGrid() {
-  return REEL_STRIPS.map(strip => {
-    const len = strip.length;
-    const start = Math.floor(Math.random() * len);
-    return [strip[start % len], strip[(start + 1) % len], strip[(start + 2) % len]];
-  });
-}
-
-/* ══════════════════════════════════════════
-   243-WAYS PAYOUT
-   ─────────────────────────────────────────
-   "Ways" (not paylines): a symbol pays when it lands on adjacent reels starting
-   from reel 1, in ANY rows. The number of "ways" is the product of how many
-   times the symbol shows on each of those reels.
-
-       payout = ways × pays[span] × bet
-
-   where `span` = how many consecutive reels (from reel 1) the symbol covers
-   (3, 4, or 5). With 3 rows per reel the theoretical max is 3×3×3×3×3 = 243 ways.
-══════════════════════════════════════════ */
-
-/**
- * @typedef {Object} WinResult
- * @property {string} symId
- * @property {number} span       consecutive reels matched (≥ MIN_WIN_SPAN)
- * @property {number} ways       number of ways this symbol hit
- * @property {number} winAmount  ways × pays[span] × bet
- * @property {Array<[number,number]>} cells  [reel,row] of each contributing cell
- */
-
-/**
- * Evaluate every winning symbol on a grid.
- * @param {string[][]} grid grid[reel][row] = symbol id
- * @param {number} bet
- * @returns {{ totalWin: number, winners: WinResult[] }}
- */
-function evaluateGrid(grid, bet) {
-  let totalWin = 0;
-  const winners = [];
-
-  for (const symId of SYMBOL_IDS) {
-    const sym = SYMBOLS[symId];
-
-    // how many times the symbol appears on each reel
-    const colCounts = grid.map(col => col.filter(s => s === symId).length);
-
-    // must be present on reel 1 to start a left-to-right win
-    if (colCounts[0] === 0) continue;
-
-    // extend the win across consecutive reels, multiplying the ways
-    let span = 1;
-    let ways = colCounts[0];
-    for (let r = 1; r < REEL_COUNT; r++) {
-      if (colCounts[r] === 0) break;
-      span++;
-      ways *= colCounts[r];
-    }
-
-    if (span < MIN_WIN_SPAN) continue;          // need 3+ in a row to pay
-    const payout = sym.pays[span];
-    if (!payout) continue;
-
-    const winAmount = ways * payout * bet;
-    totalWin += winAmount;
-
-    // record the contributing cells (for highlighting in the UI)
-    const cells = [];
-    for (let r = 0; r < span; r++) {
-      grid[r].forEach((s, row) => { if (s === symId) cells.push([r, row]); });
-    }
-    winners.push({ symId, span, ways, winAmount, cells });
-  }
-
-  return { totalWin, winners };
-}
-
-/* ══════════════════════════════════════════
-   SCATTER HATS (bonus trigger)
-══════════════════════════════════════════ */
-
-/**
- * Count the hard hats anywhere on the grid (they are the bonus scatter).
- * @returns {{ count: number, hatCells: Array<[number,number]> }}
- */
-function countHats(grid) {
-  let count = 0;
-  const hatCells = [];
-  for (let r = 0; r < REEL_COUNT; r++) {
-    for (let row = 0; row < ROWS_PER_REEL; row++) {
-      if (HAT_IDS.includes(grid[r][row])) { count++; hatCells.push([r, row]); }
-    }
-  }
-  return { count, hatCells };
-}
-
-/** Symbols that, when stacking across reels, trigger the anticipation slow-down. */
-const ANTICIPATION_SYMS = ['hat-yellow', 'pig-suit', 'pig-contractor'];
-
-/**
- * Cosmetic only: should later reels slow down for suspense? True when a big
- * symbol is building across the first reels, or a bonus is one hat away.
- */
-function shouldAnticipate(grid) {
-  for (const symId of ANTICIPATION_SYMS) {
-    let consecutive = 0;
-    for (let r = 0; r < REEL_COUNT; r++) {
-      if (grid[r].includes(symId)) consecutive++;
-      else break;
-    }
-    if (consecutive >= 3) return true;
-  }
-  return countHats(grid).count >= 4;
-}
-
-/* ══════════════════════════════════════════
-   BONUS AWARD MATH
-   All magnitudes come from BONUS_CONFIG (the par sheet); these helpers are the
-   ONE place the formulas live, shared by the live bonus and the simulators.
-══════════════════════════════════════════ */
-
-/**
- * Value of a single house when the wolf blows it down, in dollars.
- * tier 1 = straw, 2 = stick, 3 = brick. Tiers 2 & 3 have a small jackpot chance.
- * @returns {{ amount: number, isJackpot: boolean }}
- */
-function rollHouseAward(tier, bet) {
-  const t = BONUS_CONFIG.tiers[tier];
-  if (t.jackpotChance && Math.random() < t.jackpotChance) {
-    return { amount: bet * t.jackpotMult, isJackpot: true };
-  }
-  return { amount: bet * (t.min + Math.random() * (t.max - t.min)), isJackpot: false };
-}
-
-/** Value of the mansion jackpot for a given number of brick houses, in dollars. */
-function rollMansionAward(brickCount, bet) {
-  const m = BONUS_CONFIG.mansion;
-  return bet * (m.baseMult + Math.random() * (m.perBrickMult * brickCount));
-}
-
-/* ══════════════════════════════════════════
-   HEADLESS BONUS PLAY-THROUGH
-   Mirrors the live feature (js/bonus.js) but with no animation — just the money.
-   Used by the Monte-Carlo simulators. Keep in lock-step with js/bonus.js.
-══════════════════════════════════════════ */
-
-const round2 = n => Math.round(n * 100) / 100;
-
-/**
- * Play a whole bonus and return what it paid.
- * @param {number} bet
- * @param {string[][]} triggerGrid the 6+ hat screen that started it
- * @returns {{ bonusWin: number, freeSpins: number, mansions: number }}
- */
-function simulateBonusOutcome(bet, triggerGrid) {
-  const C = BONUS_CONFIG;
-  let freeSpins = C.freeSpins, bonusWin = 0, spinsPlayed = 0, mansions = 0;
-  const frames = Array.from({ length: REEL_COUNT }, () => Array(ROWS_PER_REEL).fill(0));
-
-  // trigger hats place the first straw frames
-  for (let r = 0; r < REEL_COUNT; r++)
-    for (let row = 0; row < ROWS_PER_REEL; row++)
-      if (HAT_IDS.includes(triggerGrid[r][row]))
-        frames[r][row] = Math.min(frames[r][row] + 1, MAX_FRAME_TIER);
-
-  while (freeSpins > 0) {
-    freeSpins--; spinsPlayed++;
-    const grid = generateGrid();
-    bonusWin += evaluateGrid(grid, bet).totalWin;       // free spins still pay lines
-
-    // each hat upgrades its cell's house: straw → stick → brick
-    let newHats = 0, newBricks = 0;
-    for (let r = 0; r < REEL_COUNT; r++)
-      for (let row = 0; row < ROWS_PER_REEL; row++)
-        if (HAT_IDS.includes(grid[r][row])) {
-          const old = frames[r][row];
-          frames[r][row] = Math.min(old + 1, MAX_FRAME_TIER);
-          newHats++;
-          if (old === MAX_FRAME_TIER - 1 && frames[r][row] === MAX_FRAME_TIER) newBricks++;
-        }
-
-    // mansion jackpot fires when a fresh brick lands and 3+ bricks are up
-    let bricks = 0;
-    for (let r = 0; r < REEL_COUNT; r++)
-      for (let row = 0; row < ROWS_PER_REEL; row++)
-        if (frames[r][row] === MAX_FRAME_TIER) bricks++;
-    if (bricks >= C.mansion.minBricks && newBricks > 0) {
-      bonusWin += round2(rollMansionAward(bricks, bet));
-      mansions++;
-    }
-
-    if (newHats >= C.retriggerHats) freeSpins += C.retriggerSpins;   // retrigger
-  }
-
-  // the wolf blows every built house down for its prize
-  for (let r = 0; r < REEL_COUNT; r++)
-    for (let row = 0; row < ROWS_PER_REEL; row++) {
-      const tier = frames[r][row];
-      if (tier) bonusWin += round2(rollHouseAward(tier, bet).amount);
-    }
-
-  return { bonusWin, freeSpins: spinsPlayed, mansions };
-}
-
-Object.assign(exports, { generateGrid, evaluateGrid, countHats, shouldAnticipate, rollHouseAward, rollMansionAward, simulateBonusOutcome });
-
-  };
-
-  __mods["mathpanel"] = function (exports, require) {
-/**
- * @module mathpanel
+ * @module math-breakdown
  * @description The 🧮 MATH pop-up: a plain-English breakdown of RTP (base vs
  * bonus), the bonus trigger rate, and the reel composition. Everything is
  * derived from the live constants and a quick run of the shared simulation
  * engine, so it always reflects the real par sheet.
  */
 
-const { SYMBOLS, HAT_IDS, REEL_STRIPS } = require("config");
-const { runSimulation } = require("simulation");
+const { SYMBOLS, HAT_IDS, REEL_STRIPS } = require("par-sheet");
+const { runSimulation } = require("simulator");
 
 const btnMath  = document.getElementById('btn-math');
 const modal    = document.getElementById('math-modal');
@@ -2343,239 +2504,9 @@ if (btnMath && modal) {
 
   };
 
-  __mods["narrator"] = function (exports, require) {
+  __mods["options-drawer"] = function (exports, require) {
 /**
- * @module narrator
- * @description The BIG BAD WOLF's play-by-play voice — a gruff cowboy wolf who
- * narrates every spin. Plays pre-rendered MP3s from assets/audio/narrator/ named
- * `<category>_<index>.mp3`. The script (what each clip says) lives in js/phrases.js
- * so the generator tool and the game share one source; here we only need the
- * category names and how many clips each has, to pick a valid random index.
- * Exports a single shared `narrator` instance.
- *
- * Game code calls the on*() event hooks (onSpin, onWin, onBonusTrigger, …); the
- * narrator decides whether/what to say, respecting a cooldown so it doesn't talk
- * over itself, and fills silence with idle chatter.
- */
-
-const { PHRASES } = require("phrases");
-
-class Narrator {
-  constructor() {
-    this.audio = new Audio();
-    this.audio.addEventListener('play',  () => { this._speaking = true; });
-    this.audio.addEventListener('ended', () => { this._speaking = false; });
-    this.audio.addEventListener('error', () => { this._speaking = false; });
-
-    this.enabled = true;
-    this._volume = 0.8;
-    this._lastSpoke = 0;
-    this._cooldownMs = 1500;    // short cooldown — talks constantly
-    this._speaking = false;
-    this._spinCount = 0;
-    this._lossStreak = 0;
-    this._winStreak = 0;
-    this._totalSpins = 0;
-    this._sessionWins = 0;
-    this._lastEvent = '';
-    this._lastPhraseIndex = -1;
-    this._excitement = 0;      // 0-10 excitement meter
-
-    // Phrase banks — one array per game event, loaded from the shared script in
-    // js/phrases.js. Each line maps to <category>_<index>.mp3 on disk.
-    this.phrases = PHRASES;
-
-    this._idleTimer = null;
-    this._resetIdleTimer();
-  }
-
-  setVolume(v) { this._volume = Math.max(0, Math.min(1, v)); this.audio.volume = this._volume; }
-
-  _playAudio(filename) {
-    if (!this.enabled || this._volume === 0) return;
-    this.audio.pause();
-    this.audio.src = `assets/audio/narrator/${filename}`;
-    this.audio.volume = this._volume;
-    this.audio.play().catch(() => {});   // play() can be interrupted; ignore
-    this._lastSpoke = Date.now();
-  }
-
-  /** Pick and play a random clip from a category, respecting the cooldown. */
-  say(category, forceCooldown = null, excitementBoost = 0) {
-    if (!this.enabled || this._volume === 0) return;
-    const cooldown = forceCooldown ?? this._cooldownMs;
-    if (Date.now() - this._lastSpoke < cooldown) return;
-
-    const pool = this.phrases[category];
-    if (!pool || !pool.length) return;
-
-    let index;
-    if (pool.length === 1) {
-      index = 0;
-    } else {
-      do { index = Math.floor(Math.random() * pool.length); }
-      while (index === this._lastPhraseIndex && pool.length > 1 && category === this._lastEvent);
-    }
-    this._lastPhraseIndex = index;
-    this._lastEvent = category;
-    this._playAudio(`${category}_${index}.mp3`);
-    this._resetIdleTimer();
-  }
-
-  sayNow(category, excitementBoost = 0) { this.say(category, 0, excitementBoost); }
-
-  _hype(d) { this._excitement = Math.max(0, Math.min(10, this._excitement + d)); }
-  _decayExcitement() { if (this._excitement > 0) this._excitement = Math.max(0, this._excitement - 0.5); }
-
-  /* ── game event hooks ── */
-  onSpin() {
-    this._totalSpins++;
-    this._spinCount++;
-    this._resetIdleTimer();
-    this._decayExcitement();
-    if (this._totalSpins === 1) { this._hype(2); this.sayNow('firstSpin', 2); return; }
-    if (Math.random() < 0.75) this.say('spin');
-  }
-
-  onWin(amount, bet) {
-    this._lossStreak = 0;
-    this._winStreak++;
-    this._sessionWins++;
-    const ratio = amount / bet;
-    if (ratio >= 8) {
-      this._hype(5);
-      this.sayNow('bigWin', 5);
-      setTimeout(() => { if (this.enabled) this.say('postWin', 2000, 3); }, 3500);
-    } else if (ratio >= 2) {
-      this._hype(3);
-      this.sayNow('mediumWin', 3);
-    } else {
-      this._hype(1);
-      this.say('smallWin', 800, 1);
-    }
-    if (this._winStreak >= 3) {
-      setTimeout(() => { if (this.enabled) this.say('winStreak', 1500, 2); }, 2500);
-    }
-  }
-
-  onLoss() {
-    this._winStreak = 0;
-    this._lossStreak++;
-    this._decayExcitement();
-    if (this._lossStreak >= 6) this.say('lossStreak', 1000);
-    else if (this._lossStreak >= 3 && Math.random() < 0.70) this.say('lossStreak');
-    else if (Math.random() < 0.60) this.say('loss');
-  }
-
-  onNearMiss() { this._hype(2); this.sayNow('nearMiss', 2); }
-  onBonusTrigger() { this._hype(8); this.sayNow('bonusTrigger', 6); }
-  onFreeSpin() { if (Math.random() < 0.60) this.say('freeSpin', 1000, 1); }
-  onFrameUpgrade(tier) {
-    if (tier === 3) { this._hype(5); this.sayNow('brickAchieved', 4); }
-    else { this._hype(1); if (Math.random() < 0.70) this.say('frameUpgrade', 1000, 1); }
-  }
-  onWolfReveal() { this._hype(6); this.sayNow('wolfReveal', 4); }
-  onWolfBlow(tier) {
-    const cats = ['', 'wolfStraw', 'wolfStick', 'wolfBrick'];
-    this._hype(tier * 2);
-    this.say(cats[tier], 800, tier * 2);
-  }
-  onMansionJackpot() { this._excitement = 10; this.sayNow('mansionJackpot', 8); }
-  onMiniJackpot() { this._hype(6); this.sayNow('miniJackpot', 5); }
-  onRetrigger() { this._hype(5); this.sayNow('retrigger', 4); }
-  onBonusComplete(totalWin) { this._hype(4); this.sayNow('bonusComplete', 3); }
-  onBetChange(direction) { this.say(direction === 'up' ? 'betUp' : 'betDown', 500, 1); }
-  onLowBalance() { this.say('lowBalance', 8000); }
-  onInsufficientFunds() { this.sayNow('noFunds', 0); }
-
-  _resetIdleTimer() {
-    if (this._idleTimer) clearTimeout(this._idleTimer);
-    this._idleTimer = setTimeout(() => {
-      if (this.enabled && this._volume > 0) { this.say('idle', 0); this._resetIdleTimer(); }
-    }, 8000 + Math.random() * 7000); // 8-15 seconds idle
-  }
-
-  stop() { this.audio.pause(); this.audio.currentTime = 0; this._speaking = false; }
-}
-
-const narrator = new Narrator();
-
-Object.assign(exports, { narrator });
-
-  };
-
-  __mods["noon"] = function (exports, require) {
-/**
- * @module noon
- * @description Hidden "High Noon" easter egg. At exactly 12:00 PM by the
- * browser's local clock, High_noon_standoff.webm takes over the full screen
- * (with its own audio; the background music ducks out and returns afterward).
- * Dismisses on end, on click (skip), on error, or via a safety timeout — and
- * fires at most once per day.
- */
-
-const { bgm } = require("audio");
-
-const overlay = document.getElementById('noon-overlay');
-const video   = document.getElementById('noon-video');
-
-let playing  = false;
-let firedKey = null;     // e.g. "Sat May 30 2026" — so noon only triggers once per day
-
-/** Take over the full screen with the standoff clip, then clean up. */
-function playNoonStandoff() {
-  if (!overlay || !video || playing) return;
-  playing = true;
-
-  bgm.pauseForCutscene();          // silence the game music under the clip's own audio
-
-  let done = false;
-  const finish = () => {
-    if (done) return;
-    done = true;
-    overlay.classList.add('fade-out');
-    try { video.pause(); } catch (e) {}
-    setTimeout(() => {
-      overlay.classList.add('hidden');
-      overlay.classList.remove('fade-out');
-      bgm.resumeFromCutscene();    // bring the music back
-      playing = false;
-    }, 600);
-  };
-
-  video.addEventListener('ended', finish, { once: true });
-  video.addEventListener('error', finish, { once: true });
-  overlay.addEventListener('click', finish, { once: true });
-
-  overlay.classList.remove('hidden');
-  try { video.currentTime = 0; } catch (e) {}
-  // Try with sound (the player has already interacted by mid-day); fall back to muted.
-  video.muted = false;
-  video.play().catch(() => {
-    video.muted = true;
-    video.play().catch(finish);
-  });
-
-  setTimeout(finish, 20000);       // hard safety cap (clip is ~10s)
-}
-
-/* ── Watch the real clock. Polling every 250ms reliably catches the 12:00:00
-   second and self-corrects (no drift); the per-day key prevents repeats. ── */
-if (overlay && video) {
-  setInterval(() => {
-    const now = new Date();
-    if (now.getHours() === 12 && now.getMinutes() === 0 && now.getSeconds() === 0) {
-      const key = now.toDateString();
-      if (firedKey !== key) { firedKey = key; playNoonStandoff(); }
-    }
-  }, 250);
-}
-
-  };
-
-  __mods["options"] = function (exports, require) {
-/**
- * @module options
+ * @module options-drawer
  * @description The right-side options drawer. Clicking the edge handle slides the
  * panel open/closed; clicking anywhere outside closes it. The buttons inside keep
  * their original IDs, so their behaviour is wired by their own modules — this
@@ -2604,716 +2535,12 @@ if (drawer && tab) {
 
   };
 
-  __mods["particles"] = function (exports, require) {
+  __mods["rtp-picker"] = function (exports, require) {
 /**
- * @module particles
- * @description Pure eye-candy: coins, sparkles, confetti, dollar bills, wind,
- * and the ambient gold dust. Every function builds DOM nodes with CSS-animation
- * classes (defined in styles.css) and removes them when the animation ends.
- */
-
-const { synth } = require("audio");
-const { fmt } = require("utils");
-
-const particleContainer = document.getElementById('particle-container');
-const ambientContainer  = document.getElementById('ambient-particles');
-const reelStrips = [0, 1, 2, 3, 4].map(i => document.getElementById(`strip-${i}`));
-
-/** Coins raining down from the top of the reel window. */
-function spawnCoinShower(count = 20, durationMs = 2000) {
-  if (!particleContainer) return;
-  for (let i = 0; i < count; i++) {
-    const coin = document.createElement('div');
-    coin.className = 'particle particle-coin';
-    coin.style.left = (Math.random() * 90 + 5) + '%';
-    coin.style.top = '-20px';
-    const scale = 0.6 + Math.random() * 0.8;
-    coin.style.width = (20 * scale) + 'px';
-    coin.style.height = (20 * scale) + 'px';
-    coin.style.animationDelay = (Math.random() * durationMs * 0.5) + 'ms';
-    coin.style.animationDuration = (1200 + Math.random() * 1200) + 'ms';
-    particleContainer.appendChild(coin);
-    setTimeout(() => { if (coin.parentNode) coin.remove(); }, durationMs + 2000);
-  }
-}
-
-/** Coins bursting upward from the bottom in physics arcs (with clink sounds). */
-function spawnCoinFountain(count = 15, durationMs = 2000) {
-  if (!particleContainer) return;
-  for (let i = 0; i < count; i++) {
-    const coin = document.createElement('div');
-    coin.className = 'particle particle-coin-fountain';
-    coin.style.left = ((0.3 + Math.random() * 0.4) * 100) + '%';   // center-biased
-    const scale = 0.7 + Math.random() * 0.6;
-    coin.style.width = (22 * scale) + 'px';
-    coin.style.height = (22 * scale) + 'px';
-    const driftDir = Math.random() > 0.5 ? 1 : -1;
-    const driftMag = 20 + Math.random() * 80;
-    coin.style.setProperty('--launch-y', -(200 + Math.random() * 200) + 'px');
-    coin.style.setProperty('--peak-y', -(300 + Math.random() * 200) + 'px');
-    coin.style.setProperty('--mid-y', -(100 + Math.random() * 150) + 'px');
-    coin.style.setProperty('--drift-x1', (driftDir * driftMag * 0.3) + 'px');
-    coin.style.setProperty('--drift-x2', (driftDir * driftMag * 0.6) + 'px');
-    coin.style.setProperty('--drift-x3', (driftDir * driftMag * 0.8) + 'px');
-    coin.style.setProperty('--drift-x4', (driftDir * driftMag) + 'px');
-    const delay = Math.random() * durationMs * 0.4;
-    coin.style.animationDelay = delay + 'ms';
-    coin.style.animationDuration = (1400 + Math.random() * 800) + 'ms';
-    particleContainer.appendChild(coin);
-    setTimeout(() => synth.coinClink(), delay + 100 + Math.random() * 200);
-    setTimeout(() => { if (coin.parentNode) coin.remove(); }, delay + 2500);
-  }
-}
-
-/** A radial sparkle burst centered at (x, y) within the particle container. */
-function spawnSparkles(x, y, count = 8) {
-  if (!particleContainer) return;
-  const colors = ['#FFE000', '#FFFFFF', '#FFB000', '#FF8800', '#88FF88'];
-  for (let i = 0; i < count; i++) {
-    const spark = document.createElement('div');
-    spark.className = 'particle particle-sparkle';
-    spark.style.left = x + 'px';
-    spark.style.top = y + 'px';
-    const angle = (Math.PI * 2 / count) * i + Math.random() * 0.5;
-    const dist = 20 + Math.random() * 40;
-    const dx = Math.cos(angle) * dist, dy = Math.sin(angle) * dist;
-    spark.style.setProperty('--dx', dx + 'px');
-    spark.style.setProperty('--dy', dy + 'px');
-    spark.style.setProperty('--dx2', dx * 1.5 + 'px');
-    spark.style.setProperty('--dy2', (dy * 1.5 + 20) + 'px');
-    spark.style.background = colors[Math.floor(Math.random() * colors.length)];
-    particleContainer.appendChild(spark);
-    setTimeout(() => { if (spark.parentNode) spark.remove(); }, 900);
-  }
-}
-
-/** Horizontal wind streaks inside a container (used for the wolf's huff). */
-function spawnWindParticles(containerEl, count = 12) {
-  for (let i = 0; i < count; i++) {
-    setTimeout(() => {
-      const wind = document.createElement('div');
-      wind.className = 'wind-particle';
-      wind.style.top = (Math.random() * 80 + 10) + '%';
-      wind.style.left = '-40px';
-      wind.style.width = (30 + Math.random() * 40) + 'px';
-      wind.style.animationDuration = (0.5 + Math.random() * 0.5) + 's';
-      containerEl.appendChild(wind);
-      setTimeout(() => { if (wind.parentNode) wind.remove(); }, 1200);
-    }, i * 100);
-  }
-}
-
-/** Dollar bills floating up from the bottom, swaying and spinning. */
-function spawnDollarBills(count = 10, durationMs = 2500) {
-  if (!particleContainer) return;
-  for (let i = 0; i < count; i++) {
-    const bill = document.createElement('div');
-    bill.className = 'particle-dollar';
-    bill.style.left = (10 + Math.random() * 80) + '%';
-    const scale = 0.7 + Math.random() * 0.6;
-    bill.style.width = (40 * scale) + 'px';
-    bill.style.height = (20 * scale) + 'px';
-    const dir = Math.random() > 0.5 ? 1 : -1;
-    bill.style.setProperty('--rise-y1', -(80 + Math.random() * 120) + 'px');
-    bill.style.setProperty('--rise-y2', -(200 + Math.random() * 150) + 'px');
-    bill.style.setProperty('--rise-y3', -(300 + Math.random() * 150) + 'px');
-    bill.style.setProperty('--rise-y4', -(400 + Math.random() * 150) + 'px');
-    bill.style.setProperty('--sway-x1', (dir * (10 + Math.random() * 30)) + 'px');
-    bill.style.setProperty('--sway-x2', (-dir * (15 + Math.random() * 40)) + 'px');
-    bill.style.setProperty('--sway-x3', (dir * (10 + Math.random() * 50)) + 'px');
-    bill.style.setProperty('--sway-x4', (-dir * (5 + Math.random() * 30)) + 'px');
-    bill.style.setProperty('--spin1', (dir * (10 + Math.random() * 20)) + 'deg');
-    bill.style.setProperty('--spin2', (-dir * (5 + Math.random() * 15)) + 'deg');
-    bill.style.setProperty('--spin3', (dir * (15 + Math.random() * 25)) + 'deg');
-    bill.style.setProperty('--spin4', (-dir * (10 + Math.random() * 20)) + 'deg');
-    const delay = Math.random() * durationMs * 0.5;
-    bill.style.animationDelay = delay + 'ms';
-    bill.style.animationDuration = (2000 + Math.random() * 1500) + 'ms';
-    particleContainer.appendChild(bill);
-    setTimeout(() => { if (bill.parentNode) bill.remove(); }, delay + 4000);
-  }
-}
-
-/** Confetti raining from the top. */
-function spawnConfetti(count = 30, durationMs = 2500) {
-  if (!particleContainer) return;
-  const colors = ['#F5C400', '#FF4060', '#2EE85A', '#4488FF', '#FF8800', '#FF44FF', '#FFFFFF', '#00DDFF'];
-  for (let i = 0; i < count; i++) {
-    const piece = document.createElement('div');
-    piece.className = 'particle-confetti';
-    piece.style.left = (5 + Math.random() * 90) + '%';
-    piece.style.setProperty('--conf-w', (4 + Math.random() * 8) + 'px');
-    piece.style.setProperty('--conf-h', (8 + Math.random() * 12) + 'px');
-    piece.style.setProperty('--conf-color', colors[Math.floor(Math.random() * colors.length)]);
-    piece.style.setProperty('--conf-drift', ((Math.random() - 0.5) * 100) + 'px');
-    const delay = Math.random() * durationMs * 0.4;
-    piece.style.animationDelay = delay + 'ms';
-    piece.style.animationDuration = (1800 + Math.random() * 1200) + 'ms';
-    particleContainer.appendChild(piece);
-    setTimeout(() => { if (piece.parentNode) piece.remove(); }, delay + 3500);
-  }
-}
-
-/** Golden starburst flashes behind winning cells. cells = [[reel,row], …]. */
-function spawnStarbursts(winnerCells) {
-  if (!particleContainer) return;
-  winnerCells.forEach(([reelIdx, rowIdx]) => {
-    const cell = reelStrips[reelIdx] && reelStrips[reelIdx].querySelectorAll('.sym-cell')[rowIdx];
-    if (!cell) return;
-    const rect = cell.getBoundingClientRect();
-    const cr = particleContainer.getBoundingClientRect();
-    const burst = document.createElement('div');
-    burst.className = 'particle-starburst';
-    burst.style.left = (rect.left + rect.width / 2 - cr.left - 40) + 'px';
-    burst.style.top = (rect.top + rect.height / 2 - cr.top - 40) + 'px';
-    particleContainer.appendChild(burst);
-    setTimeout(() => { if (burst.parentNode) burst.remove(); }, 1000);
-  });
-}
-
-/** Coins cascading down both side edges (big-win flourish). */
-function spawnSideWaterfall(countPerSide = 15, durationMs = 3000) {
-  if (!particleContainer) return;
-  for (let side = 0; side < 2; side++) {
-    for (let i = 0; i < countPerSide; i++) {
-      const coin = document.createElement('div');
-      coin.className = 'particle-side-coin';
-      if (side === 0) {
-        coin.style.left = (Math.random() * 30) + 'px';
-        coin.style.setProperty('--side-drift', (5 + Math.random() * 20) + 'px');
-      } else {
-        coin.style.right = (Math.random() * 30) + 'px';
-        coin.style.left = 'auto';
-        coin.style.setProperty('--side-drift', -(5 + Math.random() * 20) + 'px');
-      }
-      const scale = 0.6 + Math.random() * 0.8;
-      coin.style.width = (16 * scale) + 'px';
-      coin.style.height = (16 * scale) + 'px';
-      const delay = Math.random() * durationMs * 0.7;
-      coin.style.animationDelay = delay + 'ms';
-      coin.style.animationDuration = (800 + Math.random() * 1200) + 'ms';
-      particleContainer.appendChild(coin);
-      setTimeout(() => synth.coinClink(), delay + 50 + Math.random() * 150);
-      setTimeout(() => { if (coin.parentNode) coin.remove(); }, delay + 2500);
-    }
-  }
-}
-
-/** Flash a golden vignette inside the reel window. */
-function spawnWinVignette() {
-  const reelWindow = document.getElementById('reel-window');
-  if (!reelWindow) return;
-  const vig = document.createElement('div');
-  vig.className = 'win-vignette';
-  reelWindow.appendChild(vig);
-  setTimeout(() => { if (vig.parentNode) vig.remove(); }, 800);
-}
-
-/** Floating "+$X.XX" text that pops and fades. */
-function spawnWinPopText(amount) {
-  if (!particleContainer) return;
-  const pop = document.createElement('div');
-  pop.className = 'win-pop-text';
-  pop.textContent = '+' + fmt(amount);
-  pop.style.left = (35 + Math.random() * 30) + '%';
-  pop.style.top = (30 + Math.random() * 30) + '%';
-  particleContainer.appendChild(pop);
-  setTimeout(() => { if (pop.parentNode) pop.remove(); }, 1800);
-}
-
-/** Wind lines + swirls for the wolf's blow, scaled by house tier. */
-function spawnWolfWindBlast(wolfWindBlast, tier) {
-  if (!wolfWindBlast) return;
-  wolfWindBlast.innerHTML = '';
-  const lineCount = tier === 3 ? 12 : tier === 2 ? 8 : 5;
-  const swirlCount = tier === 3 ? 8 : tier === 2 ? 5 : 3;
-  for (let i = 0; i < lineCount; i++) {
-    const line = document.createElement('div');
-    line.className = 'wind-blast-line';
-    line.style.top = (30 + Math.random() * 40) + '%';
-    line.style.height = (2 + Math.random() * 3) + 'px';
-    line.style.animationDelay = (i * 0.04) + 's';
-    line.style.animationDuration = (0.4 + Math.random() * 0.3) + 's';
-    line.style.opacity = (0.4 + Math.random() * 0.6);
-    wolfWindBlast.appendChild(line);
-    setTimeout(() => { if (line.parentNode) line.remove(); }, 1200);
-  }
-  for (let i = 0; i < swirlCount; i++) {
-    const swirl = document.createElement('div');
-    swirl.className = 'wind-swirl';
-    swirl.style.top = (25 + Math.random() * 50) + '%';
-    swirl.style.left = '0';
-    swirl.style.animationDelay = (i * 0.06 + 0.1) + 's';
-    swirl.style.width = (4 + Math.random() * 6) + 'px';
-    swirl.style.height = swirl.style.width;
-    wolfWindBlast.appendChild(swirl);
-    setTimeout(() => { if (swirl.parentNode) swirl.remove(); }, 1500);
-  }
-}
-
-/** Continuous background gold-dust motes. Call once at startup. */
-function startAmbientParticles() {
-  if (!ambientContainer) return;
-  const types = ['gold', 'gold', 'gold', 'green', 'white'];
-  function spawnMote() {
-    const mote = document.createElement('div');
-    mote.className = `ambient-mote ${types[Math.floor(Math.random() * types.length)]}`;
-    const size = 2 + Math.random() * 4;
-    mote.style.width = size + 'px';
-    mote.style.height = size + 'px';
-    mote.style.left = (Math.random() > 0.3 ? 25 + Math.random() * 50 : Math.random() * 100) + '%';
-    mote.style.bottom = '-10px';
-    mote.style.setProperty('--mote-dx', ((Math.random() - 0.5) * 80) + 'px');
-    mote.style.setProperty('--mote-dy', -(150 + Math.random() * 300) + 'px');
-    const duration = 4000 + Math.random() * 6000;
-    mote.style.animation = `mote-float ${duration}ms ease-out forwards`;
-    ambientContainer.appendChild(mote);
-    setTimeout(() => { if (mote.parentNode) mote.remove(); }, duration + 100);
-  }
-  (function scheduleNext() {
-    setTimeout(() => { spawnMote(); scheduleNext(); }, 400 + Math.random() * 400);
-  })();
-  for (let i = 0; i < 5; i++) setTimeout(spawnMote, i * 200);
-}
-
-/** 
- * Centralized win presentation logic to DRY up the game loop.
- * Plays the appropriate particles and coin clinks based on the win ratio.
- */
-function playWinPresentation(ratio, isMega = false) {
-  if (isMega) {
-    spawnCoinShower(60, 3500);
-    spawnCoinFountain(40, 3500);
-    spawnDollarBills(20, 3500);
-    spawnConfetti(50, 3500);
-    spawnSideWaterfall(25, 3500);
-    setTimeout(() => {
-      spawnCoinFountain(20, 2000); 
-      spawnDollarBills(10, 2000); 
-      spawnConfetti(25, 2000);
-      spawnWinVignette();
-    }, 1500);
-    for (let i = 0; i < 5; i++) setTimeout(() => synth.coinClink(), 200 + i * 150);
-  } else if (ratio >= 8) {
-    spawnCoinShower(40, 2500);
-    spawnCoinFountain(25, 2500);
-    spawnDollarBills(12, 2500);
-    spawnConfetti(30, 2500);
-    spawnSideWaterfall(15, 2500);
-    for (let i = 0; i < 5; i++) setTimeout(() => synth.coinClink(), 200 + i * 150);
-  } else if (ratio >= 3) {
-    spawnCoinShower(15, 1500); 
-    spawnCoinFountain(20, 1800); 
-    spawnDollarBills(6, 1800); 
-    spawnConfetti(15, 1800);
-    for (let i = 0; i < 3; i++) setTimeout(() => synth.coinClink(), 100 + i * 120);
-  } else if (ratio >= 2) {
-    spawnCoinShower(15, 1500); 
-    spawnCoinFountain(20, 1800); 
-    spawnDollarBills(6, 1800); 
-    spawnConfetti(15, 1800);
-    for (let i = 0; i < 3; i++) setTimeout(() => synth.coinClink(), 100 + i * 120);
-  } else if (ratio > 0) {
-    spawnCoinFountain(12, 1500); 
-    spawnDollarBills(3, 1500);
-  }
-}
-
-Object.assign(exports, { spawnCoinShower, spawnCoinFountain, spawnSparkles, spawnWindParticles, spawnDollarBills, spawnConfetti, spawnStarbursts, spawnSideWaterfall, spawnWinVignette, spawnWinPopText, spawnWolfWindBlast, startAmbientParticles, playWinPresentation });
-
-  };
-
-  __mods["phrases"] = function (exports, require) {
-/**
- * @module phrases
- * @description Every line the narrator can say, in the voice of the BIG BAD WOLF —
- * a gruff cowboy wolf straight out of the Three Little Pigs. Grouped by game event.
- *
- * This is the SINGLE source of truth for the narrator script. It's imported by:
- *   • js/narrator.js   – picks a random line per event and plays the matching MP3
- *   • tools/voice.js   – generates the MP3s from ElevenLabs (one file per line)
- *
- * Files live at  assets/audio/narrator/<category>_<index>.mp3  where <index> is the
- * line's position in its array. So the array order here defines which file is which —
- * if you re-order or change counts, re-run `node tools/voice.js all <voiceId>`.
- */
-
-const PHRASES = {
-  spin: [
-    "Alright partner, let's give them reels a spin!",
-    "Heeere we go now — round and round she goes!",
-    "Spin 'em up, and let's see what the wind blows in!",
-    "Ooo-wee! Let's rattle them reels, partner!",
-    "Come on now, daddy needs a new pair o' boots!",
-    "Awooo! Let 'er rip!",
-    "Let's huff up a storm and spin this thing!",
-    "Round the reels go — where they stop, heh, only I know!",
-    "Crank 'er up, partner — I got a hankerin' for a win!",
-    "Spinnin' faster'n a tumbleweed in a twister!",
-    "Let's see if them pigs left us anything good!",
-    "Hold onto your hat — here she spins!",
-    "I feel a lucky wind a-blowin', partner!",
-    "Saddle up! These reels are about to ride!",
-    "One good huff oughta get these reels movin'!",
-    "Come on, sugar — show ol' Wolf somethin' sweet!",
-    "Reels a-turnin', and my belly's a-rumblin'!",
-    "Yeehaw! Down the trail we go!",
-    "Spin it like you mean it, partner!",
-    "Let's blow the doors off this one!",
-    "Here comes the big bad spin, little piggies!",
-    "My whiskers are twitchin' — that means money!",
-    "Let's kick up some dust on these here reels!",
-    "Come on now, line 'em up like ducks in a row!",
-    "Easy does it... and... SPIN!",
-    "Wind's at our back, partner — let 'er fly!",
-    "Give 'er a whirl! Fortune favors the hungry!",
-    "Round we go — I can almost taste them winnins!",
-  ],
-  smallWin: [
-    "Well lookie there — a lil' nibble!",
-    "Heh, ain't much, but a wolf don't turn down a snack!",
-    "A few coins for the den! I'll take it!",
-    "That there's an appetizer, partner!",
-    "Small bite, but tasty all the same!",
-    "Cha-ching — that's some kibble money!",
-    "Not a feast, but it'll hold me over!",
-    "A lil' somethin' for the chinny-chin-chin!",
-    "Coins in the coat, partner — every bit counts!",
-    "Heh heh, them pigs dropped a few on the way out!",
-    "A modest haul, but ol' Wolf is patient!",
-    "That'll buy me a new neckerchief at least!",
-    "Small win, big appetite — keep 'em comin'!",
-    "Pocket change, but my pockets run deep!",
-    "A nibble here, a nibble there — adds up, partner!",
-    "Yeehaw, a little drizzle 'fore the storm!",
-    "I've et smaller, partner — we'll take it!",
-    "Couple coins jingle-jangle — music to my ears!",
-  ],
-  mediumWin: [
-    "Now we're cookin' with bacon grease!",
-    "Ooo-wee! That's a proper meal right there!",
-    "Heh heh HEH! The pigs are payin' up!",
-    "Now THAT'S a haul worth howlin' about! Awooo!",
-    "Look at them coins runnin' like scared piggies!",
-    "That's the good stuff, partner — sink yer teeth in!",
-    "A solid bite outta this here game!",
-    "Yeehaw! The wind's blowin' our way!",
-    "That'll fill the den AND the belly!",
-    "Mighty fine payout, partner — mighty fine!",
-    "Them reels finally came to their senses!",
-    "Oh, I'm lickin' my chops over this one!",
-    "Now we're talkin' real wolf money!",
-    "That's a wagon-load of coins, partner!",
-    "Huff, puff, and PAYDAY! Beautiful!",
-    "The pigs are squealin' and I'm grinnin'!",
-    "A fine cut of winnins, served up hot!",
-    "Ringin' the dinner bell on that one!",
-  ],
-  bigWin: [
-    "AWOOOOO! Now THAT is a feast, partner!",
-    "WELL SLAP MY TAIL AND CALL ME LUCKY!",
-    "HOO-WEE! The whole dang henhouse just paid out!",
-    "I HUFFED, I PUFFED, AND I BLEW THE BANK WIDE OPEN!",
-    "GREAT GALLOPIN' GOLD! LOOK AT THEM COINS!",
-    "NOT BY THE HAIR — THIS HERE'S A MONSTER, PARTNER!",
-    "YEEEEHAW! BIGGEST HAUL THIS SIDE O' THE FOREST!",
-    "THEM PIGS DONE LEFT THE WHOLE TREASURE BEHIND!",
-    "I'M HOWLIN' AT THE MOON OVER THIS ONE! AWOOO!",
-    "STAMPEDE OF COINS, PARTNER — GET OUTTA THE WAY!",
-    "MY CHINNY-CHIN-CHIN IS TREMBLIN' WITH JOY!",
-    "BLOW ME DOWN — THAT'S A FORTUNE!",
-    "HOT DIGGITY WOLF, WE STRUCK IT RICH!",
-    "RING THE DINNER BELL — IT'S A BANQUET!",
-    "I AIN'T NEVER SEEN SO MANY COINS IN ALL MY DAYS!",
-    "THE BIG BAD WOLF HITS THE BIG BAD JACKPOT!",
-    "GRAB A BUCKET, PARTNER — IT'S RAININ' GOLD!",
-    "MY WHISKERS 'BOUT FELL OFF — WHAT A WIN!",
-    "WOOOO! TELL THE WHOLE FOREST WE DONE IT!",
-    "THIS HERE'S A WIN FER THE STORYBOOKS!",
-  ],
-  loss: [
-    "Aw, shucks — empty as a pig pen at suppertime.",
-    "Nothin' but tumbleweeds on that one, partner.",
-    "Hmph. Them pigs got away clean that round.",
-    "Dry as the desert. Shake it off, partner.",
-    "No bacon this time. We huff again!",
-    "Ah well — even a wolf misses a meal now and then.",
-    "The wind died down on that one. Reload them lungs!",
-    "Nothin' in the henhouse. Onward!",
-    "Them reels are playin' coy. I like a challenge.",
-    "Missed 'em by a whisker. We'll get 'em next time.",
-    "No coins, no problem — a wolf is patient.",
-    "That house didn't budge. Bigger huff next round!",
-    "Empty-pawed, but not for long, partner.",
-    "Heh, them pigs think they're safe. Cute.",
-    "Dust in the wind. Let's spin her again.",
-    "A swing and a miss. Sharpen them claws!",
-    "Not a crumb that time. My belly grumbles on.",
-    "Quiet round. Calm 'fore the big bad storm.",
-  ],
-  lossStreak: [
-    "Come on now — them pigs can't hide forever!",
-    "Dang it all, this dry spell's testin' my patience!",
-    "A wolf's gotta eat! Throw me a bone here!",
-    "Been a long, dusty trail without a meal...",
-    "I've huffed till I'm blue — somethin's gotta give!",
-    "Them three pigs are gettin' cocky. Won't last!",
-    "Every drought ends in a downpour, partner. Hold fast!",
-    "I can smell a big win comin' over the ridge!",
-    "These reels OWE me — and a wolf always collects!",
-    "Lean times, partner — but the wolf endures!",
-    "I've gone hungrier'n this and still ate good!",
-    "The bricks are holdin' for now. Keep huffin'!",
-    "Patience, partner. Even the moon takes its time.",
-    "My luck's 'bout to turn like the prairie wind!",
-    "Storm's been brewin' — any spin now she breaks!",
-    "Keep the faith — the big bad payday's comin'!",
-  ],
-  nearMiss: [
-    "Ooo! Nearly had them pigs by the tail!",
-    "One whisker away! ONE! Dadgummit!",
-    "So close I could smell the bacon fryin'!",
-    "Argh — that house near 'bout came down!",
-    "Them pigs slipped out the back door, partner!",
-    "A hair! Not by the hair of my chinny-chin-chin!",
-    "Teasin' me, are ya? Them reels are cruel!",
-    "I had 'em cornered and they wriggled free!",
-    "Almost blew it down! One more gust!",
-    "My chops were waterin' — and POOF, gone!",
-    "Right there! It was RIGHT there, partner!",
-    "Close enough to feel the wind change!",
-  ],
-  bonusTrigger: [
-    "AWOOO! Them hard hats opened the gate — FREE SPINS!",
-    "WELL BUST MY BRITCHES — IT'S THE BONUS, PARTNER!",
-    "THE PIGS ARE BUILDIN' AND WE'RE COMIN' FOR 'EM!",
-    "SIX HATS! TIME TO HUFF AND PUFF FER REAL!",
-    "BONUS ROUND, PARTNER — THE HUNT IS ON!",
-    "YEEHAW! THE BIG BAD BONUS DONE TRIGGERED!",
-    "RING THE BELL — FREE SPINS AT THE PIG FARM!",
-    "I BEEN WAITIN' ALL DAY FER THIS — BONUS TIME!",
-    "GRAB YER HAT — WE'RE GOIN' HOUSE TO HOUSE!",
-    "THE WHOLE FOREST HEARD THAT ONE! BONUS, BABY!",
-    "HOO-WEE! Now the real huffin' begins!",
-  ],
-  freeSpin: [
-    "Another free one — build them houses, piggies!",
-    "Free spin a-comin' — more straw to blow down!",
-    "On the house, partner — just how I like it!",
-    "Stack them frames up — I'll huff 'em all down!",
-    "Come on, hard hats — show yer faces!",
-    "Free spin! Let's fatten up that prize!",
-    "More bricks, more loot — keep 'em comin'!",
-    "Round on the house — yeehaw!",
-    "Let's see them pigs work fer MY supper!",
-    "Another crack at the henhouse — free!",
-    "Spin's on me, partner — well, on the pigs!",
-  ],
-  frameUpgrade: [
-    "A hat! That house just got a sight bigger!",
-    "Buildin' up, partner — more to blow down later!",
-    "Ooo, them walls are risin'! Good, GOOD!",
-    "Upgrade! The bigger they are, the harder I huff!",
-    "Another hat on the pile — keep stackin'!",
-    "Them pigs are workin' hard fer my benefit!",
-    "Walls goin' up means winnins goin' up!",
-  ],
-  brickAchieved: [
-    "A BRICK HOUSE! Oh, that's the GOOD eatin' right there!",
-    "FULL BRICK, partner — top dollar inside!",
-    "Them pigs built it solid — and I built it RICH!",
-    "Brick by brick, that's a fortune waitin'!",
-    "Solid as a mountain — and twice as valuable!",
-    "Now THAT house has somethin' worth blowin' fer!",
-  ],
-  wolfReveal: [
-    "Step aside — the BIG BAD WOLF is here!",
-    "Heh heh... I'll huff, and I'll puff, partner!",
-    "Time to do what a wolf does best!",
-    "Knock knock, little pigs — guess who?",
-    "The wind's got teeth now, partner!",
-    "Here comes the huffin', here comes the puffin'!",
-    "Awooo! Let me at them houses!",
-  ],
-  wolfStraw: [
-    "HUFF! And the straw goes flyin'! Easy pickins!",
-    "One puff and that straw house is GONE!",
-    "Ha! Straw don't stand a chance against me!",
-    "Down she goes — straw all over the prairie!",
-    "Barely a breath and POOF — straw's history!",
-  ],
-  wolfStick: [
-    "PUFF! Them sticks are scatterin' ever' which way!",
-    "A bigger blow and TIMBER — sticks down!",
-    "Heh, had to put a little muscle in that one!",
-    "Stick house crumbles like a dry biscuit!",
-    "Whoosh! Kindlin' fer my campfire now!",
-  ],
-  wolfBrick: [
-    "HUFF AND PUFF — I'm givin' her all I got!",
-    "Them bricks are stubborn... but the PRIZE inside, ooo-wee!",
-    "Not by the hair of my chinny-chin-chin — but LOOK at that payout!",
-    "The brick house stands... and pays a wolf's ransom!",
-    "Couldn't blow it down, but I'll take the treasure!",
-    "Solid bricks, solid GOLD, partner!",
-  ],
-  mansionJackpot: [
-    "MANSION JACKPOT! WELL I'LL BE A HORNSWOGGLED WOLF!",
-    "THREE MANSIONS! THE WHOLE PIG EMPIRE IS OURS!",
-    "JACKPOT! JACKPOT! AWOOOO! THE BIG ONE, PARTNER!",
-    "I COULDN'T BLOW 'EM DOWN, SO I'M CASHIN' 'EM IN!",
-    "THE GRANDEST HAUL IN ALL THE FOREST! YEEHAW!",
-  ],
-  miniJackpot: [
-    "JACKPOT, partner! Treasure in the chimney!",
-    "Well lookie — a pot o' gold in that house!",
-    "Mini jackpot! Them pigs were hidin' loot!",
-    "Found the stash, partner! Heh heh heh!",
-  ],
-  retrigger: [
-    "MORE free spins?! Don't mind if I DO!",
-    "Retrigger! The hunt keeps on goin'!",
-    "Three more hats — extra spins on the house!",
-    "Awooo! We ain't done feastin' yet!",
-    "The bonus keeps givin' like a generous pig!",
-  ],
-  bonusComplete: [
-    "And that's a wrap, partner — fine huntin' today!",
-    "Bonus done — the pigs live to build another day!",
-    "Belly's full, den's richer — what a round!",
-    "We blew through them houses good, partner!",
-    "Last puff's been puffed — let's count the loot!",
-  ],
-  idle: [
-    "Reels are quiet... too quiet fer my likin', partner.",
-    "I can smell them three little pigs from here...",
-    "Go on, give 'er a spin — the wolf gets restless!",
-    "Just me, the moon, and a hankerin' fer bacon.",
-    "Press that button, partner — daylight's burnin'!",
-    "I hear them pigs hammerin' away... let 'em build.",
-    "A wolf waits... but not too patient-like, ya hear?",
-    "Tumbleweed just rolled by. That's your cue, partner.",
-    "The henhouse ain't gonna raid itself, ya know.",
-    "I been sharpenin' my huffin' fer the next round.",
-    "Quiet as a church mouse out here — spin somethin'!",
-    "My whiskers are gettin' dusty. Let's ride!",
-    "Them reels are just sittin' there, tauntin' me.",
-    "Story goes the wolf always gets his supper. Eventually.",
-    "Take yer time, partner. The pigs sure are.",
-    "I could go fer a spin... and a snack.",
-    "Wind's pickin' up. Perfect weather fer huffin'.",
-    "Fortune favors the hungry — and I'm STARVIN'.",
-    "Out here narratin' to the cactus again, I see.",
-    "Even the moon's waitin' on ya, partner.",
-    "A good wolf knows patience. A great one knows when to POUNCE.",
-    "Reckon them pigs think they're safe. Reckon they're wrong.",
-    "Spin the reels 'fore I start chewin' the furniture!",
-    "Long as there's pigs to chase, ol' Wolf's stickin' around.",
-  ],
-  firstSpin: [
-    "Well howdy, partner — welcome to BIG BAD WOLF! Let's hunt!",
-    "Saddle up! First spin of the day — make it a good 'un!",
-    "The wolf is hungry and the pigs are nervous — here we GO!",
-    "Welcome to my neck o' the woods, partner! First spin's a-comin'!",
-  ],
-  lowBalance: [
-    "Careful now, partner — the purse is gettin' light.",
-    "We're runnin' lean, like a wolf in winter...",
-    "Balance is thin as straw. Need a big huff soon!",
-    "Pockets near empty, partner — time fer a comeback!",
-    "Low on coin, but a wolf's luck can turn quick!",
-  ],
-  betUp: [
-    "Raisin' the stakes! I LIKE yer appetite, partner!",
-    "Bigger bet, bigger bacon! Now yer talkin'!",
-    "Ooo-wee, goin' for the whole hog, are ya?",
-    "More on the line — that's the wolf spirit!",
-  ],
-  betDown: [
-    "Easin' off a touch — smart, partner, smart.",
-    "Playin' it cagey. A wise wolf does the same.",
-    "Smaller bet, longer hunt. I respect it.",
-    "Dialin' it back to live and huff another day.",
-  ],
-  postWin: [
-    "Look at them coins pile up — purty as a sunset!",
-    "Keep 'em comin', partner — fill the den!",
-    "That counter's climbin' like a cat up a tree!",
-    "Sweetest sound there is — coins and squealin' pigs!",
-    "I could watch this all dang day, partner!",
-    "The loot just keeps a-rollin' in! Yeehaw!",
-    "My belly AND my coin purse are happy now!",
-    "That's a payout worth howlin' over! Awooo!",
-  ],
-  winStreak: [
-    "Another'n?! We're on a TEAR, partner!",
-    "Back to back — this machine's runnin' scared!",
-    "Hotter'n a brandin' iron! Keep it up!",
-    "The pigs can't build fast enough fer us!",
-    "Win after win — the wolf is on the PROWL!",
-    "Don't nobody touch nothin' — we're blazin'!",
-    "Three in a row! I'm howlin' at the moon!",
-    "This here's a winnin' streak fer the ages!",
-    "Stampede o' luck, partner — ride it!",
-  ],
-  noFunds: [
-    "Aw, partner — the purse is plumb empty.",
-    "Den's bare and the pockets are dry. Reload to ride!",
-    "That's all she wrote — outta coin, partner.",
-    "Even a big bad wolf runs outta supper sometime.",
-    "Empty-handed, but full of stories! Refill to hunt again!",
-  ],
-};
-
-Object.assign(exports, { PHRASES });
-
-  };
-
-  __mods["reveal"] = function (exports, require) {
-/**
- * @module reveal
- * @description Post-intro reveal sequence. The game loads hidden (body.pre-reveal)
- * with the background video shown clean and undimmed. After the intro splash
- * finishes we linger on that background for a beat, then fade the whole game —
- * cabinet/reels/character, the side panel, the ambient dust, and the day-night
- * darkening — in together.
- *
- * Order matters: this module imports AFTER daynight in main.js, so it can park
- * the day-night overlay at 0 (overriding daynight's initial value) for the hold.
- */
-
-const { revealDayNight } = require("daynight");
-
-const overlay = document.getElementById('day-night-overlay');
-const HOLD_MS = 500;    // how long to linger on the clean background after the intro
-let revealed = false;
-
-// Start hidden, with the background full & undimmed (daynight already set the
-// overlay opacity on load — override it to 0 so the hold looks clean).
-document.body.classList.add('pre-reveal');
-if (overlay) overlay.style.opacity = '0';
-
-function reveal() {
-  if (revealed) return;
-  revealed = true;
-  document.body.classList.remove('pre-reveal');   // fade the game in (CSS 1.1s)
-  revealDayNight();                                // fade the darkening back in
-}
-
-// When the intro signals it's done, hold on the background, then reveal.
-window.addEventListener('intro:done', () => setTimeout(reveal, HOLD_MS), { once: true });
-
-// Safety net: reveal anyway if the intro never signals (missing/blocked splash).
-setTimeout(reveal, 23000);
-
-  };
-
-  __mods["rtp"] = function (exports, require) {
-/**
- * @module rtp
+ * @module rtp-picker
  * @description The RTP picker — a popup (opened from the options drawer) that
  * lets the player choose which math model the game runs. The list of choices is
- * rendered straight from RTP_MODELS in config.js, so adding a model there makes
+ * rendered straight from RTP_MODELS in par-sheet.js, so adding a model there makes
  * a new card appear here automatically; no UI edits needed.
  *
  * Selecting a card calls applyRtpModel(), which records the choice in shared
@@ -3322,9 +2549,9 @@ setTimeout(reveal, 23000);
  * swap the active reel strips / bonus tables.
  */
 
-const { RTP_MODELS } = require("config");
+const { RTP_MODELS } = require("par-sheet");
 const { state } = require("state");
-const { synth } = require("audio");
+const { synth } = require("sound");
 
 const btnRtp   = document.getElementById('btn-rtp');
 const modal    = document.getElementById('rtp-modal');
@@ -3390,15 +2617,15 @@ Object.assign(exports, { applyRtpModel });
 
   };
 
-  __mods["simulation"] = function (exports, require) {
+  __mods["simulator"] = function (exports, require) {
 /**
- * @module simulation
+ * @module simulator
  * @description The 📊 SIM dashboard: a chunked Monte-Carlo run over the real
  * game math (from mathcore) plus zero-dependency Canvas 2D charts. Exports
  * `runSimulation` so the MATH panel can reuse the exact same engine.
  */
 
-const { SYMBOLS, HAT_IDS, BONUS_CONFIG } = require("config");
+const { SYMBOLS, HAT_IDS, BONUS_CONFIG } = require("par-sheet");
 const { generateGrid, evaluateGrid, simulateBonusOutcome } = require("mathcore");
 
 const btnSim        = document.getElementById('btn-simulate');
@@ -3869,11 +3096,11 @@ Object.assign(exports, { runSimulation });
 
   };
 
-  __mods["sizedata"] = function (exports, require) {
+  __mods["size-manifest"] = function (exports, require) {
 /* AUTO-GENERATED by tools/build.js — folder-size snapshot. Do not edit. */
 
 const SIZE_MANIFEST = {
-  "totalBytes": 53334163,
+  "totalBytes": 53348370,
   "fileCount": 358,
   "generatedAt": "2026-05-30",
   "categories": [
@@ -3893,13 +3120,13 @@ const SIZE_MANIFEST = {
       "key": "image",
       "label": "Images",
       "bytes": 11077711,
-      "files": 11
+      "files": 10
     },
     {
       "key": "code",
       "label": "Code",
-      "bytes": 569584,
-      "files": 37
+      "bytes": 583791,
+      "files": 38
     },
     {
       "key": "other",
@@ -3914,45 +3141,335 @@ Object.assign(exports, { SIZE_MANIFEST });
 
   };
 
-  __mods["state"] = function (exports, require) {
+  __mods["particles"] = function (exports, require) {
 /**
- * @module state
- * @description Shared, mutable runtime state for the base game.
- *
- * ES module imports are read-only *bindings*, so modules can't reassign each
- * other's `let` variables. Instead we export one plain object and everyone reads
- * and writes its properties — that mutation is visible everywhere. Bonus-only
- * state lives privately inside bonus.js; this is just the cross-module stuff.
+ * @module particles
+ * @description Pure eye-candy: coins, sparkles, confetti, dollar bills, wind,
+ * and the ambient gold dust. Every function builds DOM nodes with CSS-animation
+ * classes (defined in styles.css) and removes them when the animation ends.
  */
 
-const { DEFAULT_BALANCE, DEFAULT_BET_INDEX, DEFAULT_RTP_MODEL } = require("config");
+const { synth } = require("sound");
+const { fmt } = require("utils");
 
-const state = {
-  balance: DEFAULT_BALANCE,   // player's cash
-  betIndex: DEFAULT_BET_INDEX, // index into BET_LEVELS
-  spinning: false,            // a base-game spin is animating
-  turbo: false,               // turbo (fast spin) toggle
-  autoActive: false,          // auto-spin is on
-  autoTimer: null,            // setTimeout handle for auto-spin
-  currentGrid: null,          // the symbols currently shown (for spin scroll buffer)
-  musicAutoStarted: false,    // background music has been kicked off
-  rtpModelId: DEFAULT_RTP_MODEL, // selected RTP math model (see RTP_MODELS in config.js)
-};
+const particleContainer = document.getElementById('particle-container');
+const ambientContainer  = document.getElementById('ambient-particles');
+const reelStrips = [0, 1, 2, 3, 4].map(i => document.getElementById(`strip-${i}`));
 
-Object.assign(exports, { state });
+/** Coins raining down from the top of the reel window. */
+function spawnCoinShower(count = 20, durationMs = 2000) {
+  if (!particleContainer) return;
+  for (let i = 0; i < count; i++) {
+    const coin = document.createElement('div');
+    coin.className = 'particle particle-coin';
+    coin.style.left = (Math.random() * 90 + 5) + '%';
+    coin.style.top = '-20px';
+    const scale = 0.6 + Math.random() * 0.8;
+    coin.style.width = (20 * scale) + 'px';
+    coin.style.height = (20 * scale) + 'px';
+    coin.style.animationDelay = (Math.random() * durationMs * 0.5) + 'ms';
+    coin.style.animationDuration = (1200 + Math.random() * 1200) + 'ms';
+    particleContainer.appendChild(coin);
+    setTimeout(() => { if (coin.parentNode) coin.remove(); }, durationMs + 2000);
+  }
+}
+
+/** Coins bursting upward from the bottom in physics arcs (with clink sounds). */
+function spawnCoinFountain(count = 15, durationMs = 2000) {
+  if (!particleContainer) return;
+  for (let i = 0; i < count; i++) {
+    const coin = document.createElement('div');
+    coin.className = 'particle particle-coin-fountain';
+    coin.style.left = ((0.3 + Math.random() * 0.4) * 100) + '%';   // center-biased
+    const scale = 0.7 + Math.random() * 0.6;
+    coin.style.width = (22 * scale) + 'px';
+    coin.style.height = (22 * scale) + 'px';
+    const driftDir = Math.random() > 0.5 ? 1 : -1;
+    const driftMag = 20 + Math.random() * 80;
+    coin.style.setProperty('--launch-y', -(200 + Math.random() * 200) + 'px');
+    coin.style.setProperty('--peak-y', -(300 + Math.random() * 200) + 'px');
+    coin.style.setProperty('--mid-y', -(100 + Math.random() * 150) + 'px');
+    coin.style.setProperty('--drift-x1', (driftDir * driftMag * 0.3) + 'px');
+    coin.style.setProperty('--drift-x2', (driftDir * driftMag * 0.6) + 'px');
+    coin.style.setProperty('--drift-x3', (driftDir * driftMag * 0.8) + 'px');
+    coin.style.setProperty('--drift-x4', (driftDir * driftMag) + 'px');
+    const delay = Math.random() * durationMs * 0.4;
+    coin.style.animationDelay = delay + 'ms';
+    coin.style.animationDuration = (1400 + Math.random() * 800) + 'ms';
+    particleContainer.appendChild(coin);
+    setTimeout(() => synth.coinClink(), delay + 100 + Math.random() * 200);
+    setTimeout(() => { if (coin.parentNode) coin.remove(); }, delay + 2500);
+  }
+}
+
+/** A radial sparkle burst centered at (x, y) within the particle container. */
+function spawnSparkles(x, y, count = 8) {
+  if (!particleContainer) return;
+  const colors = ['#FFE000', '#FFFFFF', '#FFB000', '#FF8800', '#88FF88'];
+  for (let i = 0; i < count; i++) {
+    const spark = document.createElement('div');
+    spark.className = 'particle particle-sparkle';
+    spark.style.left = x + 'px';
+    spark.style.top = y + 'px';
+    const angle = (Math.PI * 2 / count) * i + Math.random() * 0.5;
+    const dist = 20 + Math.random() * 40;
+    const dx = Math.cos(angle) * dist, dy = Math.sin(angle) * dist;
+    spark.style.setProperty('--dx', dx + 'px');
+    spark.style.setProperty('--dy', dy + 'px');
+    spark.style.setProperty('--dx2', dx * 1.5 + 'px');
+    spark.style.setProperty('--dy2', (dy * 1.5 + 20) + 'px');
+    spark.style.background = colors[Math.floor(Math.random() * colors.length)];
+    particleContainer.appendChild(spark);
+    setTimeout(() => { if (spark.parentNode) spark.remove(); }, 900);
+  }
+}
+
+/** Horizontal wind streaks inside a container (used for the wolf's huff). */
+function spawnWindParticles(containerEl, count = 12) {
+  for (let i = 0; i < count; i++) {
+    setTimeout(() => {
+      const wind = document.createElement('div');
+      wind.className = 'wind-particle';
+      wind.style.top = (Math.random() * 80 + 10) + '%';
+      wind.style.left = '-40px';
+      wind.style.width = (30 + Math.random() * 40) + 'px';
+      wind.style.animationDuration = (0.5 + Math.random() * 0.5) + 's';
+      containerEl.appendChild(wind);
+      setTimeout(() => { if (wind.parentNode) wind.remove(); }, 1200);
+    }, i * 100);
+  }
+}
+
+/** Dollar bills floating up from the bottom, swaying and spinning. */
+function spawnDollarBills(count = 10, durationMs = 2500) {
+  if (!particleContainer) return;
+  for (let i = 0; i < count; i++) {
+    const bill = document.createElement('div');
+    bill.className = 'particle-dollar';
+    bill.style.left = (10 + Math.random() * 80) + '%';
+    const scale = 0.7 + Math.random() * 0.6;
+    bill.style.width = (40 * scale) + 'px';
+    bill.style.height = (20 * scale) + 'px';
+    const dir = Math.random() > 0.5 ? 1 : -1;
+    bill.style.setProperty('--rise-y1', -(80 + Math.random() * 120) + 'px');
+    bill.style.setProperty('--rise-y2', -(200 + Math.random() * 150) + 'px');
+    bill.style.setProperty('--rise-y3', -(300 + Math.random() * 150) + 'px');
+    bill.style.setProperty('--rise-y4', -(400 + Math.random() * 150) + 'px');
+    bill.style.setProperty('--sway-x1', (dir * (10 + Math.random() * 30)) + 'px');
+    bill.style.setProperty('--sway-x2', (-dir * (15 + Math.random() * 40)) + 'px');
+    bill.style.setProperty('--sway-x3', (dir * (10 + Math.random() * 50)) + 'px');
+    bill.style.setProperty('--sway-x4', (-dir * (5 + Math.random() * 30)) + 'px');
+    bill.style.setProperty('--spin1', (dir * (10 + Math.random() * 20)) + 'deg');
+    bill.style.setProperty('--spin2', (-dir * (5 + Math.random() * 15)) + 'deg');
+    bill.style.setProperty('--spin3', (dir * (15 + Math.random() * 25)) + 'deg');
+    bill.style.setProperty('--spin4', (-dir * (10 + Math.random() * 20)) + 'deg');
+    const delay = Math.random() * durationMs * 0.5;
+    bill.style.animationDelay = delay + 'ms';
+    bill.style.animationDuration = (2000 + Math.random() * 1500) + 'ms';
+    particleContainer.appendChild(bill);
+    setTimeout(() => { if (bill.parentNode) bill.remove(); }, delay + 4000);
+  }
+}
+
+/** Confetti raining from the top. */
+function spawnConfetti(count = 30, durationMs = 2500) {
+  if (!particleContainer) return;
+  const colors = ['#F5C400', '#FF4060', '#2EE85A', '#4488FF', '#FF8800', '#FF44FF', '#FFFFFF', '#00DDFF'];
+  for (let i = 0; i < count; i++) {
+    const piece = document.createElement('div');
+    piece.className = 'particle-confetti';
+    piece.style.left = (5 + Math.random() * 90) + '%';
+    piece.style.setProperty('--conf-w', (4 + Math.random() * 8) + 'px');
+    piece.style.setProperty('--conf-h', (8 + Math.random() * 12) + 'px');
+    piece.style.setProperty('--conf-color', colors[Math.floor(Math.random() * colors.length)]);
+    piece.style.setProperty('--conf-drift', ((Math.random() - 0.5) * 100) + 'px');
+    const delay = Math.random() * durationMs * 0.4;
+    piece.style.animationDelay = delay + 'ms';
+    piece.style.animationDuration = (1800 + Math.random() * 1200) + 'ms';
+    particleContainer.appendChild(piece);
+    setTimeout(() => { if (piece.parentNode) piece.remove(); }, delay + 3500);
+  }
+}
+
+/** Golden starburst flashes behind winning cells. cells = [[reel,row], …]. */
+function spawnStarbursts(winnerCells) {
+  if (!particleContainer) return;
+  winnerCells.forEach(([reelIdx, rowIdx]) => {
+    const cell = reelStrips[reelIdx] && reelStrips[reelIdx].querySelectorAll('.sym-cell')[rowIdx];
+    if (!cell) return;
+    const rect = cell.getBoundingClientRect();
+    const cr = particleContainer.getBoundingClientRect();
+    const burst = document.createElement('div');
+    burst.className = 'particle-starburst';
+    burst.style.left = (rect.left + rect.width / 2 - cr.left - 40) + 'px';
+    burst.style.top = (rect.top + rect.height / 2 - cr.top - 40) + 'px';
+    particleContainer.appendChild(burst);
+    setTimeout(() => { if (burst.parentNode) burst.remove(); }, 1000);
+  });
+}
+
+/** Coins cascading down both side edges (big-win flourish). */
+function spawnSideWaterfall(countPerSide = 15, durationMs = 3000) {
+  if (!particleContainer) return;
+  for (let side = 0; side < 2; side++) {
+    for (let i = 0; i < countPerSide; i++) {
+      const coin = document.createElement('div');
+      coin.className = 'particle-side-coin';
+      if (side === 0) {
+        coin.style.left = (Math.random() * 30) + 'px';
+        coin.style.setProperty('--side-drift', (5 + Math.random() * 20) + 'px');
+      } else {
+        coin.style.right = (Math.random() * 30) + 'px';
+        coin.style.left = 'auto';
+        coin.style.setProperty('--side-drift', -(5 + Math.random() * 20) + 'px');
+      }
+      const scale = 0.6 + Math.random() * 0.8;
+      coin.style.width = (16 * scale) + 'px';
+      coin.style.height = (16 * scale) + 'px';
+      const delay = Math.random() * durationMs * 0.7;
+      coin.style.animationDelay = delay + 'ms';
+      coin.style.animationDuration = (800 + Math.random() * 1200) + 'ms';
+      particleContainer.appendChild(coin);
+      setTimeout(() => synth.coinClink(), delay + 50 + Math.random() * 150);
+      setTimeout(() => { if (coin.parentNode) coin.remove(); }, delay + 2500);
+    }
+  }
+}
+
+/** Flash a golden vignette inside the reel window. */
+function spawnWinVignette() {
+  const reelWindow = document.getElementById('reel-window');
+  if (!reelWindow) return;
+  const vig = document.createElement('div');
+  vig.className = 'win-vignette';
+  reelWindow.appendChild(vig);
+  setTimeout(() => { if (vig.parentNode) vig.remove(); }, 800);
+}
+
+/** Floating "+$X.XX" text that pops and fades. */
+function spawnWinPopText(amount) {
+  if (!particleContainer) return;
+  const pop = document.createElement('div');
+  pop.className = 'win-pop-text';
+  pop.textContent = '+' + fmt(amount);
+  pop.style.left = (35 + Math.random() * 30) + '%';
+  pop.style.top = (30 + Math.random() * 30) + '%';
+  particleContainer.appendChild(pop);
+  setTimeout(() => { if (pop.parentNode) pop.remove(); }, 1800);
+}
+
+/** Wind lines + swirls for the wolf's blow, scaled by house tier. */
+function spawnWolfWindBlast(wolfWindBlast, tier) {
+  if (!wolfWindBlast) return;
+  wolfWindBlast.innerHTML = '';
+  const lineCount = tier === 3 ? 12 : tier === 2 ? 8 : 5;
+  const swirlCount = tier === 3 ? 8 : tier === 2 ? 5 : 3;
+  for (let i = 0; i < lineCount; i++) {
+    const line = document.createElement('div');
+    line.className = 'wind-blast-line';
+    line.style.top = (30 + Math.random() * 40) + '%';
+    line.style.height = (2 + Math.random() * 3) + 'px';
+    line.style.animationDelay = (i * 0.04) + 's';
+    line.style.animationDuration = (0.4 + Math.random() * 0.3) + 's';
+    line.style.opacity = (0.4 + Math.random() * 0.6);
+    wolfWindBlast.appendChild(line);
+    setTimeout(() => { if (line.parentNode) line.remove(); }, 1200);
+  }
+  for (let i = 0; i < swirlCount; i++) {
+    const swirl = document.createElement('div');
+    swirl.className = 'wind-swirl';
+    swirl.style.top = (25 + Math.random() * 50) + '%';
+    swirl.style.left = '0';
+    swirl.style.animationDelay = (i * 0.06 + 0.1) + 's';
+    swirl.style.width = (4 + Math.random() * 6) + 'px';
+    swirl.style.height = swirl.style.width;
+    wolfWindBlast.appendChild(swirl);
+    setTimeout(() => { if (swirl.parentNode) swirl.remove(); }, 1500);
+  }
+}
+
+/** Continuous background gold-dust motes. Call once at startup. */
+function startAmbientParticles() {
+  if (!ambientContainer) return;
+  const types = ['gold', 'gold', 'gold', 'green', 'white'];
+  function spawnMote() {
+    const mote = document.createElement('div');
+    mote.className = `ambient-mote ${types[Math.floor(Math.random() * types.length)]}`;
+    const size = 2 + Math.random() * 4;
+    mote.style.width = size + 'px';
+    mote.style.height = size + 'px';
+    mote.style.left = (Math.random() > 0.3 ? 25 + Math.random() * 50 : Math.random() * 100) + '%';
+    mote.style.bottom = '-10px';
+    mote.style.setProperty('--mote-dx', ((Math.random() - 0.5) * 80) + 'px');
+    mote.style.setProperty('--mote-dy', -(150 + Math.random() * 300) + 'px');
+    const duration = 4000 + Math.random() * 6000;
+    mote.style.animation = `mote-float ${duration}ms ease-out forwards`;
+    ambientContainer.appendChild(mote);
+    setTimeout(() => { if (mote.parentNode) mote.remove(); }, duration + 100);
+  }
+  (function scheduleNext() {
+    setTimeout(() => { spawnMote(); scheduleNext(); }, 400 + Math.random() * 400);
+  })();
+  for (let i = 0; i < 5; i++) setTimeout(spawnMote, i * 200);
+}
+
+/** 
+ * Centralized win presentation logic to DRY up the game loop.
+ * Plays the appropriate particles and coin clinks based on the win ratio.
+ */
+function playWinPresentation(ratio, isMega = false) {
+  if (isMega) {
+    spawnCoinShower(60, 3500);
+    spawnCoinFountain(40, 3500);
+    spawnDollarBills(20, 3500);
+    spawnConfetti(50, 3500);
+    spawnSideWaterfall(25, 3500);
+    setTimeout(() => {
+      spawnCoinFountain(20, 2000); 
+      spawnDollarBills(10, 2000); 
+      spawnConfetti(25, 2000);
+      spawnWinVignette();
+    }, 1500);
+    for (let i = 0; i < 5; i++) setTimeout(() => synth.coinClink(), 200 + i * 150);
+  } else if (ratio >= 8) {
+    spawnCoinShower(40, 2500);
+    spawnCoinFountain(25, 2500);
+    spawnDollarBills(12, 2500);
+    spawnConfetti(30, 2500);
+    spawnSideWaterfall(15, 2500);
+    for (let i = 0; i < 5; i++) setTimeout(() => synth.coinClink(), 200 + i * 150);
+  } else if (ratio >= 3) {
+    spawnCoinShower(15, 1500); 
+    spawnCoinFountain(20, 1800); 
+    spawnDollarBills(6, 1800); 
+    spawnConfetti(15, 1800);
+    for (let i = 0; i < 3; i++) setTimeout(() => synth.coinClink(), 100 + i * 120);
+  } else if (ratio >= 2) {
+    spawnCoinShower(15, 1500); 
+    spawnCoinFountain(20, 1800); 
+    spawnDollarBills(6, 1800); 
+    spawnConfetti(15, 1800);
+    for (let i = 0; i < 3; i++) setTimeout(() => synth.coinClink(), 100 + i * 120);
+  } else if (ratio > 0) {
+    spawnCoinFountain(12, 1500); 
+    spawnDollarBills(3, 1500);
+  }
+}
+
+Object.assign(exports, { spawnCoinShower, spawnCoinFountain, spawnSparkles, spawnWindParticles, spawnDollarBills, spawnConfetti, spawnStarbursts, spawnSideWaterfall, spawnWinVignette, spawnWinPopText, spawnWolfWindBlast, startAmbientParticles, playWinPresentation });
 
   };
 
-  __mods["ui"] = function (exports, require) {
+  __mods["readouts"] = function (exports, require) {
 /**
- * @module ui
+ * @module readouts
  * @description Small shared UI helpers and control-button references used by the
  * base game, the bonus, and the buy-bonus flow: the cash/bet/win readouts, the
  * status line, and enabling/disabling the control buttons. Kept separate so
  * basegame and bonus can both use it without importing each other.
  */
 
-const { BET_LEVELS } = require("config");
+const { BET_LEVELS } = require("par-sheet");
 const { state } = require("state");
 const { fmt } = require("utils");
 
@@ -4026,41 +3543,557 @@ Object.assign(exports, { elBalance, elBet, elWin, buttons, updateDisplays, setSt
 
   };
 
-  __mods["utils"] = function (exports, require) {
+  __mods["reels"] = function (exports, require) {
 /**
- * @module utils
- * @description Shared utility functions used across multiple modules.
+ * @module reels
+ * @description The reels' DOM + animation layer: building symbol cells, the
+ * spin animation, win highlighting and the count-up. The actual win math lives
+ * in mathcore.js — this module just shows it.
  */
 
-/**
- * Async sleep — pauses execution for the given duration.
- * @param {number} ms - Milliseconds to wait
- * @returns {Promise<void>}
- */
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+const { SYMBOLS, SYMBOL_IDS, SPIN_DURATIONS, TURBO_DURATIONS, SCROLL_SYMBOLS, TURBO_SCROLL, ANTICIPATION_EXTRA } = require("par-sheet");
+const { state } = require("state");
+const { synth } = require("sound");
+const { fmt } = require("utils");
+const { spawnSparkles } = require("particles");
+
+const reelCols   = [0, 1, 2, 3, 4].map(i => document.getElementById(`reel-${i}`));
+const reelStrips = [0, 1, 2, 3, 4].map(i => document.getElementById(`strip-${i}`));
+const particleContainer = document.getElementById('particle-container');
+const elWin = document.getElementById('display-win');
+
+function getReelStrips() { return reelStrips; }
+
+/** A random symbol id, used only to fill the blurry scroll buffer. */
+function randomSymbol() { return SYMBOL_IDS[Math.floor(Math.random() * SYMBOL_IDS.length)]; }
+
+/** Read the cell pixel height from the CSS custom property. */
+function getCellHeight() {
+  const val = getComputedStyle(document.documentElement).getPropertyValue('--cell-size').trim();
+  return parseInt(val, 10) || 130;
+}
+
+/** Build one symbol cell (PNG image, or inline-SVG for royals). */
+function makeCell(symId) {
+  const sym = SYMBOLS[symId];
+  const div = document.createElement('div');
+  div.className = 'sym-cell';
+  div.dataset.sym = symId;
+  if (sym.src) {
+    const img = document.createElement('img');
+    img.src = sym.src;
+    img.alt = sym.label || symId;
+    img.draggable = false;
+    img.className = 'sym-img';
+    div.appendChild(img);
+  } else {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+    use.setAttributeNS('http://www.w3.org/1999/xlink', 'href', sym.svgId);
+    use.setAttribute('href', sym.svgId);
+    svg.appendChild(use);
+    div.appendChild(svg);
+  }
+  return div;
+}
+
+/** Instantly show 3 symbols on a reel (no animation). */
+function renderReel(reelIndex, symbolIds) {
+  const strip = reelStrips[reelIndex];
+  strip.style.transition = 'none';
+  strip.style.transform  = 'translateY(0)';
+  strip.innerHTML = '';
+  symbolIds.forEach(id => strip.appendChild(makeCell(id)));
 }
 
 /**
- * Format a number as $X,XXX.XX currency string.
- * @param {number} n - The amount to format
- * @returns {string}
+ * Spin one reel from its current symbols to the target symbols.
+ * Builds a tall strip [target] + [random blur] + [current], snaps it to the
+ * bottom, then transitions to the top so the target lands in view.
  */
-function fmt(n) {
-  return '$' + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+function animateReel(reelIndex, targetSymIds, onDone, anticipate = false) {
+  const strip = reelStrips[reelIndex];
+  const col   = reelCols[reelIndex];
+  const cellH = getCellHeight();
+  const scrollN = state.turbo ? TURBO_SCROLL : SCROLL_SYMBOLS;
+  let duration  = state.turbo ? TURBO_DURATIONS[reelIndex] : SPIN_DURATIONS[reelIndex];
+
+  if (anticipate && reelIndex >= 3) {        // suspense slow-down on later reels
+    duration += ANTICIPATION_EXTRA;
+    col.classList.add('is-anticipating');
+    if (reelIndex === 3) synth.anticipation();
+  }
+
+  const current = (state.currentGrid && state.currentGrid[reelIndex]) || ['royal-a', 'royal-k', 'royal-q'];
+  const allIds = [...targetSymIds, ...Array.from({ length: scrollN }, randomSymbol), ...current];
+
+  strip.innerHTML = '';
+  allIds.forEach(id => strip.appendChild(makeCell(id)));
+
+  const startY = (allIds.length - 3) * cellH;
+  strip.style.transition = 'none';
+  strip.style.transform  = `translateY(-${startY}px)`;
+  col.classList.add('is-spinning');
+
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      const easing = anticipate && reelIndex >= 3
+        ? 'cubic-bezier(0.05, 0.9, 0.35, 1.12)'
+        : 'cubic-bezier(0.12, 0.85, 0.38, 1.08)';
+      strip.style.transition = `transform ${duration}ms ${easing}`;
+      strip.style.transform  = 'translateY(0)';
+
+      let isDone = false;
+      const finishAnimation = () => {
+        if (isDone) return;
+        isDone = true;
+        col.classList.remove('is-spinning', 'is-anticipating');
+        renderReel(reelIndex, targetSymIds);
+        strip.classList.add('bounce-stop');
+        setTimeout(() => strip.classList.remove('bounce-stop'), 350);
+        synth.reelStop(reelIndex);
+        onDone();
+      };
+
+      const fallbackTimer = setTimeout(finishAnimation, duration + 50);
+
+      strip.addEventListener('transitionend', function handler(e) {
+        if (e.propertyName === 'transform') {
+          strip.removeEventListener('transitionend', handler);
+          clearTimeout(fallbackTimer);
+          finishAnimation();
+        }
+      });
+    });
+  });
+}
+
+/** Spin all 5 reels; resolves once every reel has stopped. */
+function animateAllReels(targetGrid, anticipate = false) {
+  return new Promise(resolve => {
+    let stopped = 0;
+    for (let r = 0; r < 5; r++) {
+      animateReel(r, targetGrid[r], () => { if (++stopped === 5) resolve(); }, anticipate);
+    }
+  });
+}
+
+/** Add the winner glow + sparkles to every winning cell. */
+function highlightWinners(winners) {
+  clearHighlights();
+  winners.forEach(({ cells }) => {
+    cells.forEach(([reelIdx, rowIdx]) => {
+      const cell = reelStrips[reelIdx].querySelectorAll('.sym-cell')[rowIdx];
+      if (!cell) return;
+      cell.classList.add('is-winner');
+      const rect = cell.getBoundingClientRect();
+      const cr = particleContainer.getBoundingClientRect();
+      spawnSparkles(rect.left + rect.width / 2 - cr.left, rect.top + rect.height / 2 - cr.top, 6);
+    });
+  });
+}
+
+function clearHighlights() {
+  document.querySelectorAll('.sym-cell.is-winner').forEach(el => el.classList.remove('is-winner'));
+}
+
+/** Count the WIN display up from 0 to targetAmount. Resolves when done. */
+function animateWinCount(targetAmount, durationMs = 1200) {
+  return new Promise(resolve => {
+    const startTime = performance.now();
+    elWin.classList.add('counting', 'win-glow');
+    function tick(now) {
+      const progress = Math.min((now - startTime) / durationMs, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);  // ease-out cubic
+      elWin.textContent = fmt(targetAmount * eased);
+      if (progress < 0.9 && Math.random() < 0.30) synth.coinTick();
+      if (progress < 1) {
+        requestAnimationFrame(tick);
+      } else {
+        elWin.textContent = fmt(targetAmount);
+        elWin.classList.remove('counting');
+        resolve();
+      }
+    }
+    requestAnimationFrame(tick);
+  });
+}
+
+Object.assign(exports, { getReelStrips, makeCell, renderReel, animateReel, animateAllReels, highlightWinners, clearHighlights, animateWinCount });
+
+  };
+
+  __mods["day-night"] = function (exports, require) {
+/**
+ * @module day-night
+ * @description Darkens the background image based on the time of day.
+ *
+ * By default it follows the browser's real clock — brightest at noon, darkest
+ * around midnight — and re-checks every minute. The clock button (🕐) opens a
+ * slider to scrub the time of day manually; "USE REAL TIME" switches back to the
+ * live clock.
+ *
+ * Mapping: a cosine of the hour gives a smooth day curve (1 = full light at
+ * noon, 0 = full dark at midnight); the overlay opacity is MAX_DARK × (1 − light).
+ */
+
+const { playNoonStandoff } = require("high-noon");
+
+const overlay = document.getElementById('day-night-overlay');
+const btnTime = document.getElementById('btn-time');
+const panel   = document.getElementById('time-panel');
+const slider  = document.getElementById('time-slider');
+const label   = document.getElementById('time-label');
+const autoBtn = document.getElementById('time-auto');
+const noonBtn = document.getElementById('btn-high-noon');
+
+const MAX_DARK = 0.82;     // overlay opacity at the darkest point (midnight)
+let autoMode = true;
+let tick = null;
+
+/** Overlay opacity for a minute-of-day (0..1439): 0 at noon … MAX_DARK at midnight. */
+function darknessFor(minutes) {
+  const hour = minutes / 60;                                          // 0..24
+  const light = (1 + Math.cos(((hour - 12) / 24) * 2 * Math.PI)) / 2; // 1 noon, 0 midnight
+  return MAX_DARK * (1 - light);
+}
+
+/** Pretty 12-hour clock string, e.g. 615 → "10:15 AM". */
+function fmtTime(minutes) {
+  const h = Math.floor(minutes / 60), m = minutes % 60;
+  const ap = h < 12 ? 'AM' : 'PM';
+  const hh = (h % 12) || 12;
+  return `${hh}:${String(m).padStart(2, '0')} ${ap}`;
+}
+
+function apply(minutes) {
+  if (overlay) overlay.style.opacity = darknessFor(minutes).toFixed(3);
+  if (label) label.textContent = fmtTime(minutes);
+  if (slider) slider.value = String(minutes);
+}
+
+function nowMinutes() {
+  const d = new Date();
+  return d.getHours() * 60 + d.getMinutes();
 }
 
 /**
- * Schedule DOM element removal after a delay.
- * Safely checks parentNode before removing.
- * @param {HTMLElement} el - Element to remove
- * @param {number} ms - Delay in milliseconds
+ * Animate the day/night darkening from its current value to the correct one for
+ * the current time. Used by the intro reveal, which first parks the overlay at 0
+ * (clean background) and then calls this to fade the darkening back in.
  */
-function scheduleRemove(el, ms) {
-  setTimeout(() => { if (el.parentNode) el.remove(); }, ms);
+function revealDayNight(ms = 1100) {
+  if (!overlay) return;
+  overlay.style.transition = `opacity ${ms}ms ease`;
+  apply(autoMode ? nowMinutes() : parseInt(slider.value, 10));
+  setTimeout(() => { overlay.style.transition = ''; }, ms + 60);  // drop transition so the slider stays snappy
 }
 
-Object.assign(exports, { sleep, fmt, scheduleRemove });
+/** Follow the real clock and keep it updated each minute. */
+function goAuto() {
+  autoMode = true;
+  if (autoBtn) autoBtn.classList.add('is-active');
+  apply(nowMinutes());
+  clearInterval(tick);
+  tick = setInterval(() => { if (autoMode) apply(nowMinutes()); }, 60000);
+}
+
+/**
+ * Slide the time-of-day up to 12:00 noon (the slider "walks" into the middle and
+ * the scene brightens to full daylight), then fire the High Noon standoff —
+ * no matter what the real local time is.
+ */
+function strikeHighNoon() {
+  autoMode = false;                                   // manual override
+  if (autoBtn) autoBtn.classList.remove('is-active');
+  const NOON = 720;
+  const startV = slider ? parseInt(slider.value, 10) : NOON;
+  const dur = 700, t0 = performance.now();
+  function step(now) {
+    const k = Math.min(1, (now - t0) / dur);
+    const ease = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;  // easeInOutQuad
+    apply(Math.round(startV + (NOON - startV) * ease));
+    if (k < 1) requestAnimationFrame(step);
+    else { apply(NOON); playNoonStandoff(); }          // reached noon → showdown
+  }
+  requestAnimationFrame(step);
+}
+
+if (overlay) {
+  if (slider) slider.addEventListener('input', () => {
+    autoMode = false;                                  // manual override
+    if (autoBtn) autoBtn.classList.remove('is-active');
+    apply(parseInt(slider.value, 10));
+  });
+  if (autoBtn) autoBtn.addEventListener('click', goAuto);
+  if (noonBtn) noonBtn.addEventListener('click', e => { e.stopPropagation(); strikeHighNoon(); });
+
+  if (btnTime && panel) {
+    btnTime.addEventListener('click', e => { e.stopPropagation(); panel.classList.toggle('hidden'); });
+    panel.addEventListener('click', e => e.stopPropagation());
+    document.addEventListener('click', e => {
+      if (!panel.classList.contains('hidden') && !panel.contains(e.target) && !btnTime.contains(e.target)) {
+        panel.classList.add('hidden');
+      }
+    });
+  }
+
+  goAuto();   // start on the real time of day
+}
+
+Object.assign(exports, { revealDayNight });
+
+  };
+
+  __mods["high-noon"] = function (exports, require) {
+/**
+ * @module high-noon
+ * @description Hidden "High Noon" easter egg. At exactly 12:00 PM by the
+ * browser's local clock, High_noon_standoff.webm takes over the full screen
+ * (with its own audio; the background music ducks out and returns afterward).
+ * Dismisses on end, on click (skip), on error, or via a safety timeout — and
+ * fires at most once per day.
+ */
+
+const { bgm } = require("sound");
+
+const overlay = document.getElementById('noon-overlay');
+const video   = document.getElementById('noon-video');
+
+let playing  = false;
+let firedKey = null;     // e.g. "Sat May 30 2026" — so noon only triggers once per day
+
+/**
+ * Take over the full screen with the standoff clip, then clean up. Exported so
+ * the time panel can trigger it on demand (regardless of the real clock).
+ */
+function playNoonStandoff() {
+  if (!overlay || !video || playing) return;
+  playing = true;
+
+  bgm.pauseForCutscene();          // silence the game music under the clip's own audio
+
+  let done = false;
+  const finish = () => {
+    if (done) return;
+    done = true;
+    overlay.classList.add('fade-out');
+    try { video.pause(); } catch (e) {}
+    setTimeout(() => {
+      overlay.classList.add('hidden');
+      overlay.classList.remove('fade-out');
+      bgm.resumeFromCutscene();    // bring the music back
+      playing = false;
+    }, 600);
+  };
+
+  video.addEventListener('ended', finish, { once: true });
+  video.addEventListener('error', finish, { once: true });
+  overlay.addEventListener('click', finish, { once: true });
+
+  overlay.classList.remove('hidden');
+  try { video.currentTime = 0; } catch (e) {}
+  // Try with sound (the player has already interacted by mid-day); fall back to muted.
+  video.muted = false;
+  video.play().catch(() => {
+    video.muted = true;
+    video.play().catch(finish);
+  });
+
+  setTimeout(finish, 20000);       // hard safety cap (clip is ~10s)
+}
+
+/* ── Watch the real clock. Polling every 250ms reliably catches the 12:00:00
+   second and self-corrects (no drift); the per-day key prevents repeats. ── */
+if (overlay && video) {
+  setInterval(() => {
+    const now = new Date();
+    if (now.getHours() === 12 && now.getMinutes() === 0 && now.getSeconds() === 0) {
+      const key = now.toDateString();
+      if (firedKey !== key) { firedKey = key; playNoonStandoff(); }
+    }
+  }, 250);
+}
+
+Object.assign(exports, { playNoonStandoff });
+
+  };
+
+  __mods["idle-poster"] = function (exports, require) {
+/**
+ * @module idle-poster
+ * @description Attract-mode flourish for the reel-background "Wanted" poster
+ * (Wanted_poster.webm). When the base game sits idle — nobody pressing anything,
+ * no spin/auto/bonus running — the poster slowly glows up from its usual faint
+ * 0.55 opacity to full 100%. The moment the player interacts again it snaps
+ * straight back to its normal opacity.
+ *
+ * The two speeds (slow up, instant down) come from CSS: the `.poster-idle` class
+ * carries a long transition; the base rule carries a short one. This module only
+ * adds/removes that class based on activity + game state.
+ */
+
+const { state } = require("state");
+const { isBonusActive } = require("bonus");
+
+const video  = document.getElementById('reel-bg-video');
+const IDLE_MS = 12000;   // how long with zero input before the poster glows up
+
+let timer = null;
+
+/** The reels are "busy" (so don't glow up) during a spin, auto-spin, or bonus. */
+function isBusy() { return state.spinning || state.autoActive || isBonusActive(); }
+
+function scheduleIdle() {
+  clearTimeout(timer);
+  timer = setTimeout(tick, IDLE_MS);
+}
+
+function tick() {
+  if (!video) return;
+  if (isBusy()) { scheduleIdle(); return; }   // not truly idle yet — check again later
+  video.classList.add('poster-idle');          // slow ramp to 100%
+}
+
+/** Any interaction snaps the poster back and restarts the idle countdown. */
+function onActivity() {
+  if (video) video.classList.remove('poster-idle');
+  scheduleIdle();
+}
+
+if (video) {
+  // capture phase so we see every click/keypress, even ones that stopPropagation
+  document.addEventListener('pointerdown', onActivity, true);
+  document.addEventListener('keydown', onActivity, true);
+  scheduleIdle();
+}
+
+  };
+
+  __mods["intro"] = function (exports, require) {
+/**
+ * @module intro
+ * @description Full-screen intro splash. Plays assets/webm/Big_Bad_Wolf_intro.webm
+ * over everything on load, then fades into the game. Dismisses when the clip
+ * ends, on click (skip), on error, or if autoplay is blocked — so the player
+ * can never get stuck on the splash. Muted, because browsers block autoplay
+ * with sound before any user interaction.
+ */
+
+const overlay = document.getElementById('intro-overlay');
+const video   = document.getElementById('intro-video');
+
+if (overlay && video) {
+  let dismissed = false;
+
+  function dismiss() {
+    if (dismissed) return;
+    dismissed = true;
+    overlay.classList.add('fade-out');     // CSS opacity transition
+    try { video.pause(); } catch (e) {}
+    setTimeout(() => {
+      overlay.classList.add('hidden');                       // remove after fade
+      window.dispatchEvent(new Event('intro:done'));         // cue the background hold + game reveal
+    }, 700);
+  }
+
+  video.addEventListener('ended', dismiss);
+  video.addEventListener('error', dismiss);
+  overlay.addEventListener('click', dismiss);              // click/tap to skip
+
+  // Backup: if 'ended' never fires, dismiss shortly after the clip's length.
+  video.addEventListener('loadedmetadata', () => {
+    if (isFinite(video.duration) && video.duration > 0) {
+      setTimeout(dismiss, video.duration * 1000 + 1500);
+    }
+  });
+
+  // Autoplay (muted). If the browser blocks it, skip the splash entirely.
+  const p = video.play();
+  if (p && typeof p.catch === 'function') p.catch(dismiss);
+
+  // Hard safety cap in case the video can't load at all.
+  setTimeout(dismiss, 20000);
+}
+
+  };
+
+  __mods["reveal"] = function (exports, require) {
+/**
+ * @module reveal
+ * @description Post-intro reveal sequence. The game loads hidden (body.pre-reveal)
+ * with the background video shown clean and undimmed. After the intro splash
+ * finishes we linger on that background for a beat, then fade the whole game —
+ * cabinet/reels/character, the side panel, the ambient dust, and the day-night
+ * darkening — in together.
+ *
+ * Order matters: this module imports AFTER daynight in main.js, so it can park
+ * the day-night overlay at 0 (overriding daynight's initial value) for the hold.
+ */
+
+const { revealDayNight } = require("day-night");
+
+const overlay = document.getElementById('day-night-overlay');
+const HOLD_MS = 500;    // how long to linger on the clean background after the intro
+let revealed = false;
+
+// Start hidden, with the background full & undimmed (daynight already set the
+// overlay opacity on load — override it to 0 so the hold looks clean).
+document.body.classList.add('pre-reveal');
+if (overlay) overlay.style.opacity = '0';
+
+function reveal() {
+  if (revealed) return;
+  revealed = true;
+  document.body.classList.remove('pre-reveal');   // fade the game in (CSS 1.1s)
+  revealDayNight();                                // fade the darkening back in
+}
+
+// When the intro signals it's done, hold on the background, then reveal.
+window.addEventListener('intro:done', () => setTimeout(reveal, HOLD_MS), { once: true });
+
+// Safety net: reveal anyway if the intro never signals (missing/blocked splash).
+setTimeout(reveal, 23000);
+
+  };
+
+  __mods["dev-mode"] = function (exports, require) {
+/**
+ * @module dev-mode
+ * @description Hides developer / admin tools on the public build. They are OFF
+ * by default. To turn them on, add ?dev=1 (or #dev) to the URL once — the choice
+ * is remembered in localStorage; ?dev=0 (or #nodev) turns it back off.
+ *
+ * When dev mode is OFF, anything tagged `.dev-tool` is hidden and the backtick
+ * debug panel shortcut is inert (gated via DEV_MODE in base-game.js).
+ *
+ * NOTE: this is a convenience gate to keep tools out of normal players' way, not
+ * hard security — these tools only hand out demo credits / change the local math
+ * model and expose no secrets, so client-side hiding is appropriate.
+ */
+
+function compute() {
+  try {
+    const params = new URLSearchParams(location.search);
+    const hash = location.hash.replace('#', '').toLowerCase();
+    if (params.get('dev') === '1' || hash === 'dev')   localStorage.setItem('bbw_dev', '1');
+    if (params.get('dev') === '0' || hash === 'nodev') localStorage.removeItem('bbw_dev');
+    return localStorage.getItem('bbw_dev') === '1';
+  } catch (e) {
+    return false;   // localStorage blocked → default to the safe (public) state
+  }
+}
+
+const DEV_MODE = compute();
+
+if (DEV_MODE) {
+  document.body.classList.add('dev-mode');
+} else {
+  // Remove every dev-only control from view for normal players.
+  document.querySelectorAll('.dev-tool').forEach(el => el.classList.add('hidden'));
+}
+
+Object.assign(exports, { DEV_MODE });
 
   };
 

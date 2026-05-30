@@ -1,5 +1,5 @@
 /**
- * @module mathpanel
+ * @module math-breakdown
  * @description The 🧮 MATH pop-up: a plain-English breakdown of RTP (base vs
  * bonus), the bonus trigger rate, and the reel composition. Everything is
  * derived from the live constants and a quick run of the shared simulation
@@ -7,8 +7,8 @@
  */
 'use strict';
 
-import { SYMBOLS, HAT_IDS, REEL_STRIPS } from './config.js';
-import { runSimulation } from './simulation.js';
+import { SYMBOLS, HAT_IDS, REEL_STRIPS } from '../math/par-sheet.js';
+import { runSimulation } from './simulator.js';
 
 const btnMath  = document.getElementById('btn-math');
 const modal    = document.getElementById('math-modal');

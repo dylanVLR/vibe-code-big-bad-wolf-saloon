@@ -1,6 +1,6 @@
 /**
- * @module audio
- * @description Sound for Huff N' More Puff. Exports two ready-to-use singletons:
+ * @module sound
+ * @description Sound for Big Bad Wolf. Exports two ready-to-use singletons:
  *   `synth` – one-shot sound effects (pre-rendered MP3s in assets/audio/sfx/)
  *   `bgm`   – looping background music (base-game + bonus tracks, crossfaded)
  * Both are created once here and shared via ES-module caching.

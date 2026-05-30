@@ -11,7 +11,7 @@
  * so the audio always matches what the game says. Wipes the narrator folder on a
  * full `all` run so there are never orphaned clips from an old script.
  */
-import { PHRASES } from '../js/phrases.js';
+import { PHRASES } from '../src/audio/phrases.js';
 import { readFileSync, writeFileSync, mkdirSync, rmSync, existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';

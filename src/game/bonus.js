@@ -11,19 +11,19 @@
  */
 'use strict';
 
-import { HAT_IDS, MAX_FRAME_TIER, BONUS_CONFIG } from './config.js';
-import { state } from './state.js';
-import { sleep, fmt } from './utils.js';
-import { synth, bgm } from './audio.js';
-import { narrator } from './narrator.js';
-import { generateGrid, evaluateGrid, rollHouseAward, rollMansionAward } from './mathcore.js';
-import { animateAllReels, highlightWinners, clearHighlights, animateWinCount, getReelStrips } from './engine.js';
+import { HAT_IDS, MAX_FRAME_TIER, BONUS_CONFIG } from '../math/par-sheet.js';
+import { state } from '../core/state.js';
+import { sleep, fmt } from '../core/utils.js';
+import { synth, bgm } from '../audio/sound.js';
+import { narrator } from '../audio/narrator.js';
+import { generateGrid, evaluateGrid, rollHouseAward, rollMansionAward } from '../math/mathcore.js';
+import { animateAllReels, highlightWinners, clearHighlights, animateWinCount, getReelStrips } from '../render/reels.js';
 import {
   spawnCoinShower, spawnCoinFountain, spawnDollarBills, spawnConfetti, spawnSparkles,
   spawnStarbursts, spawnWinVignette, spawnWinPopText,
   playWinPresentation
-} from './particles.js';
-import { setStatus, updateDisplays, setControlsEnabled, stopAuto, elWin } from './ui.js';
+} from '../render/particles.js';
+import { setStatus, updateDisplays, setControlsEnabled, stopAuto, elWin } from '../render/readouts.js';
 
 /* ── DOM ── */
 const cabinet         = document.getElementById('cabinet');

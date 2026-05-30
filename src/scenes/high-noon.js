@@ -1,5 +1,5 @@
 /**
- * @module noon
+ * @module high-noon
  * @description Hidden "High Noon" easter egg. At exactly 12:00 PM by the
  * browser's local clock, High_noon_standoff.webm takes over the full screen
  * (with its own audio; the background music ducks out and returns afterward).
@@ -8,7 +8,7 @@
  */
 'use strict';
 
-import { bgm } from './audio.js';
+import { bgm } from '../audio/sound.js';
 
 const overlay = document.getElementById('noon-overlay');
 const video   = document.getElementById('noon-video');
@@ -16,8 +16,11 @@ const video   = document.getElementById('noon-video');
 let playing  = false;
 let firedKey = null;     // e.g. "Sat May 30 2026" — so noon only triggers once per day
 
-/** Take over the full screen with the standoff clip, then clean up. */
-function playNoonStandoff() {
+/**
+ * Take over the full screen with the standoff clip, then clean up. Exported so
+ * the time panel can trigger it on demand (regardless of the real clock).
+ */
+export function playNoonStandoff() {
   if (!overlay || !video || playing) return;
   playing = true;
 

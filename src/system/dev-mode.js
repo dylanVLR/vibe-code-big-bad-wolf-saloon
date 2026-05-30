@@ -1,11 +1,11 @@
 /**
- * @module devmode
+ * @module dev-mode
  * @description Hides developer / admin tools on the public build. They are OFF
  * by default. To turn them on, add ?dev=1 (or #dev) to the URL once — the choice
  * is remembered in localStorage; ?dev=0 (or #nodev) turns it back off.
  *
  * When dev mode is OFF, anything tagged `.dev-tool` is hidden and the backtick
- * debug panel shortcut is inert (gated via DEV_MODE in basegame.js).
+ * debug panel shortcut is inert (gated via DEV_MODE in base-game.js).
  *
  * NOTE: this is a convenience gate to keep tools out of normal players' way, not
  * hard security — these tools only hand out demo credits / change the local math

@@ -1,15 +1,15 @@
 /**
- * @module engine
+ * @module reels
  * @description The reels' DOM + animation layer: building symbol cells, the
  * spin animation, win highlighting and the count-up. The actual win math lives
  * in mathcore.js — this module just shows it.
  */
 'use strict';
 
-import { SYMBOLS, SYMBOL_IDS, SPIN_DURATIONS, TURBO_DURATIONS, SCROLL_SYMBOLS, TURBO_SCROLL, ANTICIPATION_EXTRA } from './config.js';
-import { state } from './state.js';
-import { synth } from './audio.js';
-import { fmt } from './utils.js';
+import { SYMBOLS, SYMBOL_IDS, SPIN_DURATIONS, TURBO_DURATIONS, SCROLL_SYMBOLS, TURBO_SCROLL, ANTICIPATION_EXTRA } from '../math/par-sheet.js';
+import { state } from '../core/state.js';
+import { synth } from '../audio/sound.js';
+import { fmt } from '../core/utils.js';
 import { spawnSparkles } from './particles.js';
 
 const reelCols   = [0, 1, 2, 3, 4].map(i => document.getElementById(`reel-${i}`));

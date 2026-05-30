@@ -1,17 +1,17 @@
 /**
- * @module config
+ * @module par-sheet
  * @description Game configuration, symbol definitions, reel strip layouts,
- *              and shared constants for Huff N' More Puff.
+ *              and shared constants for Big Bad Wolf.
  *
  * ════════════════════════════════════════════════════════════════════════
  *  THIS FILE IS THE CANONICAL PAR SHEET (single source of truth for math).
  *  Human-readable summary + expected RTP decomposition lives in PARSHEET.md.
  *  Re-verify any change with:   node tools/sim.js
- *  Both the live game (js/main.js → modules) and the verifier import from here,
+ *  Both the live game (src/main.js → modules) and the verifier import from here,
  *  so there is exactly ONE copy of these numbers.
  * ════════════════════════════════════════════════════════════════════════
  *
- * Design target: ~97% RTP, high volatility (real "Huff N' More Puff" feel).
+ * Design target: ~97% RTP, high volatility (real "Big Bad Wolf" feel).
  *   • Base game  ≈ 50% RTP  (243-ways, fairly quiet between features)
  *   • Bonus      ≈ 47% RTP  (wolf/house feature drives most of the return)
  *   • Bonus trigger ≈ 1 in 175 spins (6+ hard-hat scatters)

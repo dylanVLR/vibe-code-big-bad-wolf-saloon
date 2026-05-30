@@ -1,8 +1,8 @@
 /**
- * @module rtp
+ * @module rtp-picker
  * @description The RTP picker — a popup (opened from the options drawer) that
  * lets the player choose which math model the game runs. The list of choices is
- * rendered straight from RTP_MODELS in config.js, so adding a model there makes
+ * rendered straight from RTP_MODELS in par-sheet.js, so adding a model there makes
  * a new card appear here automatically; no UI edits needed.
  *
  * Selecting a card calls applyRtpModel(), which records the choice in shared
@@ -12,9 +12,9 @@
  */
 'use strict';
 
-import { RTP_MODELS } from './config.js';
-import { state } from './state.js';
-import { synth } from './audio.js';
+import { RTP_MODELS } from '../math/par-sheet.js';
+import { state } from '../core/state.js';
+import { synth } from '../audio/sound.js';
 
 const btnRtp   = document.getElementById('btn-rtp');
 const modal    = document.getElementById('rtp-modal');

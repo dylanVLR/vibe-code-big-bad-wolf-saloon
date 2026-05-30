@@ -223,6 +223,26 @@
 .time-auto-btn:hover { background: rgba(46,232,90,0.2); color: #fff; }
 .time-auto-btn.is-active { background: var(--neon-green); color: #08210c; border-color: var(--neon-green); }
 
+/* High Noon trigger — a little western flourish under the time controls */
+.time-noon-btn {
+  width: 100%;
+  height: 32px;
+  margin-top: 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(245,196,0,0.55);
+  background: linear-gradient(180deg, rgba(245,196,0,0.18), rgba(120,80,0,0.12));
+  color: #FFD86A;
+  font-family: var(--font-main);
+  font-weight: 800;
+  font-size: 0.62rem;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-shadow: 0 0 8px rgba(245,196,0,0.4);
+}
+.time-noon-btn:hover { background: linear-gradient(180deg, rgba(245,196,0,0.34), rgba(120,80,0,0.18)); border-color: #F5C400; color: #fff; }
+.time-noon-btn:active { transform: scale(0.97); }
+
 /* ── RIGHT-SIDE OPTIONS DRAWER ── slides open to reveal the game options ── */
 #options-drawer {
   position: fixed;

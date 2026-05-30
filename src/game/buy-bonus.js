@@ -1,5 +1,5 @@
 /**
- * @module buybonus
+ * @module buy-bonus
  * @description "Buy Bonus": pay buyCostMult × bet (80×) to skip the base game
  * and go straight into the feature. Priced (in config) so the buy's RTP matches
  * the game's ~97% — see PARSHEET.md. The trigger screen is rejection-sampled
@@ -7,15 +7,15 @@
  */
 'use strict';
 
-import { BET_LEVELS, BONUS_CONFIG, HAT_IDS } from './config.js';
-import { state } from './state.js';
-import { fmt } from './utils.js';
-import { synth } from './audio.js';
-import { narrator } from './narrator.js';
-import { generateGrid, countHats } from './mathcore.js';
-import { animateReel, getReelStrips } from './engine.js';
-import { spawnCoinShower } from './particles.js';
-import { setStatus, updateDisplays, elWin, buttons } from './ui.js';
+import { BET_LEVELS, BONUS_CONFIG, HAT_IDS } from '../math/par-sheet.js';
+import { state } from '../core/state.js';
+import { fmt } from '../core/utils.js';
+import { synth } from '../audio/sound.js';
+import { narrator } from '../audio/narrator.js';
+import { generateGrid, countHats } from '../math/mathcore.js';
+import { animateReel, getReelStrips } from '../render/reels.js';
+import { spawnCoinShower } from '../render/particles.js';
+import { setStatus, updateDisplays, elWin, buttons } from '../render/readouts.js';
 import { startBonus, isBonusActive } from './bonus.js';
 
 const cabinet      = document.getElementById('cabinet');

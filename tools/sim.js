@@ -1,15 +1,15 @@
 /**
- * Headless Monte Carlo verifier for the Huff N' More Puff par sheet.
+ * Headless Monte Carlo verifier for the Big Bad Wolf par sheet.
  *
  *   node tools/sim.js [spins]      # default 5,000,000
  *
- * Imports the par sheet from ../js/config.js and the math from ../js/mathcore.js
+ * Imports the par sheet from ../src/math/par-sheet.js and the math from ../src/math/mathcore.js
  * — the exact same code the browser game runs — so these numbers are the game's
  * real numbers. Reports RTP (base/bonus/total), trigger rate, hit frequency,
  * volatility, per-symbol contribution, reel composition, and bonus-buy pricing.
  */
-import { SYMBOLS, SYMBOL_IDS, HAT_IDS, REEL_STRIPS, BONUS_CONFIG } from '../js/config.js';
-import { generateGrid, evaluateGrid, countHats, simulateBonusOutcome } from '../js/mathcore.js';
+import { SYMBOLS, SYMBOL_IDS, HAT_IDS, REEL_STRIPS, BONUS_CONFIG } from '../src/math/par-sheet.js';
+import { generateGrid, evaluateGrid, countHats, simulateBonusOutcome } from '../src/math/mathcore.js';
 
 const totalSpins = parseInt(process.argv[2], 10) || 5_000_000;
 const bet = 1.0;

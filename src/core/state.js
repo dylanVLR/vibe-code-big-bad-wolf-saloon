@@ -9,7 +9,7 @@
  */
 'use strict';
 
-import { DEFAULT_BALANCE, DEFAULT_BET_INDEX, DEFAULT_RTP_MODEL } from './config.js';
+import { DEFAULT_BALANCE, DEFAULT_BET_INDEX, DEFAULT_RTP_MODEL } from '../math/par-sheet.js';
 
 export const state = {
   balance: DEFAULT_BALANCE,   // player's cash
@@ -20,5 +20,5 @@ export const state = {
   autoTimer: null,            // setTimeout handle for auto-spin
   currentGrid: null,          // the symbols currently shown (for spin scroll buffer)
   musicAutoStarted: false,    // background music has been kicked off
-  rtpModelId: DEFAULT_RTP_MODEL, // selected RTP math model (see RTP_MODELS in config.js)
+  rtpModelId: DEFAULT_RTP_MODEL, // selected RTP math model (see RTP_MODELS in par-sheet.js)
 };

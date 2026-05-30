@@ -1,5 +1,5 @@
 /**
- * @module daynight
+ * @module day-night
  * @description Darkens the background image based on the time of day.
  *
  * By default it follows the browser's real clock — brightest at noon, darkest
@@ -12,12 +12,15 @@
  */
 'use strict';
 
+import { playNoonStandoff } from './high-noon.js';
+
 const overlay = document.getElementById('day-night-overlay');
 const btnTime = document.getElementById('btn-time');
 const panel   = document.getElementById('time-panel');
 const slider  = document.getElementById('time-slider');
 const label   = document.getElementById('time-label');
 const autoBtn = document.getElementById('time-auto');
+const noonBtn = document.getElementById('btn-high-noon');
 
 const MAX_DARK = 0.82;     // overlay opacity at the darkest point (midnight)
 let autoMode = true;
@@ -70,6 +73,27 @@ function goAuto() {
   tick = setInterval(() => { if (autoMode) apply(nowMinutes()); }, 60000);
 }
 
+/**
+ * Slide the time-of-day up to 12:00 noon (the slider "walks" into the middle and
+ * the scene brightens to full daylight), then fire the High Noon standoff —
+ * no matter what the real local time is.
+ */
+function strikeHighNoon() {
+  autoMode = false;                                   // manual override
+  if (autoBtn) autoBtn.classList.remove('is-active');
+  const NOON = 720;
+  const startV = slider ? parseInt(slider.value, 10) : NOON;
+  const dur = 700, t0 = performance.now();
+  function step(now) {
+    const k = Math.min(1, (now - t0) / dur);
+    const ease = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;  // easeInOutQuad
+    apply(Math.round(startV + (NOON - startV) * ease));
+    if (k < 1) requestAnimationFrame(step);
+    else { apply(NOON); playNoonStandoff(); }          // reached noon → showdown
+  }
+  requestAnimationFrame(step);
+}
+
 if (overlay) {
   if (slider) slider.addEventListener('input', () => {
     autoMode = false;                                  // manual override
@@ -77,6 +101,7 @@ if (overlay) {
     apply(parseInt(slider.value, 10));
   });
   if (autoBtn) autoBtn.addEventListener('click', goAuto);
+  if (noonBtn) noonBtn.addEventListener('click', e => { e.stopPropagation(); strikeHighNoon(); });
 
   if (btnTime && panel) {
     btnTime.addEventListener('click', e => { e.stopPropagation(); panel.classList.toggle('hidden'); });

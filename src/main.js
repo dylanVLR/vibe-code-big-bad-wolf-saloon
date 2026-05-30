@@ -1,44 +1,47 @@
 /**
  * @module main
- * @description Entry point. Importing the feature modules runs their setup
- * (each wires its own buttons), then init() renders the starting screen, wires
- * the volume/paytable/sound controls, and kicks off ambient effects + music.
+ * @description Entry point for Big Bad Wolf. Importing the feature modules runs
+ * their setup (each wires its own buttons), then init() renders the starting
+ * screen, wires the volume/paytable/sound controls, and kicks off ambient
+ * effects + music.
  *
- * Module map:
- *   config      – the par sheet (symbols, reels, bonus, constants)
- *   mathcore    – pure game math (243-ways, bonus value)         ← also used by tools/sim.js
- *   utils/state – helpers + shared runtime state
- *   audio/narrator/particles – sound, voice, eye-candy
- *   engine/ui   – reel rendering & animation, readouts/status
- *   basegame/bonus/buybonus  – the actual gameplay
- *   simulation/mathpanel     – the 📊 SIM dashboard & 🧮 MATH panel
+ * The source tree (see README.md for the full tour):
+ *   math/    par-sheet (the par sheet) + mathcore (243-ways & bonus math)
+ *   core/    state (shared runtime state) + utils (helpers)
+ *   audio/   sound (sfx + music), narrator, phrases
+ *   render/  reels (reel animation), particles (eye-candy), readouts (HUD)
+ *   game/    base-game, bonus, buy-bonus
+ *   panels/  the drawer pop-ups: options-drawer, deposit, rtp-picker,
+ *            game-size, simulator (📊 SIM), math-breakdown (🧮 MATH)
+ *   scenes/  intro, reveal, day-night, high-noon, idle-poster
+ *   system/  dev-mode (hides admin tools on the public build)
  */
 'use strict';
 
-import { INITIAL_GRID, SYMBOLS } from './config.js';
-import { state } from './state.js';
-import { synth, bgm } from './audio.js';
-import { narrator } from './narrator.js';
-import { renderReel } from './engine.js';
-import { startAmbientParticles } from './particles.js';
-import { updateDisplays, setStatus } from './ui.js';
+import { INITIAL_GRID, SYMBOLS } from './math/par-sheet.js';
+import { state } from './core/state.js';
+import { synth, bgm } from './audio/sound.js';
+import { narrator } from './audio/narrator.js';
+import { renderReel } from './render/reels.js';
+import { startAmbientParticles } from './render/particles.js';
+import { updateDisplays, setStatus } from './render/readouts.js';
 
 // Side-effect imports: these wire up their own controls on load.
-import './devmode.js';    // hide dev/admin tools on the public build (?dev=1 to show)
-import './intro.js';      // full-screen intro splash
-import './daynight.js';   // time-of-day background darkening
-import './reveal.js';     // post-intro: hold on the background, then fade the game in
-import './noon.js';       // hidden "High Noon" easter egg at exactly 12:00 PM
-import './options.js';    // right-side slide-out options drawer
-import './deposit.js';    // add-credit popup
-import './rtp.js';        // RTP / math-model picker popup
-import './gamesize.js';   // folder-size breakdown popup
-import './idleposter.js'; // idle "attract mode" — glows up the Wanted poster
-import './basegame.js';
-import './bonus.js';
-import './buybonus.js';
-import './simulation.js';
-import './mathpanel.js';
+import './system/dev-mode.js';    // hide dev/admin tools on the public build (?dev=1 to show)
+import './scenes/intro.js';      // full-screen intro splash
+import './scenes/day-night.js';   // time-of-day background darkening
+import './scenes/reveal.js';     // post-intro: hold on the background, then fade the game in
+import './scenes/high-noon.js';       // hidden "High Noon" easter egg at exactly 12:00 PM
+import './panels/options-drawer.js';    // right-side slide-out options drawer
+import './panels/deposit.js';    // add-credit popup
+import './panels/rtp-picker.js';        // RTP / math-model picker popup
+import './panels/game-size.js';   // folder-size breakdown popup
+import './scenes/idle-poster.js'; // idle "attract mode" — glows up the Wanted poster
+import './game/base-game.js';
+import './game/bonus.js';
+import './game/buy-bonus.js';
+import './panels/simulator.js';
+import './panels/math-breakdown.js';
 
 /* ══════════════════════════════════════════
    VOLUME / SOUND CONTROLS

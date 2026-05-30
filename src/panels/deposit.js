@@ -6,10 +6,10 @@
  */
 'use strict';
 
-import { state } from './state.js';
-import { updateDisplays } from './ui.js';
-import { fmt } from './utils.js';
-import { synth } from './audio.js';
+import { state } from '../core/state.js';
+import { updateDisplays } from '../render/readouts.js';
+import { fmt } from '../core/utils.js';
+import { synth } from '../audio/sound.js';
 
 const btnDeposit = document.getElementById('btn-deposit');
 const modal      = document.getElementById('deposit-modal');

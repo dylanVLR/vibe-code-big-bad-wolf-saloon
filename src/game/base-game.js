@@ -1,5 +1,5 @@
 /**
- * @module basegame
+ * @module base-game
  * @description The normal spin: take the bet, spin the reels, then present the
  * result (loss, small/medium/big/mega win, or bonus trigger). Also handles the
  * bet +/- buttons, turbo toggle, auto-spin, and the spin keyboard shortcuts.
@@ -7,19 +7,19 @@
  */
 'use strict';
 
-import { BET_LEVELS } from './config.js';
-import { DEV_MODE } from './devmode.js';
-import { state } from './state.js';
-import { sleep, fmt } from './utils.js';
-import { synth } from './audio.js';
-import { narrator } from './narrator.js';
-import { generateGrid, evaluateGrid, countHats, shouldAnticipate } from './mathcore.js';
-import { animateReel, getReelStrips, highlightWinners, clearHighlights, animateWinCount } from './engine.js';
+import { BET_LEVELS } from '../math/par-sheet.js';
+import { DEV_MODE } from '../system/dev-mode.js';
+import { state } from '../core/state.js';
+import { sleep, fmt } from '../core/utils.js';
+import { synth } from '../audio/sound.js';
+import { narrator } from '../audio/narrator.js';
+import { generateGrid, evaluateGrid, countHats, shouldAnticipate } from '../math/mathcore.js';
+import { animateReel, getReelStrips, highlightWinners, clearHighlights, animateWinCount } from '../render/reels.js';
 import {
   spawnStarbursts, spawnSideWaterfall, spawnWinVignette, spawnWinPopText,
   playWinPresentation
-} from './particles.js';
-import { setStatus, updateDisplays, elWin, buttons, stopAuto } from './ui.js';
+} from '../render/particles.js';
+import { setStatus, updateDisplays, elWin, buttons, stopAuto } from '../render/readouts.js';
 import { startBonus, isBonusActive } from './bonus.js';
 
 const cabinet    = document.getElementById('cabinet');

@@ -6,8 +6,8 @@
  */
 'use strict';
 
-import { synth } from './audio.js';
-import { fmt } from './utils.js';
+import { synth } from '../audio/sound.js';
+import { fmt } from '../core/utils.js';
 
 const particleContainer = document.getElementById('particle-container');
 const ambientContainer  = document.getElementById('ambient-particles');

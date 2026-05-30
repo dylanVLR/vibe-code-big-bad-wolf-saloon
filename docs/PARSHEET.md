@@ -1,8 +1,9 @@
-# Huff N' More Puff — Par Sheet
+# Big Bad Wolf — Par Sheet
 
 Human-readable summary of the game math. The **canonical source** is
-[`js/config.js`](js/config.js); the live game ([`app.js`](app.js)) mirrors the
-same numbers. Re-verify anytime with:
+[`../src/math/par-sheet.js`](../src/math/par-sheet.js) (the par sheet) plus
+[`../src/math/mathcore.js`](../src/math/mathcore.js) (the evaluation logic); the
+live game (`app.js`) is bundled from those. Re-verify anytime with:
 
 ```
 node tools/sim.js 10000000
@@ -10,16 +11,22 @@ node tools/sim.js 10000000
 
 | Metric | Value |
 |---|---|
-| **Total RTP** | **≈ 96.9%** |
-| ├ Base game | ≈ 49.9% |
-| └ Bonus feature | ≈ 47.0% |
-| Hit frequency | ≈ 22.7% (about 1 in 4.4 spins wins) |
-| Bonus trigger rate | ≈ 1 in 166 spins |
-| Volatility (σ of per-spin return) | ≈ 8.8 → **high** |
-| Max win observed (10M spins) | ≈ 1,000× bet |
-| Bonus Buy price | **80 × bet** (buy RTP ≈ 97.6%) |
+| **Total RTP** | **≈ 102.3%** |
+| ├ Base game | ≈ 59.4% |
+| └ Bonus feature | ≈ 42.9% |
+| Bonus trigger rate | ≈ 1 in 177 spins |
+| Avg bonus value | ≈ 75.8× bet (given a trigger) |
+| Volatility | **high** (rare, large bonus/jackpot swings) |
+| Bonus Buy price | **80 × bet** |
 
 > Figures are Monte-Carlo estimates over 10,000,000 spins at $1 bet.
+>
+> ⚠️ **Design target vs. reality:** this game was originally tuned to **~97%**
+> RTP, but the par sheet has since drifted to **~102%** (the base game pays more
+> than the original ~50% design). The numbers above are the *measured* values, not
+> the target. To pull it back to 97%, trim base-game `pays` and/or the bonus
+> award magnitudes in `par-sheet.js` and re-run `node tools/sim.js` until it
+> converges. (At 102%, the 80× Bonus-Buy price is also slightly player-favorable.)
 
 ---
 
@@ -123,7 +130,8 @@ buying is neither better nor worse value than spinning for it.
 
 | Thing | Location |
 |---|---|
-| Paytable, reel counts, bonus config (canonical) | `js/config.js` |
-| Live game (mirror) | `app.js` (`SYMBOLS`, `REEL_COUNTS`, `BONUS_CONFIG`) |
-| Headless verifier | `tools/sim.js` |
-| Dead/refactor module (kept in sync) | `js/bonus.js`, `js/engine.js` |
+| Paytable, reel counts, bonus config (canonical) | `src/math/par-sheet.js` |
+| 243-ways evaluation + bonus award rolls | `src/math/mathcore.js` |
+| Live bonus presentation (uses the same award rolls) | `src/game/bonus.js` |
+| Bundled game the browser runs | `app.js` (generated from `src/` by `tools/build.js`) |
+| Headless RTP verifier | `tools/sim.js` |

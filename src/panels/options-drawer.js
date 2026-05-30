@@ -1,5 +1,5 @@
 /**
- * @module options
+ * @module options-drawer
  * @description The right-side options drawer. Clicking the edge handle slides the
  * panel open/closed; clicking anywhere outside closes it. The buttons inside keep
  * their original IDs, so their behaviour is wired by their own modules — this
