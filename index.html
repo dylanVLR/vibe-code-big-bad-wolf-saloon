@@ -12,7 +12,7 @@
 </head>
 <body>
 <!-- Looping background video -->
-<video id="bg-video" src="assets/webm/bg.webm" autoplay loop muted playsinline preload="auto"></video>
+<video id="bg-video" src="assets/webm/Background.webm" autoplay loop muted playsinline preload="auto"></video>
 
 <!-- Ambient gold dust particle container -->
 <div id="ambient-particles"></div>
@@ -967,10 +967,10 @@
   <!-- CABINET FRAME -->
   <div id="cabinet">
 
-    <!-- WOLF CHARACTER ON PLATFORM -->
+    <!-- WOLF CHARACTER ON PLATFORM (transparent looping video) -->
     <div id="wolf-container">
       <div id="wolf-platform"></div>
-      <video id="side-wolf" src="assets/Wolf-422.webm" autoplay loop muted playsinline preload="auto"></video>
+      <video id="side-wolf" src="assets/webm/Sidewolf.webm" autoplay muted playsinline preload="auto"></video>
     </div>
 
     <!-- ═══ ORNATE ART DECO CABINET DECORATIONS ═══ -->
@@ -1074,26 +1074,31 @@
           <svg viewBox="0 0 100 100">
             <!-- Sheriff Badge -->
             <defs>
-              <linearGradient id="badge-gold" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="#FFE88A"/>
-                <stop offset="50%" stop-color="#D4A000"/>
-                <stop offset="100%" stop-color="#8B6914"/>
+              <linearGradient id="badge-gold" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#E5C158"/>
+                <stop offset="20%" stop-color="#FFF4CA"/>
+                <stop offset="40%" stop-color="#C29B38"/>
+                <stop offset="60%" stop-color="#A87C22"/>
+                <stop offset="80%" stop-color="#E5C158"/>
+                <stop offset="100%" stop-color="#4A3406"/>
               </linearGradient>
-              <linearGradient id="badge-inner" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="#D4A000"/>
-                <stop offset="100%" stop-color="#FFE88A"/>
+              <linearGradient id="badge-inner" x1="0" y1="1" x2="1" y2="0">
+                <stop offset="0%" stop-color="#4A3406"/>
+                <stop offset="30%" stop-color="#A87C22"/>
+                <stop offset="70%" stop-color="#E5C158"/>
+                <stop offset="100%" stop-color="#FFF4CA"/>
               </linearGradient>
             </defs>
-            <polygon points="50,5 61,35 95,35 68,55 78,85 50,68 22,85 32,55 5,35 39,35" fill="url(#badge-gold)" stroke="#3A2A00" stroke-width="2"/>
-            <polygon points="50,12 58,37 85,37 63,53 71,77 50,62 29,77 37,53 15,37 42,37" fill="url(#badge-inner)" stroke="#5A4000" stroke-width="1"/>
-            <circle cx="50" cy="48" r="18" fill="url(#badge-gold)" stroke="#5A4000" stroke-width="2"/>
-            <circle cx="50" cy="48" r="14" fill="none" stroke="#5A4000" stroke-width="1" stroke-dasharray="2,2"/>
-            <text x="50" y="60" text-anchor="middle" font-family="Rye, serif" font-size="34" fill="#3A2A00" style="text-shadow: 1px 1px 0 rgba(255,255,255,0.5)">B</text>
-            <circle cx="50" cy="15" r="2" fill="#5A4000"/>
-            <circle cx="80" cy="38" r="2" fill="#5A4000"/>
-            <circle cx="68" cy="74" r="2" fill="#5A4000"/>
-            <circle cx="32" cy="74" r="2" fill="#5A4000"/>
-            <circle cx="20" cy="38" r="2" fill="#5A4000"/>
+            <polygon points="50,2 62,35 98,35 69,57 80,92 50,71 20,92 31,57 2,35 38,35" fill="url(#badge-gold)" stroke="#3A2A00" stroke-width="2" stroke-linejoin="round"/>
+            <polygon points="50,10 59,37 88,37 65,54 74,83 50,65 26,83 35,54 12,37 41,37" fill="url(#badge-inner)" stroke="#5A4000" stroke-width="1" stroke-linejoin="round"/>
+            <circle cx="50" cy="50" r="15" fill="url(#badge-gold)" stroke="#5A4000" stroke-width="2"/>
+            <circle cx="50" cy="50" r="11" fill="none" stroke="#5A4000" stroke-width="1" stroke-dasharray="2,2"/>
+            <text x="50" y="58" text-anchor="middle" font-family="Rye, serif" font-size="22" fill="#2E1C00" style="text-shadow: 1px 1px 0 rgba(255,255,255,0.4)">B</text>
+            <circle cx="50" cy="14" r="2.5" fill="#2E1C00"/>
+            <circle cx="83" cy="38" r="2.5" fill="#2E1C00"/>
+            <circle cx="71" cy="80" r="2.5" fill="#2E1C00"/>
+            <circle cx="29" cy="80" r="2.5" fill="#2E1C00"/>
+            <circle cx="17" cy="38" r="2.5" fill="#2E1C00"/>
           </svg>
         </div>
         
@@ -1672,6 +1677,7 @@
     </div>
     <div class="buy-body">
       <div id="size-total" class="size-total"></div>
+      <div id="size-scope" class="size-scope"></div>
       <div id="size-bar" class="size-bar"></div>
       <div id="size-legend" class="size-legend"></div>
       <p class="size-foot">Total disk footprint of the game folder, by file type.</p>
@@ -1744,6 +1750,7 @@
     <button id="btn-size" class="drawer-btn drawer-size dev-tool" title="See how many megabytes the game uses">📦 GAME SIZE</button>
     <button id="btn-deposit" class="drawer-btn drawer-deposit dev-tool" title="Add credit to the machine">💵 ADD CREDIT</button>
     <button id="btn-force-extreme" class="drawer-btn dev-tool" title="Force Extreme Anticipation">🥵 EXTREME ANT.</button>
+    <button id="btn-force-wild" class="drawer-btn drawer-wild dev-tool" title="Spin and land an expanding Wolf Wild">🐺 SHOW WILD</button>
     <!-- Developer simulation and math buttons moved to hidden debug panel -->
 
   </div>

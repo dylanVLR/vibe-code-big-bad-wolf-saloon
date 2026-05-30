@@ -764,6 +764,7 @@ const state = {
   musicAutoStarted: false,    // background music has been kicked off
   rtpModelId: DEFAULT_RTP_MODEL, // selected RTP math model (see RTP_MODELS in par-sheet.js)
   forceExtremeNextSpin: false,   // dev tool to force extreme anticipation on next spin
+  forceWildNextSpin: false,      // dev tool to force an expanding Wolf Wild on next spin
 };
 
 Object.assign(exports, { state });
@@ -817,7 +818,7 @@ Object.assign(exports, { sleep, fmt, scheduleRemove });
  * Wins are computed by mathcore; this file is presentation + flow.
  */
 
-const { BET_LEVELS } = require("par-sheet");
+const { BET_LEVELS, WILD_ID } = require("par-sheet");
 const { DEV_MODE } = require("dev-mode");
 const { state } = require("state");
 const { sleep, fmt } = require("utils");
@@ -892,6 +893,12 @@ function triggerSpin() {
     for (let i = 0; i < 3; i++) {
       if (targetGrid[4][i].startsWith('hat')) targetGrid[4][i] = 'royal-a';
     }
+  }
+
+  // gaff: force an expanding Wolf Wild onto the center reel this spin
+  if (state.forceWildNextSpin) {
+    state.forceWildNextSpin = false;
+    targetGrid[2][1] = WILD_ID;   // one wild on the center reel → it fills the whole reel
   }
 
   const anticipate = shouldAnticipate(targetGrid);
@@ -1050,6 +1057,16 @@ if (btnForceExtreme) {
   btnForceExtreme.addEventListener('click', () => {
     state.forceExtremeNextSpin = true;
     setStatus('EXTREME ANTICIPATION FORCED NEXT SPIN', 'win');
+  });
+}
+
+// gaff: arm a forced Wolf Wild and spin straight away so it shows itself off
+const btnForceWild = document.getElementById('btn-force-wild');
+if (btnForceWild) {
+  btnForceWild.addEventListener('click', () => {
+    if (state.spinning || isBonusActive()) return;
+    state.forceWildNextSpin = true;
+    triggerSpin();
   });
 }
 
@@ -1689,6 +1706,7 @@ require("deposit");    // add-credit popup
 require("rtp-picker");        // RTP / math-model picker popup
 require("game-size");   // folder-size breakdown popup
 require("idle-poster"); // idle "attract mode" — glows up the Wanted poster
+require("side-wolf");  // SideWolf character: idle loop ×3 → random reaction → repeat
 require("base-game");
 require("bonus");
 require("buy-bonus");
@@ -1807,10 +1825,6 @@ function init() {
   // close the big-win overlay on click
   const bigWin = document.getElementById('big-win-overlay');
   if (bigWin) bigWin.addEventListener('click', () => bigWin.classList.add('hidden'));
-
-  // nudge the looping side wolf to play (muted autoplay; harmless if blocked)
-  const sideWolf = document.getElementById('side-wolf');
-  if (sideWolf) sideWolf.play().catch(() => {});
 
   startAmbientParticles();
 }
@@ -2430,6 +2444,7 @@ const modal     = document.getElementById('size-modal');
 const closeBtn  = document.getElementById('btn-close-size');
 const doneBtn   = document.getElementById('btn-size-done');
 const totalEl   = document.getElementById('size-total');
+const scopeEl   = document.getElementById('size-scope');
 const barEl     = document.getElementById('size-bar');
 const legendEl  = document.getElementById('size-legend');
 
@@ -2442,7 +2457,7 @@ function fmtSize(bytes) {
 
 /** Build the popup contents from the manifest (once). */
 function render() {
-  const { totalBytes, fileCount, generatedAt, categories } = SIZE_MANIFEST;
+  const { totalBytes, fileCount, generatedAt, categories, player, dev } = SIZE_MANIFEST;
   if (!totalBytes) return;
   const pct = b => (b / totalBytes) * 100;
 
@@ -2452,6 +2467,26 @@ function render() {
       `<span class="size-total-num">${MB(totalBytes).toFixed(1)}</span>` +
       `<span class="size-total-unit">MB</span>` +
       `<span class="size-total-sub">${fileCount.toLocaleString()} files · snapshot ${generatedAt}</span>`;
+  }
+
+  // player-build vs dev/gaff-tools split (what ships to players vs dev-only)
+  if (scopeEl && player && dev) {
+    const wp = (player.bytes / totalBytes) * 100;
+    scopeEl.innerHTML =
+      `<div class="size-scope-bar">` +
+        `<div class="size-scope-seg player" style="width:${wp}%"></div>` +
+        `<div class="size-scope-seg dev" style="width:${100 - wp}%"></div>` +
+      `</div>` +
+      `<div class="size-scope-rows">` +
+        `<div class="size-scope-row"><span class="size-scope-dot player"></span>` +
+          `<span class="size-scope-name">📦 Player build</span>` +
+          `<span class="size-scope-meta">${player.files.toLocaleString()} files</span>` +
+          `<span class="size-scope-val">${fmtSize(player.bytes)}</span></div>` +
+        `<div class="size-scope-row"><span class="size-scope-dot dev"></span>` +
+          `<span class="size-scope-name">🛠 Dev / gaff tools</span>` +
+          `<span class="size-scope-meta">${dev.files.toLocaleString()} files</span>` +
+          `<span class="size-scope-val">${fmtSize(dev.bytes)}</span></div>` +
+      `</div>`;
   }
 
   // stacked bar
@@ -2633,7 +2668,7 @@ if (drawer && tab) {
   });
 
   // tidy up: close the drawer when an option opens a full-screen modal
-  ['btn-rtp', 'btn-size', 'btn-deposit', 'btn-buy-bonus', 'btn-info', 'btn-simulate', 'btn-math', 'btn-force-extreme'].forEach(id => {
+  ['btn-rtp', 'btn-size', 'btn-deposit', 'btn-buy-bonus', 'btn-info', 'btn-simulate', 'btn-math', 'btn-force-extreme', 'btn-force-wild'].forEach(id => {
     const b = document.getElementById(id);
     if (b) b.addEventListener('click', () => drawer.classList.remove('open'));
   });
@@ -3206,10 +3241,24 @@ Object.assign(exports, { runSimulation });
 /* AUTO-GENERATED by tools/build.js — folder-size snapshot. Do not edit. */
 
 const SIZE_MANIFEST = {
-  "totalBytes": 51125059,
-  "fileCount": 363,
+  "totalBytes": 96128470,
+  "fileCount": 386,
   "generatedAt": "2026-05-30",
+  "player": {
+    "bytes": 95902450,
+    "files": 346
+  },
+  "dev": {
+    "bytes": 226020,
+    "files": 40
+  },
   "categories": [
+    {
+      "key": "video",
+      "label": "Videos",
+      "bytes": 63961492,
+      "files": 28
+    },
     {
       "key": "audio",
       "label": "Audio",
@@ -3217,22 +3266,16 @@ const SIZE_MANIFEST = {
       "files": 305
     },
     {
-      "key": "video",
-      "label": "Videos",
-      "bytes": 19764586,
-      "files": 7
-    },
-    {
       "key": "image",
       "label": "Images",
-      "bytes": 10584837,
+      "bytes": 11374273,
       "files": 10
     },
     {
       "key": "code",
       "label": "Code",
-      "bytes": 596879,
-      "files": 38
+      "bytes": 613948,
+      "files": 40
     },
     {
       "key": "other",
@@ -4186,6 +4229,115 @@ window.addEventListener('intro:done', () => setTimeout(reveal, HOLD_MS), { once:
 
 // Safety net: reveal anyway if the intro never signals (missing/blocked splash).
 setTimeout(reveal, 23000);
+
+  };
+
+  __mods["side-wolf"] = function (exports, require) {
+/**
+ * @module side-wolf
+ * @description Gives the left-side SideWolf character a lively, dynamic feel.
+ * He loops his default idle clip a few times, then plays ONE randomly-chosen
+ * reaction (dances, sniffs, fist-pump, tips his hat, …) once, and returns to
+ * idle — forever. Every clip starts and ends in the same pose, so the swaps are
+ * seamless.
+ *
+ * The clip list (default + reactions) is generated by tools/build.js from the
+ * Sidewolf*.webm files in assets/webm/ — so adding a new animation and
+ * rebuilding automatically folds it into the rotation.
+ */
+
+const { SIDEWOLF } = require("sidewolf-clips");
+
+const video = document.getElementById('side-wolf');
+const IDLE_LOOPS = 1;        // loop the default this many times before a reaction
+
+if (video && SIDEWOLF.default) {
+  video.loop = false;        // we manage looping ourselves so we can count
+  video.muted = true;
+
+  let mode = 'idle';
+  let idleCount = 0;
+  let lastSpecial = -1;
+  let queued = false;        // a click asks for a reaction at the NEXT natural clip end
+
+  /** Point the video at `src` (only swapping the source if it changed) and play. */
+  function play(src) {
+    if (video.getAttribute('src') !== src) video.setAttribute('src', src);
+    try { video.currentTime = 0; } catch (e) {}
+    video.play().catch(() => {});
+  }
+
+  function playIdle() { mode = 'idle'; play(SIDEWOLF.default); }
+
+  function playReaction() {
+    const list = SIDEWOLF.specials;
+    if (!list || !list.length) { playIdle(); return; }   // no reactions → just idle
+    mode = 'special';
+    let i;
+    do { i = Math.floor(Math.random() * list.length); }
+    while (list.length > 1 && i === lastSpecial);         // avoid repeating the last one
+    lastSpecial = i;
+    play(list[i]);
+  }
+
+  video.addEventListener('ended', () => {
+    // a queued click takes priority — but only fires now that the clip finished,
+    // so the wolf is back in his default pose before switching
+    if (queued) { queued = false; idleCount = 0; playReaction(); return; }
+    if (mode === 'idle') {
+      if (++idleCount >= IDLE_LOOPS) { idleCount = 0; playReaction(); }
+      else play(SIDEWOLF.default);        // same clip → seamless re-loop
+    } else {
+      playIdle();                         // reaction finished → back to idle
+    }
+  });
+
+  // click / tap the wolf to QUEUE a random reaction for the moment the current
+  // clip ends (he finishes the loop and returns to default first — no jarring cut)
+  video.addEventListener('pointerdown', () => { queued = true; });
+
+  // start the idle loop (muted autoplay; if the browser blocks it, kick off on
+  // the first interaction)
+  playIdle();
+  if (video.paused) {
+    const kick = () => { video.play().catch(() => {}); };
+    document.addEventListener('pointerdown', kick, { once: true });
+    document.addEventListener('keydown', kick, { once: true });
+  }
+}
+
+  };
+
+  __mods["sidewolf-clips"] = function (exports, require) {
+/* AUTO-GENERATED by tools/build.js — SideWolf animation clips. Do not edit. */
+
+const SIDEWOLF = {
+  "default": "assets/webm/Sidewolf.webm",
+  "specials": [
+    "assets/webm/Sidewolf_bandana.webm",
+    "assets/webm/Sidewolf_blows.webm",
+    "assets/webm/Sidewolf_chillin.webm",
+    "assets/webm/Sidewolf_confused.webm",
+    "assets/webm/Sidewolf_dance2.webm",
+    "assets/webm/Sidewolf_dances.webm",
+    "assets/webm/Sidewolf_excited.webm",
+    "assets/webm/Sidewolf_fighting.webm",
+    "assets/webm/Sidewolf_fistpump.webm",
+    "assets/webm/Sidewolf_grins.webm",
+    "assets/webm/Sidewolf_hat.webm",
+    "assets/webm/Sidewolf_headtilt.webm",
+    "assets/webm/Sidewolf_jig.webm",
+    "assets/webm/Sidewolf_laughing.webm",
+    "assets/webm/Sidewolf_neck.webm",
+    "assets/webm/Sidewolf_polite.webm",
+    "assets/webm/Sidewolf_posture.webm",
+    "assets/webm/Sidewolf_sniffing.webm",
+    "assets/webm/Sidewolf_sniffs.webm",
+    "assets/webm/Sidewolf_tilt.webm"
+  ]
+};
+
+Object.assign(exports, { SIDEWOLF });
 
   };
 

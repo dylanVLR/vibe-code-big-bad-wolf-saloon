@@ -25,6 +25,7 @@ const modal     = document.getElementById('size-modal');
 const closeBtn  = document.getElementById('btn-close-size');
 const doneBtn   = document.getElementById('btn-size-done');
 const totalEl   = document.getElementById('size-total');
+const scopeEl   = document.getElementById('size-scope');
 const barEl     = document.getElementById('size-bar');
 const legendEl  = document.getElementById('size-legend');
 
@@ -37,7 +38,7 @@ function fmtSize(bytes) {
 
 /** Build the popup contents from the manifest (once). */
 function render() {
-  const { totalBytes, fileCount, generatedAt, categories } = SIZE_MANIFEST;
+  const { totalBytes, fileCount, generatedAt, categories, player, dev } = SIZE_MANIFEST;
   if (!totalBytes) return;
   const pct = b => (b / totalBytes) * 100;
 
@@ -47,6 +48,26 @@ function render() {
       `<span class="size-total-num">${MB(totalBytes).toFixed(1)}</span>` +
       `<span class="size-total-unit">MB</span>` +
       `<span class="size-total-sub">${fileCount.toLocaleString()} files · snapshot ${generatedAt}</span>`;
+  }
+
+  // player-build vs dev/gaff-tools split (what ships to players vs dev-only)
+  if (scopeEl && player && dev) {
+    const wp = (player.bytes / totalBytes) * 100;
+    scopeEl.innerHTML =
+      `<div class="size-scope-bar">` +
+        `<div class="size-scope-seg player" style="width:${wp}%"></div>` +
+        `<div class="size-scope-seg dev" style="width:${100 - wp}%"></div>` +
+      `</div>` +
+      `<div class="size-scope-rows">` +
+        `<div class="size-scope-row"><span class="size-scope-dot player"></span>` +
+          `<span class="size-scope-name">📦 Player build</span>` +
+          `<span class="size-scope-meta">${player.files.toLocaleString()} files</span>` +
+          `<span class="size-scope-val">${fmtSize(player.bytes)}</span></div>` +
+        `<div class="size-scope-row"><span class="size-scope-dot dev"></span>` +
+          `<span class="size-scope-name">🛠 Dev / gaff tools</span>` +
+          `<span class="size-scope-meta">${dev.files.toLocaleString()} files</span>` +
+          `<span class="size-scope-val">${fmtSize(dev.bytes)}</span></div>` +
+      `</div>`;
   }
 
   // stacked bar

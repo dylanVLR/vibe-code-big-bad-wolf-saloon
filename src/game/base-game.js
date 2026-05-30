@@ -7,7 +7,7 @@
  */
 'use strict';
 
-import { BET_LEVELS } from '../math/par-sheet.js';
+import { BET_LEVELS, WILD_ID } from '../math/par-sheet.js';
 import { DEV_MODE } from '../system/dev-mode.js';
 import { state } from '../core/state.js';
 import { sleep, fmt } from '../core/utils.js';
@@ -82,6 +82,12 @@ export function triggerSpin() {
     for (let i = 0; i < 3; i++) {
       if (targetGrid[4][i].startsWith('hat')) targetGrid[4][i] = 'royal-a';
     }
+  }
+
+  // gaff: force an expanding Wolf Wild onto the center reel this spin
+  if (state.forceWildNextSpin) {
+    state.forceWildNextSpin = false;
+    targetGrid[2][1] = WILD_ID;   // one wild on the center reel → it fills the whole reel
   }
 
   const anticipate = shouldAnticipate(targetGrid);
@@ -240,5 +246,15 @@ if (btnForceExtreme) {
   btnForceExtreme.addEventListener('click', () => {
     state.forceExtremeNextSpin = true;
     setStatus('EXTREME ANTICIPATION FORCED NEXT SPIN', 'win');
+  });
+}
+
+// gaff: arm a forced Wolf Wild and spin straight away so it shows itself off
+const btnForceWild = document.getElementById('btn-force-wild');
+if (btnForceWild) {
+  btnForceWild.addEventListener('click', () => {
+    if (state.spinning || isBonusActive()) return;
+    state.forceWildNextSpin = true;
+    triggerSpin();
   });
 }

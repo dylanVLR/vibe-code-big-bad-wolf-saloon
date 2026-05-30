@@ -37,6 +37,7 @@ import './panels/deposit.js';    // add-credit popup
 import './panels/rtp-picker.js';        // RTP / math-model picker popup
 import './panels/game-size.js';   // folder-size breakdown popup
 import './scenes/idle-poster.js'; // idle "attract mode" — glows up the Wanted poster
+import './scenes/side-wolf.js';  // SideWolf character: idle loop ×3 → random reaction → repeat
 import './game/base-game.js';
 import './game/bonus.js';
 import './game/buy-bonus.js';
@@ -155,10 +156,6 @@ function init() {
   // close the big-win overlay on click
   const bigWin = document.getElementById('big-win-overlay');
   if (bigWin) bigWin.addEventListener('click', () => bigWin.classList.add('hidden'));
-
-  // nudge the looping side wolf to play (muted autoplay; harmless if blocked)
-  const sideWolf = document.getElementById('side-wolf');
-  if (sideWolf) sideWolf.play().catch(() => {});
 
   startAmbientParticles();
 }
