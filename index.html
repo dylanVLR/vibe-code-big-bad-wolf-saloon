@@ -1116,7 +1116,8 @@
       <!-- REEL WINDOW with 5 columns -->
       <div id="reel-window">
         <!-- Background motion texture -->
-        <video id="reel-bg-video" src="assets/webm/Wanted_poster.webm" autoplay loop muted playsinline preload="auto"></video>
+        <!-- decorative reel-window backdrop (5MB) — deferred so it never competes with first play; activated by lazy-assets.js -->
+        <video id="reel-bg-video" data-lazy-src="assets/webm/Wanted_poster.webm" data-lazy-autoplay loop muted playsinline preload="none"></video>
         <!-- Neon dividers (4 lines between 5 reels) -->
         <div class="reel-sep" id="sep-1"></div>
         <div class="reel-sep" id="sep-2"></div>
@@ -1162,12 +1163,12 @@
 
         <!-- WOLF BLOW video (the wolf huffing & puffing — plays contained inside the reel window) -->
         <div id="wolf-tornado-overlay" class="hidden">
-          <video id="wolf-tornado-video" src="assets/webm/Wolf_blowing_tornado.webm" muted playsinline preload="auto"></video>
+          <video id="wolf-tornado-video" src="assets/webm/Wolf_blowing_tornado.webm" muted playsinline preload="none"></video>
         </div>
 
         <!-- BONUS INTRO video (plays contained inside the reel window) -->
         <div id="bonus-intro-overlay" class="hidden">
-          <video id="bonus-intro-video" src="assets/webm/Three_pigs_bonus_intro.webm" playsinline preload="auto"></video>
+          <video id="bonus-intro-video" src="assets/webm/Three_pigs_bonus_intro.webm" playsinline preload="none"></video>
           <div id="bonus-intro-skip">CLICK TO SKIP</div>
         </div>
       </div>

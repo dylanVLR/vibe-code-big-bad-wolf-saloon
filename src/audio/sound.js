@@ -139,7 +139,11 @@ class BGMusic {
       base:  new Audio('assets/audio/music/bgm_base.mp3'),
       bonus: new Audio('assets/audio/music/bgm_bonus.mp3'),
     };
-    for (const a of Object.values(this.tracks)) { a.loop = true; a.preload = 'auto'; a.volume = 0; }
+    for (const a of Object.values(this.tracks)) { a.loop = true; a.volume = 0; }
+    // base music is wanted right away; the bonus track is rare — don't eager-load
+    // it (≈2.4 MB), it's warmed in the background by lazy-assets.js instead.
+    this.tracks.base.preload = 'auto';
+    this.tracks.bonus.preload = 'none';
     this.current = 'base';
     this.playing = false;
     this._volume = 0.5;        // 0..1 (user-facing)
