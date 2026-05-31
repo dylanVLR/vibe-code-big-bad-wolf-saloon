@@ -38,9 +38,9 @@ const WARM = [
   'assets/webm/F1-straw.webm',
   'assets/webm/F2-wood.webm',
   'assets/webm/F3-brick.webm',
-  'assets/bonus_pig_straw.png',
-  'assets/bonus_pig_wood.png',
-  'assets/bonus_pig_brick.png',
+  'assets/bonus_pig_straw.webp',
+  'assets/bonus_pig_wood.webp',
+  'assets/bonus_pig_brick.webp',
   'assets/audio/music/bgm_bonus.mp3',
 ];
 function warmExtras() {

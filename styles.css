@@ -984,7 +984,7 @@ body.pre-reveal #bg-video { opacity: 1; }   /* full, undimmed background during 
 /* light weathered texture overlay on the wild plaque */
 .wild-texture {
   position: absolute; inset: 0; z-index: 2; pointer-events: none; border-radius: 10px;
-  background: url('assets/wild_texture.png') center/cover no-repeat;
+  background: url('assets/wild_texture.webp') center/cover no-repeat;
   opacity: 0.16;
   mix-blend-mode: overlay;
 }
@@ -1828,7 +1828,7 @@ body.pre-reveal #bg-video { opacity: 1; }   /* full, undimmed background during 
   position: absolute;
   top: 0; left: 0;
   width: 100%; height: 100%;
-  background-image: url("file:///Users/beekeeper/.gemini/antigravity-ide/brain/75a2758b-a15f-4c53-a55d-08aae1de2b1e/console_wood_1780125242416.png");
+  background-image: url("assets/console_wood.webp");
   background-size: cover;
   background-position: center;
   opacity: 0.35;

@@ -121,15 +121,15 @@ export const SYMBOLS = {
   // Pays were scaled to 0.51× the pre-wild values: the expanding Wolf Wild adds a
   // big chunk of base RTP on its own, so the line pays come down to keep the base
   // game near ~49% (total ~97%). Re-verify any change with `node tools/sim.js`.
-  'hat-yellow':     { id: 'hat-yellow',     src: 'assets/hat_yellow.png',     label: 'Yellow Hat',    pays: { 3: 1.78, 4: 7.14, 5: 35.70 }, isHat: true },
-  'hat-green':      { id: 'hat-green',      src: 'assets/hat_white.png',      label: 'White Hat',     pays: { 3: 0.89, 4: 3.57, 5: 17.85 }, isHat: true },
-  'hat-red':        { id: 'hat-red',        src: 'assets/hat_red.png',        label: 'Red Hat',       pays: { 3: 0.71, 4: 2.86, 5: 14.28 }, isHat: true },
-  'pig-suit':       { id: 'pig-suit',       src: 'assets/horseshoe.png',       label: 'Straw Pig',      pays: { 3: 1.43, 4: 5.36, 5: 26.52 } },
-  'pig-contractor': { id: 'pig-contractor', src: 'assets/horseshoe.png',    label: 'Horseshoe',   pays: { 3: 1.07, 4: 4.28, 5: 21.42 } },
-  'pig-nature':     { id: 'pig-nature',     src: 'assets/tornado.png',  label: 'Tornado', pays: { 3: 0.71, 4: 2.86, 5: 14.28 } },
-  'toolbox':        { id: 'toolbox',        src: 'assets/shotglass.png',        label: 'Wood Pig',       pays: { 3: 0.61, 4: 2.50, 5: 12.24 } },
-  'wolf':           { id: 'wolf',           src: 'assets/wolf.png',           label: 'Wolf',          pays: { 3: 0.46, 4: 1.79, 5: 8.67 } },
-  'buzzard':        { id: 'buzzard',        src: 'assets/buzzard.png',        label: 'Buzzard',       pays: { 3: 0.36, 4: 1.43, 5: 7.14 } },
+  'hat-yellow':     { id: 'hat-yellow',     src: 'assets/hat_yellow.webp',     label: 'Yellow Hat',    pays: { 3: 1.78, 4: 7.14, 5: 35.70 }, isHat: true },
+  'hat-green':      { id: 'hat-green',      src: 'assets/hat_white.webp',      label: 'White Hat',     pays: { 3: 0.89, 4: 3.57, 5: 17.85 }, isHat: true },
+  'hat-red':        { id: 'hat-red',        src: 'assets/hat_red.webp',        label: 'Red Hat',       pays: { 3: 0.71, 4: 2.86, 5: 14.28 }, isHat: true },
+  'pig-suit':       { id: 'pig-suit',       src: 'assets/horseshoe.webp',       label: 'Straw Pig',      pays: { 3: 1.43, 4: 5.36, 5: 26.52 } },
+  'pig-contractor': { id: 'pig-contractor', src: 'assets/horseshoe.webp',    label: 'Horseshoe',   pays: { 3: 1.07, 4: 4.28, 5: 21.42 } },
+  'pig-nature':     { id: 'pig-nature',     src: 'assets/tornado.webp',  label: 'Tornado', pays: { 3: 0.71, 4: 2.86, 5: 14.28 } },
+  'toolbox':        { id: 'toolbox',        src: 'assets/shotglass.webp',        label: 'Wood Pig',       pays: { 3: 0.61, 4: 2.50, 5: 12.24 } },
+  'wolf':           { id: 'wolf',           src: 'assets/wolf.webp',           label: 'Wolf',          pays: { 3: 0.46, 4: 1.79, 5: 8.67 } },
+  'buzzard':        { id: 'buzzard',        src: 'assets/buzzard.webp',        label: 'Buzzard',       pays: { 3: 0.36, 4: 1.43, 5: 7.14 } },
 
   // ── WOLF WILD (expanding) ──
   // Lands only on reels 2-4. When one lands it fills its whole reel and

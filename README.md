@@ -79,7 +79,7 @@ build works* below.
 └── assets/                Media (images, video, audio) — gitignored, not in version control.
     ├── audio/ {music, sfx, narrator}
     ├── webm/              transparent + cutscene videos
-    └── *.png              reel symbols + bonus art
+    └── *.webp             reel symbols + bonus art (WebP, web-optimized)
 ```
 
 ---
