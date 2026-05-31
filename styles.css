@@ -755,15 +755,17 @@ body.pre-reveal #bg-video { opacity: 1; }   /* full, undimmed background during 
 
 #logo-text {
   display: flex;
-  gap: 10px;
+  flex-wrap: wrap;              /* let the wordmark stack onto itself when cramped */
+  gap: 4px 10px;
   align-items: center;
-  justify-content: center;
+  justify-content: center;     /* …and stay centered while it does */
   flex: 1;
+  min-width: 0;
 }
 
 #logo-text span {
   font-family: var(--font-title);
-  font-size: 2.7rem;
+  font-size: clamp(1.35rem, 5vw, 2.7rem);   /* scales down smoothly as the frame narrows */
   font-weight: 900;
   letter-spacing: 2px;
   transform: scaleY(1.1);
@@ -3357,7 +3359,9 @@ body.pre-reveal #bg-video { opacity: 1; }   /* full, undimmed background during 
     width: 60px;
     height: 60px;
   }
-  #logo-text span { font-size: 1.15rem; }
+  /* shrink the flanking medallions so the centered wordmark keeps its room */
+  .logo-content { padding: 0 10px; }
+  .logo-badge, .logo-clovers { width: 64px; height: 64px; }
   .console-value  { font-size: 1rem; }
   #console-bar    { gap: 6px; padding: 8px 10px; }
   .pt-grid        { grid-template-columns: repeat(2, 1fr); }
@@ -3370,6 +3374,32 @@ body.pre-reveal #bg-video { opacity: 1; }   /* full, undimmed background during 
   .reel-ways-pill span { font-size: 7px; }
   .corner-filigree { width: 30px; height: 30px; }
   #cabinet::before { inset: -2px; padding: 2px; }
+}
+
+/* ── Phone vertical frame: keep the title centered (stacking if it must) and
+      move the SPIN button to its own centered row beneath the money displays,
+      instead of crammed into the right corner. ── */
+@media (max-width: 560px) {
+  .logo-badge, .logo-clovers { width: 52px; height: 52px; }
+  .logo-content { padding: 0 8px; gap: 6px; }
+
+  /* console-bar already flex-wraps; give each zone a full-width row and order
+     them money-first, SPIN second so the button lands centered underneath. */
+  #console-bar  { justify-content: center; row-gap: 10px; }
+  .console-left { display: none; }
+  .console-center {
+    order: 1;
+    flex: 1 1 100%;
+    top: 0;                 /* drop the slight upward nudge used on wide layouts */
+  }
+  .console-right {
+    order: 2;
+    flex: 1 1 100%;
+    display: block;          /* block row so the fixed-width SPIN button… */
+  }
+  .console-right #btn-spin {
+    margin: 2px auto;        /* …centers reliably under the money displays */
+  }
 }
 
 /* ════════════════════════════════════════
