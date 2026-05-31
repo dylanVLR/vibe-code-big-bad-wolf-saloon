@@ -120,7 +120,8 @@
   pointer-events: none;
 }
 
-#side-wolf {
+#side-wolf,
+.side-wolf-layer {
   position: absolute;
   bottom: 12px; /* stand exactly on the platform */
   left: 10px;
@@ -130,6 +131,8 @@
   filter: drop-shadow(8px 6px 16px rgba(0,0,0,0.5));
   pointer-events: auto; /* clickable even though #wolf-container is pointer-events:none */
   cursor: pointer;      /* click/tap him to trigger a random reaction */
+  opacity: 1;
+  transition: opacity 0.12s linear; /* tiny cross-fade masks any 1-frame overlap */
 }
 
 #wolf-platform {
