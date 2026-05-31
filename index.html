@@ -15,6 +15,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Rye&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🐺</text></svg>">
 </head>
 <body>
 <!-- Looping background video -->
@@ -1655,19 +1656,27 @@
 
 <!-- GAME SIZE breakdown MODAL -->
 <div id="size-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="size-modal-title">
-  <div class="modal-box buy-box">
+  <div class="modal-box buy-box size-box">
     <div class="modal-header">
       <h2 id="size-modal-title">📦 GAME SIZE</h2>
       <button id="btn-close-size" class="modal-close" aria-label="Close">&times;</button>
     </div>
-    <div class="buy-body">
-      <div id="size-total" class="size-total"></div>
-      <div id="size-scope" class="size-scope"></div>
-      <div id="size-phases" class="size-phases"></div>
-      <div class="size-divider"></div>
-      <div id="size-bar" class="size-bar"></div>
-      <div id="size-legend" class="size-legend"></div>
-      <p class="size-foot">Total disk footprint of the game folder, by file type.</p>
+    <div class="buy-body size-body">
+      <div class="size-grid">
+        <div class="size-col size-col-summary">
+          <div id="size-total" class="size-total"></div>
+          <div id="size-scope" class="size-scope"></div>
+          <p class="size-foot">Snapshot of the whole game folder.</p>
+        </div>
+        <div class="size-col">
+          <div id="size-phases" class="size-phases"></div>
+        </div>
+        <div class="size-col">
+          <div class="size-subhead">🗂️ By file type</div>
+          <div id="size-bar" class="size-bar"></div>
+          <div id="size-legend" class="size-legend"></div>
+        </div>
+      </div>
       <div class="buy-actions">
         <button id="btn-size-done" class="buy-confirm">DONE</button>
       </div>
