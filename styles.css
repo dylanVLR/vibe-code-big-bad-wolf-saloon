@@ -3534,7 +3534,15 @@ body.pre-reveal #bg-video { opacity: 1; }   /* full, undimmed background during 
 .webpush-url-icon{font-size:1.1rem;flex:0 0 auto}
 .webpush-url-text{font-family:var(--font-main);font-size:.92rem;font-weight:700;color:#7CF09A;
   word-break:break-all;letter-spacing:.3px}
-.webpush-status{min-height:1.1em;margin:2px 0 14px;text-align:center;
+.webpush-push{display:block;width:100%;box-sizing:border-box;height:50px;margin:4px 0 2px;
+  border-radius:25px;border:2px solid #2EE85A;
+  background:linear-gradient(180deg,#3BF06A,#16A33C);color:#06210E;
+  font-family:var(--font-main);font-size:.92rem;font-weight:800;letter-spacing:1px;
+  cursor:pointer;transition:all .15s ease}
+.webpush-push:hover:not(:disabled){box-shadow:0 0 18px rgba(46,232,90,.55);transform:translateY(-1px)}
+.webpush-push:disabled{opacity:.4;cursor:not-allowed;filter:grayscale(.4)}
+.webpush-push.deploying{opacity:.85;cursor:wait;filter:none}
+.webpush-status{min-height:1.1em;margin:6px 0 14px;text-align:center;
   font-size:.78rem;font-weight:700;color:#2EE85A;transition:opacity .2s ease}
 
 /* ── ADD CREDIT (deposit) modal ── */
