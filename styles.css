@@ -3433,31 +3433,9 @@ body.pre-reveal #bg-video { opacity: 1; }   /* full, undimmed background during 
   #cabinet::before { inset: -2px; padding: 2px; }
 }
 
-/* ── Phone vertical frame: keep the title centered (stacking if it must) and
-      move the SPIN button to its own centered row beneath the money displays,
-      instead of crammed into the right corner. ── */
-@media (max-width: 560px) {
-  .logo-badge, .logo-clovers { width: 52px; height: 52px; }
-  .logo-content { padding: 0 8px; gap: 6px; }
-
-  /* console-bar already flex-wraps; give each zone a full-width row and order
-     them money-first, SPIN second so the button lands centered underneath. */
-  #console-bar  { justify-content: center; row-gap: 10px; }
-  .console-left { display: none; }
-  .console-center {
-    order: 1;
-    flex: 1 1 100%;
-    top: 0;                 /* drop the slight upward nudge used on wide layouts */
-  }
-  .console-right {
-    order: 2;
-    flex: 1 1 100%;
-    display: block;          /* block row so the fixed-width SPIN button… */
-  }
-  .console-right #btn-spin {
-    margin: 2px auto;        /* …centers reliably under the money displays */
-  }
-}
+/* The SPIN button always stays in its bottom-right console zone (.console-right).
+   Portrait/narrow viewports show the "rotate your device" prompt instead of
+   reflowing the layout, so the button never needs to be repositioned. */
 
 /* ════════════════════════════════════════
    SIMULATION DASHBOARD — Professional Analytics
