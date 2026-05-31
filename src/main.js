@@ -45,6 +45,7 @@ import './panels/simulator.js';
 import './panels/math-breakdown.js';
 import { initFitScreen } from './system/fit-screen.js';   // scale-to-fit for mobile / iPhone landscape
 import { initLazyAssets } from './system/lazy-assets.js';  // defer heavy/rare assets for instant first play
+import { initBackgroundLoop } from './system/background-loop.js';  // keep the bg video looping (iOS-safe)
 
 /* ══════════════════════════════════════════
    VOLUME / SOUND CONTROLS
@@ -162,6 +163,7 @@ function init() {
   startAmbientParticles();
   initFitScreen();            // fit the cabinet to short / mobile (iPhone landscape) viewports
   initLazyAssets();           // stream in decorative/bonus assets after first play
+  initBackgroundLoop();       // keep the background video reliably looping (iOS-safe)
 }
 
 // Module scripts run after the DOM is parsed, so it's safe to init now.
