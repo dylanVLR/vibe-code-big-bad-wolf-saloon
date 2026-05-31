@@ -80,6 +80,8 @@ function loadPhaseOf(relPath) {
   if (base.startsWith('Sidewolf_')) return 'lazy';            // wolf reaction clips — on demand (.webm + .mp4)
   if (/^F[123]-/.test(base)) return 'lazy';                   // frame-morph clips (.webm + HEVC .mp4)
   if (base.startsWith('bonus_pig_')) return 'lazy';           // bonus reveal art
+  if (p.startsWith('assets/splash/')) return 'lazy';          // PWA launch screens — only on install
+  if (/^icon-\d/.test(base)) return 'lazy';                   // PWA / home-screen icons — not gameplay
   return 'first';                                             // everything else loads up front
 }
 function walkSizes(dir, acc) {
