@@ -81,6 +81,12 @@ class Synth {
   stickBreak()  { this._oneShot('stick_break.mp3', 0.7); }
   brickImpact() { this._oneShot('brick_impact.mp3', 0.7); }
   brickLay()    { this._oneShot('brick_lay.mp3', 0.5); }
+  /** A house frame being built as it upgrades: straw woven / wood nailed / brick laid. */
+  frameBuild(tier) {
+    if (!this.enabled) return;
+    const files = { 1: 'frame_straw.mp3', 2: 'frame_wood.mp3', 3: 'frame_brick.mp3' };
+    this._oneShot(files[tier] || files[1], 0.7);
+  }
   /** The gust hitting a house: straw scatters, sticks crash, bricks hold firm. */
   houseBreak(tier) {
     if (!this.enabled) return;

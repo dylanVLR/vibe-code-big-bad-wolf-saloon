@@ -65,6 +65,11 @@ const SFX = {
   wind_storm:    { d: 8, p: 'A powerful sustained tornado windstorm: deep howling wind roaring and whistling, strong continuous gusts swirling like a cyclone, with a low rushing rumble. Intense, immersive, seamless and loopable, no music, no voices.' },
   wind_gust:     { d: 1.6, p: 'A sudden strong gust of wind whooshing past hard: a sharp powerful blast of air with a brief rising howl, dynamic and punchy, no music.' },
   leaves_rustle: { d: 1.5, p: 'Dry autumn leaves and loose bits of straw rustling, fluttering and skittering as they are blown across by wind: light papery crackle and scattering debris, no music.' },
+
+  // ── frame upgrades (a house frame being built around a reel symbol) ──
+  frame_straw:  { d: 1.8, p: 'Building a straw house frame: armfuls of dry straw and hay gathered, bundled and woven into place with a light papery rustle and crackle, a soft whoosh as it forms. Dry, thatchy, whimsical fairy-tale, no music.' },
+  frame_wood:   { d: 2.0, p: 'Building a wooden house frame: wooden planks and sticks stacked and knocked together, a few quick hammer taps on wood and a satisfying creak as the timber locks into place. Dry, woody, punchy, carpentry, no music.' },
+  frame_brick:  { d: 2.0, p: 'Building a brick house frame: bricks stacked and set with mortar, solid stony clacks and a scrape of a trowel, finishing with a firm heavy thud as it locks in. Sturdy, weighty, satisfying, masonry, no music.' },
 };
 
 async function gen(name, attempt = 1) {

@@ -515,7 +515,7 @@ async function animateFrameUpgrades(cells) {
       return resolve();
     }
 
-    if (tier === 3) for (const t of [200, 500, 800, 1100]) setTimeout(() => synth.brickLay(), t);  // hammer accents
+    synth.frameBuild(tier);                                      // straw woven / wood nailed / brick laid
 
     const vid = document.createElement('video');
     vid.className = 'frame-upgrade-vid';
