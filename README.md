@@ -67,15 +67,19 @@ build works* below.
 │   ├── serve.js             Tiny static file server for local testing.
 │   ├── voice.js             Generate the narrator clips via ElevenLabs.
 │   ├── music.js             Generate the base/bonus music via ElevenLabs.
-│   └── process_images.py    One-off helper: knock out white image backgrounds.
+│   ├── sfx.js               Generate the sound effects via ElevenLabs.
+│   └── process_images.py    Helper: knock out white image backgrounds.
 │
-├── docs/
-│   └── PARSHEET.md          Human-readable par sheet + RTP breakdown.
+├── docs/                  ── DELIVERABLE MATH DOCS (one set per RTP model) ──
+│   ├── Big_Bad_Wolf_Saloon_Math_Model_97%_RTP.xlsx     full par sheet as a workbook
+│   ├── Big_Bad_Wolf_Saloon_Math_Overview_97%_RTP.docx  verification summary + overview
+│   ├── Big_Bad_Wolf_Saloon_Math_Model_85%_RTP.xlsx     the 85% "Lean" model
+│   └── Big_Bad_Wolf_Saloon_Math_Overview_85%_RTP.docx
 │
 └── assets/                Media (images, video, audio) — gitignored, not in version control.
     ├── audio/ {music, sfx, narrator}
     ├── webm/              transparent + cutscene videos
-    └── *.png, bg.jpg      symbols + background
+    └── *.png              reel symbols + bonus art
 ```
 
 ---
@@ -105,29 +109,37 @@ Everything that decides money lives in two files, both heavily commented:
 - **`src/math/mathcore.js`** — the pure logic: how 243-ways pays are computed and
   how bonus awards roll. No DOM, no randomness hidden anywhere else.
 
-A plain-English walkthrough lives in **`docs/PARSHEET.md`**, and the same numbers
-power the in-game **🧮 MATH** and **📊 SIM** panels.
+Full math documentation for each RTP model lives in **`docs/`** (an Excel
+workbook + a Word verification overview per model), and the same numbers power
+the in-game **🧮 MATH** and **📊 SIM** panels.
 
-**Verify the real return-to-player with a Monte-Carlo run:**
+**Two selectable RTP models** ship in the game (chosen in the RTP picker):
+
+| Model | Total RTP | Base | Bonus | Bonus trigger |
+|---|--:|--:|--:|--:|
+| **Standard** | ~97% | ~49% | ~48% | ~1 in 180 |
+| **Lean** | ~85% | ~43% | ~42% | ~1 in 180 |
+
+Both share the same reels, hit frequency (~26%) and high-volatility feel —
+"Lean" simply scales every win magnitude down for higher-margin placements.
+
+**Verify the return-to-player with a Monte-Carlo run:**
 
 ```bash
-node tools/sim.js 10000000      # 10M spins
+node tools/sim.js 50000000                       # Standard (~97%)
+BBW_RTP_MODEL=lean node tools/sim.js 50000000    # Lean (~85%)
 ```
 
-> **Note on current RTP:** the par sheet was originally tuned to ~97% RTP, but it
-> currently measures **~102%** total (base ≈ 59%, bonus ≈ 43%, bonus trigger
-> ≈ 1 in 177). The numbers drifted above target at some point; re-tuning is a
-> product decision, so the code/docs report the *actual* figures rather than the
-> old target. To bring it back to 97%, lower base-game pays and/or bonus award
-> magnitudes in `par-sheet.js` and re-run the sim until it converges.
+> The bonus is high-variance (rare house/mansion jackpots), so a single run can
+> wobble ±~0.5%; the figures above are the converged values over large samples.
 
 ---
 
 ## Developer / admin tools
 
-The **"GAFF MODE"** tools — RTP picker, GAME SIZE, Add-Credit, and the
+The **"DEV MODE"** tools — RTP picker, GAME SIZE, Add-Credit, and the
 📊 SIM / 🧮 MATH debug panel — are **hidden on the public build** and grouped
-under a "GAFF MODE" header in the options drawer. Enable them by adding `?dev=1`
+under a "DEV MODE" header in the options drawer. Enable them by adding `?dev=1`
 to the URL once (the choice is remembered); `?dev=0` turns them back off. The
 backtick (`` ` ``) key toggles the SIM/MATH panel when dev mode is on.
 

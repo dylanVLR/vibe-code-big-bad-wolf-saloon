@@ -2,7 +2,7 @@
  * @module narrator
  * @description The BIG BAD WOLF's play-by-play voice — a gruff cowboy wolf who
  * narrates every spin. Plays pre-rendered MP3s from assets/audio/narrator/ named
- * `<category>_<index>.mp3`. The script (what each clip says) lives in js/phrases.js
+ * `<category>_<index>.mp3`. The script (what each clip says) lives in phrases.js
  * so the generator tool and the game share one source; here we only need the
  * category names and how many clips each has, to pick a valid random index.
  * Exports a single shared `narrator` instance.
@@ -48,7 +48,7 @@ class Narrator {
     this._excitement = 0;      // 0-10 excitement meter
 
     // Phrase banks — one array per game event, loaded from the shared script in
-    // js/phrases.js. Each line maps to <category>_<index>.mp3 on disk.
+    // phrases.js. Each line maps to <category>_<index>.mp3 on disk.
     this.phrases = PHRASES;
 
     this._idleTimer = null;

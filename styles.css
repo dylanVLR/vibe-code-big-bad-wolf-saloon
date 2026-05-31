@@ -981,7 +981,7 @@ body.pre-reveal #bg-video { opacity: 1; }   /* full, undimmed background during 
   z-index: 4;
   filter: drop-shadow(0 2px 6px rgba(0,0,0,0.6));
 }
-/* light weathered texture over the plaque — save your image as assets/wild_texture.png */
+/* light weathered texture overlay on the wild plaque */
 .wild-texture {
   position: absolute; inset: 0; z-index: 2; pointer-events: none; border-radius: 10px;
   background: url('assets/wild_texture.png') center/cover no-repeat;
@@ -2695,89 +2695,6 @@ body.pre-reveal #bg-video { opacity: 1; }   /* full, undimmed background during 
   100% { opacity: 0; transform: scale(0.3); }
 }
 
-/* Wind blast lines emanating from wolf mouth */
-#wolf-wind-blast {
-  position: absolute;
-  left: 180px;
-  top: 0;
-  bottom: 0;
-  right: 0;
-  pointer-events: none;
-  z-index: 1;
-}
-
-.wind-blast-line {
-  position: absolute;
-  left: 0;
-  height: 3px;
-  border-radius: 2px;
-  background: linear-gradient(90deg,
-    rgba(180,200,255,0.8) 0%,
-    rgba(130,160,255,0.5) 30%,
-    rgba(100,140,255,0.2) 70%,
-    transparent 100%
-  );
-  opacity: 0;
-  transform-origin: left center;
-  animation: wind-blast-fly 0.5s ease-out forwards;
-}
-
-@keyframes wind-blast-fly {
-  0%   { opacity: 0; width: 0; transform: scaleX(0); }
-  20%  { opacity: 1; width: 60px; transform: scaleX(0.5); }
-  60%  { opacity: 0.8; width: 200px; transform: scaleX(1); }
-  100% { opacity: 0; width: 350px; transform: scaleX(1.2) translateX(50px); }
-}
-
-/* Swirl particles in the wind blast */
-.wind-swirl {
-  position: absolute;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  border: 1px solid rgba(180,200,255,0.6);
-  background: transparent;
-  opacity: 0;
-  animation: wind-swirl-fly 0.7s ease-out forwards;
-}
-
-@keyframes wind-swirl-fly {
-  0%   { opacity: 0; transform: translateX(0) rotate(0deg) scale(0.3); }
-  20%  { opacity: 0.8; }
-  60%  { opacity: 0.5; }
-  100% { opacity: 0; transform: translateX(250px) rotate(540deg) scale(1.5); }
-}
-
-/* Huff/Puff text */
-#wolf-huff-text {
-  position: absolute;
-  top: 15%;
-  left: 30%;
-  font-family: var(--font-title);
-  font-size: 2.2rem;
-  color: #AAC0FF;
-  text-shadow:
-    0 2px 0 #5566AA,
-    0 4px 8px rgba(0,0,0,0.6),
-    0 0 20px rgba(130,160,255,0.6),
-    0 0 40px rgba(100,140,255,0.3);
-  letter-spacing: 6px;
-  opacity: 0;
-  z-index: 5;
-  pointer-events: none;
-}
-
-#wolf-huff-text.show-huff {
-  animation: huff-text-pop 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-}
-
-@keyframes huff-text-pop {
-  0%   { opacity: 0; transform: scale(0.3) translateY(20px); }
-  30%  { opacity: 1; transform: scale(1.2) translateY(-5px); }
-  60%  { opacity: 1; transform: scale(1.0) translateY(0); }
-  100% { opacity: 0; transform: scale(0.8) translateY(-20px); }
-}
-
 /* ════════════════════════════════════════
    MANSIONS FEATURE OVERLAY
 ════════════════════════════════════════ */
@@ -3281,24 +3198,6 @@ body.pre-reveal #bg-video { opacity: 1; }   /* full, undimmed background during 
     0 0 30px rgba(255,0,0,0.3),
     inset 0 0 40px rgba(255,0,0,0.15);
   transition: box-shadow 0.5s ease;
-}
-
-/* Wind particle (wolf blowing animation) */
-.wind-particle {
-  position: absolute;
-  width: 40px;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, rgba(200,220,240,0.5), transparent);
-  border-radius: 1px;
-  animation: wind-blow 0.8s ease-out forwards;
-  pointer-events: none;
-  z-index: 15;
-}
-
-@keyframes wind-blow {
-  0%   { opacity: 0; transform: translateX(-20px) scaleX(0.5); }
-  20%  { opacity: 0.8; }
-  100% { opacity: 0; transform: translateX(150px) scaleX(2); }
 }
 
 /* ════════════════════════════════════════

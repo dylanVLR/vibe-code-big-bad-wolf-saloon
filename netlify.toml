@@ -49,13 +49,7 @@
   force = true
 
 [[redirects]]
-  from = "/process.py"
-  to = "/index.html"
-  status = 404
-  force = true
-
-[[redirects]]
-  from = "/PARSHEET.md"   # par-sheet / RTP design notes — keep private
+  from = "/docs/*"        # math model / par-sheet deliverables — not for the public player build
   to = "/index.html"
   status = 404
   force = true

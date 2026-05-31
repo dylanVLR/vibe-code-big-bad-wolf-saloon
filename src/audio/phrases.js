@@ -4,7 +4,7 @@
  * a gruff cowboy wolf straight out of the Three Little Pigs. Grouped by game event.
  *
  * This is the SINGLE source of truth for the narrator script. It's imported by:
- *   • js/narrator.js   – picks a random line per event and plays the matching MP3
+ *   • narrator.js      – picks a random line per event and plays the matching MP3
  *   • tools/voice.js   – generates the MP3s from ElevenLabs (one file per line)
  *
  * Files live at  assets/audio/narrator/<category>_<index>.mp3  where <index> is the

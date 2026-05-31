@@ -1,7 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(grep -n \"'#'\\\\s*+\\\\|\\\\`#\\\\|toString\\(16\\)\\\\|+ '0'\\\\|alphaHex\\\\|\\\\.slice\\(0\" app.js)"
-    ]
-  }
-}

@@ -1,10 +1,11 @@
 {
-  "name": "huff-n-more-puff",
+  "name": "big-bad-wolf-saloon",
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Local slot machine. package.json exists only so Node treats js/*.js and tools/*.js as ES modules for the par-sheet verifier (node tools/sim.js). The browser loads app.js directly and ignores this file.",
+  "description": "Big Bad Wolf Saloon — a 5x3, 243-ways HTML5 slot game. The browser loads app.js (bundled from src/ by tools/build.js); this package.json lets Node run the build and the par-sheet math verifier (tools/) as ES modules.",
   "scripts": {
+    "build": "node tools/build.js",
     "sim": "node tools/sim.js"
   }
 }

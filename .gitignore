@@ -11,6 +11,7 @@ Thumbs.db
 # Secrets & environment
 .env
 .env.*
+!.env.example
 
 # Node
 node_modules/
@@ -52,3 +53,6 @@ npm-debug.log*
 # Belt-and-suspenders: the whole media folder is off-limits, so nothing
 # under assets/ (any format) can ever be committed.
 assets/
+
+# Editor / agent config (local only)
+.claude/

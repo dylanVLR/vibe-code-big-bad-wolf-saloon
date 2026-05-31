@@ -81,22 +81,6 @@ export function spawnSparkles(x, y, count = 8) {
   }
 }
 
-/** Horizontal wind streaks inside a container (used for the wolf's huff). */
-export function spawnWindParticles(containerEl, count = 12) {
-  for (let i = 0; i < count; i++) {
-    setTimeout(() => {
-      const wind = document.createElement('div');
-      wind.className = 'wind-particle';
-      wind.style.top = (Math.random() * 80 + 10) + '%';
-      wind.style.left = '-40px';
-      wind.style.width = (30 + Math.random() * 40) + 'px';
-      wind.style.animationDuration = (0.5 + Math.random() * 0.5) + 's';
-      containerEl.appendChild(wind);
-      setTimeout(() => { if (wind.parentNode) wind.remove(); }, 1200);
-    }, i * 100);
-  }
-}
-
 /** Dollar bills floating up from the bottom, swaying and spinning. */
 export function spawnDollarBills(count = 10, durationMs = 2500) {
   if (!particleContainer) return;
@@ -213,36 +197,6 @@ export function spawnWinPopText(amount) {
   pop.style.top = (30 + Math.random() * 30) + '%';
   particleContainer.appendChild(pop);
   setTimeout(() => { if (pop.parentNode) pop.remove(); }, 1800);
-}
-
-/** Wind lines + swirls for the wolf's blow, scaled by house tier. */
-export function spawnWolfWindBlast(wolfWindBlast, tier) {
-  if (!wolfWindBlast) return;
-  wolfWindBlast.innerHTML = '';
-  const lineCount = tier === 3 ? 12 : tier === 2 ? 8 : 5;
-  const swirlCount = tier === 3 ? 8 : tier === 2 ? 5 : 3;
-  for (let i = 0; i < lineCount; i++) {
-    const line = document.createElement('div');
-    line.className = 'wind-blast-line';
-    line.style.top = (30 + Math.random() * 40) + '%';
-    line.style.height = (2 + Math.random() * 3) + 'px';
-    line.style.animationDelay = (i * 0.04) + 's';
-    line.style.animationDuration = (0.4 + Math.random() * 0.3) + 's';
-    line.style.opacity = (0.4 + Math.random() * 0.6);
-    wolfWindBlast.appendChild(line);
-    setTimeout(() => { if (line.parentNode) line.remove(); }, 1200);
-  }
-  for (let i = 0; i < swirlCount; i++) {
-    const swirl = document.createElement('div');
-    swirl.className = 'wind-swirl';
-    swirl.style.top = (25 + Math.random() * 50) + '%';
-    swirl.style.left = '0';
-    swirl.style.animationDelay = (i * 0.06 + 0.1) + 's';
-    swirl.style.width = (4 + Math.random() * 6) + 'px';
-    swirl.style.height = swirl.style.width;
-    wolfWindBlast.appendChild(swirl);
-    setTimeout(() => { if (swirl.parentNode) swirl.remove(); }, 1500);
-  }
 }
 
 /** Continuous background gold-dust motes. Call once at startup. */
