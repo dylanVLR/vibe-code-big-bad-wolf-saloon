@@ -124,10 +124,10 @@ export const SYMBOLS = {
   'hat-yellow':     { id: 'hat-yellow',     src: 'assets/hat_yellow.png',     label: 'Yellow Hat',    pays: { 3: 1.78, 4: 7.14, 5: 35.70 }, isHat: true },
   'hat-green':      { id: 'hat-green',      src: 'assets/hat_white.png',      label: 'White Hat',     pays: { 3: 0.89, 4: 3.57, 5: 17.85 }, isHat: true },
   'hat-red':        { id: 'hat-red',        src: 'assets/hat_red.png',        label: 'Red Hat',       pays: { 3: 0.71, 4: 2.86, 5: 14.28 }, isHat: true },
-  'pig-suit':       { id: 'pig-suit',       src: 'assets/pig_straw.png',       label: 'Straw Pig',      pays: { 3: 1.43, 4: 5.36, 5: 26.52 } },
+  'pig-suit':       { id: 'pig-suit',       src: 'assets/horseshoe.png',       label: 'Straw Pig',      pays: { 3: 1.43, 4: 5.36, 5: 26.52 } },
   'pig-contractor': { id: 'pig-contractor', src: 'assets/horseshoe.png',    label: 'Horseshoe',   pays: { 3: 1.07, 4: 4.28, 5: 21.42 } },
-  'pig-nature':     { id: 'pig-nature',     src: 'assets/pig_brick.png',  label: 'Brick Pig', pays: { 3: 0.71, 4: 2.86, 5: 14.28 } },
-  'toolbox':        { id: 'toolbox',        src: 'assets/pig_wood.png',        label: 'Wood Pig',       pays: { 3: 0.61, 4: 2.50, 5: 12.24 } },
+  'pig-nature':     { id: 'pig-nature',     src: 'assets/tornado.png',  label: 'Tornado', pays: { 3: 0.71, 4: 2.86, 5: 14.28 } },
+  'toolbox':        { id: 'toolbox',        src: 'assets/shotglass.png',        label: 'Wood Pig',       pays: { 3: 0.61, 4: 2.50, 5: 12.24 } },
   'wolf':           { id: 'wolf',           src: 'assets/wolf.png',           label: 'Wolf',          pays: { 3: 0.46, 4: 1.79, 5: 8.67 } },
   'buzzard':        { id: 'buzzard',        src: 'assets/buzzard.png',        label: 'Buzzard',       pays: { 3: 0.36, 4: 1.43, 5: 7.14 } },
 

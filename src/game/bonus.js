@@ -615,7 +615,8 @@ function updateCellToHouse(cellEl, tier) {
   const houseDiv = document.createElement('div');
   houseDiv.className = 'house-icon' + (tier === 3 ? ' mansion-house' : '');
   const houseImg = document.createElement('img');
-  houseImg.src = ['', 'assets/pig_straw.png', 'assets/pig_wood.png', 'assets/pig_brick.png'][tier];
+  // the blown-down house shows its bonus pig: straw → wood → brick
+  houseImg.src = ['', 'assets/bonus_pig_straw.png', 'assets/bonus_pig_wood.png', 'assets/bonus_pig_brick.png'][tier];
   houseImg.style.width = '85%';
   houseImg.style.height = '85%';
   houseImg.style.objectFit = 'contain';
