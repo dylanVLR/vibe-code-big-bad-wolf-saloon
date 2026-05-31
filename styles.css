@@ -3525,6 +3525,18 @@ body.pre-reveal #bg-video { opacity: 1; }   /* full, undimmed background during 
 .buy-confirm{border:2px solid #F5C400;background:linear-gradient(180deg,#FFD86A,#E0A000);color:#1A1004;text-shadow:0 1px 0 rgba(255,255,255,.3)}
 .buy-confirm:hover{box-shadow:0 0 18px rgba(245,196,0,.6);transform:translateY(-1px)}
 
+/* Web Push / Live Site modal — the deploy link panel */
+.webpush-url{display:flex;align-items:center;gap:10px;width:100%;box-sizing:border-box;
+  padding:14px 16px;margin:4px 0 6px;border-radius:12px;
+  border:2px solid rgba(46,232,90,.45);background:rgba(20,40,26,.6);
+  text-decoration:none;transition:all .15s ease;cursor:pointer}
+.webpush-url:hover{border-color:#2EE85A;background:rgba(30,56,36,.7);box-shadow:0 0 16px rgba(46,232,90,.3)}
+.webpush-url-icon{font-size:1.1rem;flex:0 0 auto}
+.webpush-url-text{font-family:var(--font-main);font-size:.92rem;font-weight:700;color:#7CF09A;
+  word-break:break-all;letter-spacing:.3px}
+.webpush-status{min-height:1.1em;margin:2px 0 14px;text-align:center;
+  font-size:.78rem;font-weight:700;color:#2EE85A;transition:opacity .2s ease}
+
 /* ── ADD CREDIT (deposit) modal ── */
 .deposit-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px}
 .deposit-amt{height:60px;border-radius:12px;border:2px solid rgba(46,232,90,.45);background:linear-gradient(180deg,rgba(46,232,90,.14),rgba(8,30,14,.5));color:var(--neon-green);font-family:var(--font-title);font-size:1.5rem;letter-spacing:1px;cursor:pointer;transition:all .12s ease;text-shadow:0 0 8px var(--neon-green-glow)}

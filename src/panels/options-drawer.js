@@ -21,7 +21,7 @@ if (drawer && tab) {
   });
 
   // tidy up: close the drawer when an option opens a full-screen modal
-  ['btn-rtp', 'btn-size', 'btn-deposit', 'btn-buy-bonus', 'btn-info', 'btn-simulate', 'btn-math', 'btn-force-extreme', 'btn-force-wild'].forEach(id => {
+  ['btn-rtp', 'btn-size', 'btn-deposit', 'btn-buy-bonus', 'btn-info', 'btn-simulate', 'btn-math', 'btn-force-extreme', 'btn-force-wild', 'btn-web-push'].forEach(id => {
     const b = document.getElementById(id);
     if (b) b.addEventListener('click', () => drawer.classList.remove('open'));
   });
