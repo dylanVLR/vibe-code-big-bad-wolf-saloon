@@ -781,7 +781,7 @@ Object.assign(exports, { synth, bgm });
  * state lives privately inside bonus.js; this is just the cross-module stuff.
  */
 
-const { DEFAULT_BALANCE, DEFAULT_BET_INDEX, DEFAULT_RTP_MODEL } = require("par-sheet");
+const { DEFAULT_BALANCE, DEFAULT_BET_INDEX, ACTIVE_MODEL_ID } = require("par-sheet");
 
 const state = {
   balance: DEFAULT_BALANCE,   // player's cash
@@ -792,7 +792,7 @@ const state = {
   autoTimer: null,            // setTimeout handle for auto-spin
   currentGrid: null,          // the symbols currently shown (for spin scroll buffer)
   musicAutoStarted: false,    // background music has been kicked off
-  rtpModelId: DEFAULT_RTP_MODEL, // selected RTP math model (see RTP_MODELS in par-sheet.js)
+  rtpModelId: ACTIVE_MODEL_ID,   // the RTP math model the game is currently running (see par-sheet.js)
   forceExtremeNextSpin: false,   // dev tool to force extreme anticipation on next spin
   forceWildNextSpin: false,      // dev tool to force an expanding Wolf Wild on next spin
 };
@@ -2466,12 +2466,23 @@ const RTP_MODELS = [
     id:    'standard',
     label: 'Standard',
     rtp:   0.97,                         // 0–1; shown as a percentage
+    scale: 1.00,                         // win-magnitude multiplier vs the canonical pays/awards
     blurb: 'High-volatility classic. A quiet base game with big, swingy bonus rounds.',
+  },
+  {
+    id:    'lean',
+    label: 'Lean',
+    rtp:   0.85,
+    scale: 0.880,                        // tuned so measured total ≈ 85% (rounding-adjusted)
+    blurb: 'Same game, leaner pays — a lower 85% return for higher-margin placements.',
   },
 ];
 
 /** Default selected RTP model id */
 const DEFAULT_RTP_MODEL = 'standard';
+
+/** localStorage key for the player's chosen RTP model. */
+const RTP_MODEL_KEY = 'bbw_rtp_model';
 
 /* ══════════════════════════════════════════
    SYMBOL DEFINITIONS  (PAYTABLE)
@@ -2485,12 +2496,12 @@ const SYMBOLS = {
   // big chunk of base RTP on its own, so the line pays come down to keep the base
   // game near ~49% (total ~97%). Re-verify any change with `node tools/sim.js`.
   'hat-yellow':     { id: 'hat-yellow',     src: 'assets/hat_yellow.png',     label: 'Yellow Hat',    pays: { 3: 1.78, 4: 7.14, 5: 35.70 }, isHat: true },
-  'hat-green':      { id: 'hat-green',      src: 'assets/hat_green.png',      label: 'Green Hat',     pays: { 3: 0.89, 4: 3.57, 5: 17.85 }, isHat: true },
+  'hat-green':      { id: 'hat-green',      src: 'assets/hat_white.png',      label: 'White Hat',     pays: { 3: 0.89, 4: 3.57, 5: 17.85 }, isHat: true },
   'hat-red':        { id: 'hat-red',        src: 'assets/hat_red.png',        label: 'Red Hat',       pays: { 3: 0.71, 4: 2.86, 5: 14.28 }, isHat: true },
-  'pig-suit':       { id: 'pig-suit',       src: 'assets/pig_suit.png',       label: 'Suit Pig',      pays: { 3: 1.43, 4: 5.36, 5: 26.52 } },
-  'pig-contractor': { id: 'pig-contractor', src: 'assets/pig_builder.png',    label: 'Builder Pig',   pays: { 3: 1.07, 4: 4.28, 5: 21.42 } },
-  'pig-nature':     { id: 'pig-nature',     src: 'assets/shotglass.png',  label: 'Shotglass', pays: { 3: 0.71, 4: 2.86, 5: 14.28 } },
-  'toolbox':        { id: 'toolbox',        src: 'assets/toolbox.png',        label: 'Toolbox',       pays: { 3: 0.61, 4: 2.50, 5: 12.24 } },
+  'pig-suit':       { id: 'pig-suit',       src: 'assets/pig_straw.png',       label: 'Straw Pig',      pays: { 3: 1.43, 4: 5.36, 5: 26.52 } },
+  'pig-contractor': { id: 'pig-contractor', src: 'assets/horseshoe.png',    label: 'Horseshoe',   pays: { 3: 1.07, 4: 4.28, 5: 21.42 } },
+  'pig-nature':     { id: 'pig-nature',     src: 'assets/pig_brick.png',  label: 'Brick Pig', pays: { 3: 0.71, 4: 2.86, 5: 14.28 } },
+  'toolbox':        { id: 'toolbox',        src: 'assets/pig_wood.png',        label: 'Wood Pig',       pays: { 3: 0.61, 4: 2.50, 5: 12.24 } },
   'wolf':           { id: 'wolf',           src: 'assets/wolf.png',           label: 'Wolf',          pays: { 3: 0.46, 4: 1.79, 5: 8.67 } },
   'buzzard':        { id: 'buzzard',        src: 'assets/buzzard.png',        label: 'Buzzard',       pays: { 3: 0.36, 4: 1.43, 5: 7.14 } },
 
@@ -2550,6 +2561,47 @@ const BONUS_CONFIG = {
    */
   mansion: { minBricks: 3, baseMult: 24.4, perBrickMult: 19.7 },
 };
+
+/* ══════════════════════════════════════════
+   ACTIVE RTP MODEL
+   The tables above are the canonical (Standard, ~97%) math. A selectable model
+   (e.g. "Lean", 85%) keeps the SAME reels, trigger rate, hit frequency and
+   volatility shape, and simply scales every win magnitude (line pays + bonus
+   awards) by its `scale` factor. We apply that scale ONCE, in place, at load —
+   so every consumer (evaluation, simulator, the displayed paytable) reads the
+   same active numbers. The bonus-buy price is unchanged: fair price =
+   E[bonus]/RTP, and both E[bonus] and RTP scale by the same factor, so it cancels.
+
+   The choice is read from localStorage (browser) or BBW_RTP_MODEL (Node), so the
+   headless verifier checks the exact model the player selected:
+       BBW_RTP_MODEL=lean node tools/sim.js
+══════════════════════════════════════════ */
+function resolveActiveModelId() {
+  try { if (typeof localStorage !== 'undefined') { const v = localStorage.getItem(RTP_MODEL_KEY); if (v && RTP_MODELS.some(m => m.id === v)) return v; } } catch (e) {}
+  try { if (typeof process !== 'undefined' && process.env && process.env.BBW_RTP_MODEL && RTP_MODELS.some(m => m.id === process.env.BBW_RTP_MODEL)) return process.env.BBW_RTP_MODEL; } catch (e) {}
+  return DEFAULT_RTP_MODEL;
+}
+
+/** The active model id and object (resolved once at load). */
+const ACTIVE_MODEL_ID = resolveActiveModelId();
+const ACTIVE_MODEL = RTP_MODELS.find(m => m.id === ACTIVE_MODEL_ID) || RTP_MODELS[0];
+
+(function applyModelScale() {
+  const scale = ACTIVE_MODEL.scale ?? 1;
+  if (scale === 1) return;                         // Standard — nothing to do
+  const r2 = n => Math.round(n * 100) / 100;
+  const r1 = n => Math.round(n * 10) / 10;
+  for (const id of SYMBOL_IDS) {                   // scale every line pay
+    const p = SYMBOLS[id].pays;
+    if (p) for (const k in p) p[k] = r2(p[k] * scale);
+  }
+  for (const t of Object.values(BONUS_CONFIG.tiers)) {   // scale house awards
+    t.min = r2(t.min * scale); t.max = r2(t.max * scale);
+    if (t.jackpotMult) t.jackpotMult = Math.round(t.jackpotMult * scale);
+  }
+  BONUS_CONFIG.mansion.baseMult     = r1(BONUS_CONFIG.mansion.baseMult * scale);
+  BONUS_CONFIG.mansion.perBrickMult = r1(BONUS_CONFIG.mansion.perBrickMult * scale);
+})();
 
 /* ══════════════════════════════════════════
    REEL STRIPS  —  PER-REEL SYMBOL COUNTS (the par sheet)
@@ -2627,7 +2679,7 @@ const INITIAL_GRID = [
   ['royal-a',    'royal-k',    'toolbox' ],
 ];
 
-Object.assign(exports, { REEL_COUNT, ROWS_PER_REEL, MIN_WIN_SPAN, BONUS_TRIGGER_HATS, FREE_SPINS_INITIAL, RETRIGGER_HATS, MAX_FRAME_TIER, TIER_NAMES, TIER_EMOJIS, SCROLL_SYMBOLS, TURBO_SCROLL, SPIN_DURATIONS, TURBO_DURATIONS, ANTICIPATION_EXTRA, BET_LEVELS, DEFAULT_BET_INDEX, DEFAULT_BALANCE, RTP_MODELS, DEFAULT_RTP_MODEL, SYMBOLS, HAT_IDS, WILD_ID, SYMBOL_IDS, BONUS_CONFIG, REEL_COUNTS, buildStrip, REEL_STRIPS, INITIAL_GRID });
+Object.assign(exports, { REEL_COUNT, ROWS_PER_REEL, MIN_WIN_SPAN, BONUS_TRIGGER_HATS, FREE_SPINS_INITIAL, RETRIGGER_HATS, MAX_FRAME_TIER, TIER_NAMES, TIER_EMOJIS, SCROLL_SYMBOLS, TURBO_SCROLL, SPIN_DURATIONS, TURBO_DURATIONS, ANTICIPATION_EXTRA, BET_LEVELS, DEFAULT_BET_INDEX, DEFAULT_BALANCE, RTP_MODELS, DEFAULT_RTP_MODEL, RTP_MODEL_KEY, SYMBOLS, HAT_IDS, WILD_ID, SYMBOL_IDS, BONUS_CONFIG, ACTIVE_MODEL_ID, ACTIVE_MODEL, REEL_COUNTS, buildStrip, REEL_STRIPS, INITIAL_GRID });
 
   };
 
@@ -2948,7 +3000,7 @@ if (drawer && tab) {
  * swap the active reel strips / bonus tables.
  */
 
-const { RTP_MODELS } = require("par-sheet");
+const { RTP_MODELS, RTP_MODEL_KEY, ACTIVE_MODEL_ID } = require("par-sheet");
 const { state } = require("state");
 const { synth } = require("sound");
 
@@ -2990,13 +3042,15 @@ function markSelected() {
 }
 
 /**
- * Select a model. Records it in state and refreshes the UI. This is the single
- * spot where future model-switching (swapping reel strips / bonus math) hooks in.
+ * Select a model. Persists the choice and updates the UI. The active math is
+ * applied at load (par-sheet.js scales the pays/awards to the chosen model), so
+ * a switch only takes full effect after a reload — done from the DONE button.
  */
 function applyRtpModel(id) {
   if (!RTP_MODELS.some(m => m.id === id)) return;
   const changed = state.rtpModelId !== id;
   state.rtpModelId = id;
+  try { localStorage.setItem(RTP_MODEL_KEY, id); } catch (e) {}
   markSelected();
   if (changed) synth.coinClink();
 }
@@ -3004,11 +3058,17 @@ function applyRtpModel(id) {
 function openModal()  { markSelected(); modal.classList.remove('hidden'); }
 function closeModal() { modal.classList.add('hidden'); }
 
+/** Close — and if a different model was chosen, reload so the new math applies everywhere. */
+function done() {
+  if (state.rtpModelId !== ACTIVE_MODEL_ID) { try { location.reload(); return; } catch (e) {} }
+  closeModal();
+}
+
 if (btnRtp && modal) {
   renderOptions();
   btnRtp.addEventListener('click', openModal);
   if (closeBtn) closeBtn.addEventListener('click', closeModal);
-  if (doneBtn) doneBtn.addEventListener('click', closeModal);
+  if (doneBtn) doneBtn.addEventListener('click', done);
   modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
 }
 
@@ -3503,16 +3563,16 @@ Object.assign(exports, { runSimulation });
 /* AUTO-GENERATED by tools/build.js — folder-size snapshot. Do not edit. */
 
 const SIZE_MANIFEST = {
-  "totalBytes": 96383237,
+  "totalBytes": 96357919,
   "fileCount": 397,
   "generatedAt": "2026-05-31",
   "player": {
-    "bytes": 96127172,
-    "files": 356
+    "bytes": 96069931,
+    "files": 355
   },
   "dev": {
-    "bytes": 256065,
-    "files": 41
+    "bytes": 287988,
+    "files": 42
   },
   "categories": [
     {
@@ -3530,20 +3590,20 @@ const SIZE_MANIFEST = {
     {
       "key": "image",
       "label": "Images",
-      "bytes": 13442646,
-      "files": 12
+      "bytes": 13385263,
+      "files": 11
     },
     {
       "key": "code",
       "label": "Code",
-      "bytes": 677538,
-      "files": 41
+      "bytes": 675433,
+      "files": 40
     },
     {
       "key": "other",
       "label": "Other",
-      "bytes": 3946,
-      "files": 3
+      "bytes": 38116,
+      "files": 5
     }
   ]
 };

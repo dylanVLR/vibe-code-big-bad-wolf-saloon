@@ -12,7 +12,7 @@
  */
 'use strict';
 
-import { RTP_MODELS } from '../math/par-sheet.js';
+import { RTP_MODELS, RTP_MODEL_KEY, ACTIVE_MODEL_ID } from '../math/par-sheet.js';
 import { state } from '../core/state.js';
 import { synth } from '../audio/sound.js';
 
@@ -54,13 +54,15 @@ function markSelected() {
 }
 
 /**
- * Select a model. Records it in state and refreshes the UI. This is the single
- * spot where future model-switching (swapping reel strips / bonus math) hooks in.
+ * Select a model. Persists the choice and updates the UI. The active math is
+ * applied at load (par-sheet.js scales the pays/awards to the chosen model), so
+ * a switch only takes full effect after a reload — done from the DONE button.
  */
 export function applyRtpModel(id) {
   if (!RTP_MODELS.some(m => m.id === id)) return;
   const changed = state.rtpModelId !== id;
   state.rtpModelId = id;
+  try { localStorage.setItem(RTP_MODEL_KEY, id); } catch (e) {}
   markSelected();
   if (changed) synth.coinClink();
 }
@@ -68,10 +70,16 @@ export function applyRtpModel(id) {
 function openModal()  { markSelected(); modal.classList.remove('hidden'); }
 function closeModal() { modal.classList.add('hidden'); }
 
+/** Close — and if a different model was chosen, reload so the new math applies everywhere. */
+function done() {
+  if (state.rtpModelId !== ACTIVE_MODEL_ID) { try { location.reload(); return; } catch (e) {} }
+  closeModal();
+}
+
 if (btnRtp && modal) {
   renderOptions();
   btnRtp.addEventListener('click', openModal);
   if (closeBtn) closeBtn.addEventListener('click', closeModal);
-  if (doneBtn) doneBtn.addEventListener('click', closeModal);
+  if (doneBtn) doneBtn.addEventListener('click', done);
   modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
 }

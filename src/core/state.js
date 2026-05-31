@@ -9,7 +9,7 @@
  */
 'use strict';
 
-import { DEFAULT_BALANCE, DEFAULT_BET_INDEX, DEFAULT_RTP_MODEL } from '../math/par-sheet.js';
+import { DEFAULT_BALANCE, DEFAULT_BET_INDEX, ACTIVE_MODEL_ID } from '../math/par-sheet.js';
 
 export const state = {
   balance: DEFAULT_BALANCE,   // player's cash
@@ -20,7 +20,7 @@ export const state = {
   autoTimer: null,            // setTimeout handle for auto-spin
   currentGrid: null,          // the symbols currently shown (for spin scroll buffer)
   musicAutoStarted: false,    // background music has been kicked off
-  rtpModelId: DEFAULT_RTP_MODEL, // selected RTP math model (see RTP_MODELS in par-sheet.js)
+  rtpModelId: ACTIVE_MODEL_ID,   // the RTP math model the game is currently running (see par-sheet.js)
   forceExtremeNextSpin: false,   // dev tool to force extreme anticipation on next spin
   forceWildNextSpin: false,      // dev tool to force an expanding Wolf Wild on next spin
 };

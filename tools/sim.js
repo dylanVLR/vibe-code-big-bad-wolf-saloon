@@ -8,7 +8,7 @@
  * real numbers. Reports RTP (base/bonus/total), trigger rate, hit frequency,
  * volatility, per-symbol contribution, reel composition, and bonus-buy pricing.
  */
-import { SYMBOLS, SYMBOL_IDS, HAT_IDS, REEL_STRIPS, BONUS_CONFIG } from '../src/math/par-sheet.js';
+import { SYMBOLS, SYMBOL_IDS, HAT_IDS, REEL_STRIPS, BONUS_CONFIG, ACTIVE_MODEL } from '../src/math/par-sheet.js';
 import { generateGrid, evaluateGrid, countHats, simulateBonusOutcome } from '../src/math/mathcore.js';
 
 const totalSpins = parseInt(process.argv[2], 10) || 5_000_000;
@@ -58,6 +58,7 @@ const sigma    = Math.sqrt(sumRet2 / totalSpins - meanRet * meanRet);
 const pct = x => (x * 100).toFixed(2) + '%';
 
 console.log(`\n══════════ PAR-SHEET VERIFIER ══════════`);
+console.log(`model: ${ACTIVE_MODEL.label} (${ACTIVE_MODEL.id}) — target ${(ACTIVE_MODEL.rtp*100).toFixed(0)}%, scale ${ACTIVE_MODEL.scale}`);
 console.log(`spins: ${totalSpins.toLocaleString()}   (${secs}s)\n`);
 console.log(`TOTAL RTP        ${pct(rtp)}`);
 console.log(`  base game      ${pct(baseRtp)}`);
