@@ -238,10 +238,7 @@ if (chkTurbo) chkTurbo.addEventListener('change', () => { state.turbo = chkTurbo
 document.addEventListener('keydown', (e) => {
   if (e.code === 'Space' && !state.spinning && !isBonusActive()) { e.preventDefault(); triggerSpin(); }
   if (e.code === 'KeyA' && !isBonusActive()) { state.autoActive ? stopAuto() : startAuto(); }
-  if (e.code === 'Backquote' && DEV_MODE) {
-    const dbg = document.getElementById('debug-panel');
-    if (dbg) dbg.classList.toggle('hidden');
-  }
+
 });
 
 const btnForceExtreme = document.getElementById('btn-force-extreme');

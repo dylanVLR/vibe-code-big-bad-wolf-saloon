@@ -545,6 +545,8 @@ class Synth {
     this.enabled = true;
     this._volume = 0.7;       // 0..1
     this._spinAudio = null;   // the looping reel-spin sound
+    this._windAudio = null;   // the looping tornado-wind sound
+    this._active = new Set();
   }
 
   /** Play an MP3 from assets/audio/sfx/. Returns the Audio element. */
@@ -553,8 +555,20 @@ class Synth {
     const audio = new Audio(`assets/audio/sfx/${filename}`);
     audio.volume = this._volume * vol;
     audio.loop = loop;
+    this._active.add(audio);
+    audio.addEventListener('ended', () => this._active.delete(audio));
     audio.play().catch(() => {});
     return audio;
+  }
+
+  /** Stop all currently playing one-shot sounds. */
+  stopAll() {
+    for (const a of this._active) {
+      try { a.pause(); a.currentTime = 0; } catch (e) {}
+    }
+    this._active.clear();
+    this.stopSpin();
+    this.windStop();
   }
 
   /** Play a one-shot SFX that may overlap others. */
@@ -589,6 +603,12 @@ class Synth {
   // ── wolf & houses ──
   wolfHuff()    { this._oneShot('wolf_huff.mp3', 0.8); }
   wolfHowl()    { this._oneShot('wolf_howl.mp3', 0.6); }
+
+  // ── wind / tornado (the wolf's big blow in the bonus reveal) ──
+  windStart()    { if (this.enabled) { this.windStop(); this._windAudio = this._play('wind_storm.mp3', 0.55, true); } }
+  windStop()     { if (this._windAudio) { try { this._windAudio.pause(); this._windAudio.currentTime = 0; } catch (e) {} this._windAudio = null; } }
+  windGust()     { this._oneShot('wind_gust.mp3', 0.5); }
+  leavesRustle() { this._oneShot('leaves_rustle.mp3', 0.4); }
   strawBreak()  { this._oneShot('straw_break.mp3', 0.7); }
   stickBreak()  { this._oneShot('stick_break.mp3', 0.7); }
   brickImpact() { this._oneShot('brick_impact.mp3', 0.7); }
@@ -629,6 +649,7 @@ class Synth {
   setVolume(v) {
     this._volume = Math.max(0, Math.min(1, v));
     if (this._spinAudio) this._spinAudio.volume = this._volume * 0.3;
+    if (this._windAudio) this._windAudio.volume = this._volume * 0.55;
   }
   getVolume() { return this._volume; }
 }
@@ -1058,10 +1079,7 @@ if (chkTurbo) chkTurbo.addEventListener('change', () => { state.turbo = chkTurbo
 document.addEventListener('keydown', (e) => {
   if (e.code === 'Space' && !state.spinning && !isBonusActive()) { e.preventDefault(); triggerSpin(); }
   if (e.code === 'KeyA' && !isBonusActive()) { state.autoActive ? stopAuto() : startAuto(); }
-  if (e.code === 'Backquote' && DEV_MODE) {
-    const dbg = document.getElementById('debug-panel');
-    if (dbg) dbg.classList.toggle('hidden');
-  }
+
 });
 
 const btnForceExtreme = document.getElementById('btn-force-extreme');
@@ -1132,7 +1150,7 @@ const { animateAllReels, highlightWinners, clearHighlights, animateWinCount, get
 const {
   spawnCoinShower, spawnCoinFountain, spawnDollarBills, spawnConfetti, spawnSparkles,
   spawnStarbursts, spawnWinVignette, spawnWinPopText,
-  playWinPresentation
+  playWinPresentation, startWindStorm
 } = require("particles");
 const { setStatus, updateDisplays, setControlsEnabled, stopAuto, elWin } = require("readouts");
 
@@ -1251,6 +1269,8 @@ async function startBonus(bet, triggerGrid) {
 
   // silence the base music so it doesn't clash with the intro video's own audio
   bgm.pauseForCutscene();
+  synth.stopAll();
+  narrator.stop();
 
   // bonus intro video plays inside the reel window as soon as the bonus triggers
   await playBonusIntro();
@@ -1274,10 +1294,6 @@ async function startBonus(bet, triggerGrid) {
   shake(600);
   await sleep(2800);
   hideBonusOverlay();
-
-  showMansionOverlay(bonusFreeSpins);
-  await sleep(3000);
-  hideMansionOverlay();
 
   renderFrameLayers();
   updateBonusHUD();
@@ -1383,14 +1399,30 @@ async function wolfEndGameReveal() {
   cabinet.classList.add('wolf-reveal-active');
 
   // the wolf huffs & puffs — tornado video plays contained inside the reel window
+  bgm.pauseForCutscene();
+  synth.stopAll();
+  narrator.stop();
   synth.wolfHuff();
   await playWolfTornado();
+  bgm.resumeFromCutscene(400);
 
   const framedCells = [];
   for (let r = 0; r < 5; r++)
     for (let row = 0; row < 3; row++)
       if (frameTiers[r][row] > 0) framedCells.push({ reel: r, row, tier: frameTiers[r][row] });
   framedCells.sort((a, b) => a.tier - b.tier);   // straw first
+
+  // The blow becomes a screen-wide tornado: wind, leaves and debris everywhere
+  // while each house is tested by it (straw/wood scatter, brick stands firm).
+  const storm = framedCells.length ? startWindStorm() : null;
+  let gustTimer, leafTimer, shakeTimer;
+  if (storm) {
+    synth.windStart();
+    synth.windGust();
+    gustTimer  = setInterval(() => synth.windGust(), 2300);
+    leafTimer  = setInterval(() => synth.leavesRustle(), 1500);
+    shakeTimer = setInterval(() => shake(220), 1900);   // periodic gusts rattle the cabinet
+  }
 
   for (const { reel, row, tier } of framedCells) {
     const cellEl = reelStrips[reel].querySelectorAll('.sym-cell')[row];
@@ -1427,6 +1459,13 @@ async function wolfEndGameReveal() {
     await animateWinCount(bonusTotalWin, 500);
     updateBonusHUD();
     await sleep(800);
+  }
+
+  // the storm dies down once every house has been tested
+  if (storm) {
+    clearInterval(gustTimer); clearInterval(leafTimer); clearInterval(shakeTimer);
+    synth.windStop();
+    storm.stop();
   }
 
   cabinet.classList.remove('wolf-reveal-active');
@@ -1753,6 +1792,8 @@ if (DEV_MODE && typeof window !== 'undefined') {
     removeSlot: (r, row) => removeFrameSlot(r, row),
     clear:      () => clearFrameLayers(),
     reset:      () => { frameTiers = makeGrid(); prevFrameTiers = makeGrid(); clearFrameLayers(); },
+    wind:       () => startWindStorm(),    // returns a controller with stop()
+    windSound:  () => { synth.windStart(); synth.windGust(); },
     slots: () => [...document.querySelectorAll('.frame-layer .frame-slot')].map(s => {
       const ov = s.querySelector('.frame-overlay');
       const still = s.querySelector('.frame-still');
@@ -3446,40 +3487,40 @@ Object.assign(exports, { runSimulation });
 /* AUTO-GENERATED by tools/build.js — folder-size snapshot. Do not edit. */
 
 const SIZE_MANIFEST = {
-  "totalBytes": 100200234,
-  "fileCount": 395,
+  "totalBytes": 96380890,
+  "fileCount": 397,
   "generatedAt": "2026-05-31",
   "player": {
-    "bytes": 99952113,
-    "files": 354
+    "bytes": 96126059,
+    "files": 356
   },
   "dev": {
-    "bytes": 248121,
+    "bytes": 254831,
     "files": 41
   },
   "categories": [
     {
       "key": "video",
       "label": "Videos",
-      "bytes": 65751310,
-      "files": 31
+      "bytes": 61982887,
+      "files": 30
     },
     {
       "key": "audio",
       "label": "Audio",
-      "bytes": 20095531,
-      "files": 308
+      "bytes": 20276220,
+      "files": 311
     },
     {
       "key": "image",
       "label": "Images",
-      "bytes": 13691614,
+      "bytes": 13442646,
       "files": 12
     },
     {
       "key": "code",
       "label": "Code",
-      "bytes": 657833,
+      "bytes": 675191,
       "files": 41
     },
     {
@@ -3805,12 +3846,116 @@ function playWinPresentation(ratio, isMega = false) {
     spawnConfetti(15, 1800);
     for (let i = 0; i < 3; i++) setTimeout(() => synth.coinClink(), 100 + i * 120);
   } else if (ratio > 0) {
-    spawnCoinFountain(12, 1500); 
+    spawnCoinFountain(12, 1500);
     spawnDollarBills(3, 1500);
   }
 }
 
-Object.assign(exports, { spawnCoinShower, spawnCoinFountain, spawnSparkles, spawnWindParticles, spawnDollarBills, spawnConfetti, spawnStarbursts, spawnSideWaterfall, spawnWinVignette, spawnWinPopText, spawnWolfWindBlast, startAmbientParticles, playWinPresentation });
+/**
+ * Full-screen WIND / TORNADO storm — leaves, straw and debris blown clear across
+ * the whole screen with whooshing speed-lines and a faint swirling dust haze, so
+ * the wolf's big blow feels like a tornado everywhere (not just on the reels).
+ * Spawns continuously until you call the returned controller's stop(); in-flight
+ * particles then finish their flight and the layer cleans itself up.
+ *
+ * @returns {{ stop: (fadeMs?: number) => void }}
+ */
+function startWindStorm() {
+  let layer = document.getElementById('wind-storm');
+  if (!layer) {
+    layer = document.createElement('div');
+    layer.id = 'wind-storm';
+    layer.innerHTML = '<div class="wind-haze"></div>';
+    document.body.appendChild(layer);
+  }
+  layer.classList.remove('fade-out');
+  void layer.offsetWidth;            // restart the haze fade-in if re-used
+  layer.classList.add('active');
+
+  const LEAVES = ['🍂', '🍃', '🌿'];
+  const TANS   = ['#caa45a', '#b5863c', '#9c6b2e', '#d8c089', '#8a6a34'];
+  // autumn palettes for CSS-drawn leaves (guaranteed to render even where the
+  // color-emoji font is missing) — [light, dark] for the leaf gradient
+  const LEAF_COLORS = [
+    ['#8FCF4F', '#3E7A24'], ['#E7B23A', '#B5751F'], ['#DD7A2E', '#9C4A18'],
+    ['#CF5A3A', '#8A2F18'], ['#C7A95B', '#7A5A2A'], ['#B7C24A', '#6E7A1E'],
+  ];
+
+  const spawnLeaf = () => {
+    const outer = document.createElement('div');
+    outer.className = 'wind-leaf';
+    const dur = 1.1 + Math.random() * 1.7;
+    outer.style.top = (Math.random() * 100) + 'vh';
+    outer.style.setProperty('--dur', dur + 's');
+
+    // mix CSS-drawn leaves (always visible) with emoji leaves (richer on devices
+    // that have a color-emoji font)
+    const useEmoji = Math.random() < 0.45;
+    const body = document.createElement(useEmoji ? 'span' : 'i');
+    body.className = 'wind-leaf-body ' + (useEmoji ? 'emoji' : 'shape');
+    body.style.setProperty('--dur', dur + 's');
+    body.style.setProperty('--ty', ((Math.random() * 64 - 32) | 0) + 'px');
+    if (useEmoji) {
+      body.textContent = LEAVES[(Math.random() * LEAVES.length) | 0];
+      body.style.fontSize = (15 + Math.random() * 26) + 'px';
+    } else {
+      const pal = LEAF_COLORS[(Math.random() * LEAF_COLORS.length) | 0];
+      body.style.setProperty('--c1', pal[0]);
+      body.style.setProperty('--c2', pal[1]);
+      const w = 11 + Math.random() * 17;
+      body.style.width = w.toFixed(0) + 'px';
+      body.style.height = (w * (0.68 + Math.random() * 0.3)).toFixed(0) + 'px';
+    }
+    outer.appendChild(body);
+    layer.appendChild(outer);
+    setTimeout(() => outer.remove(), dur * 1000 + 120);
+  };
+
+  const spawnDebris = () => {
+    const d = document.createElement('div');
+    d.className = 'wind-debris';
+    const dur = 0.7 + Math.random() * 1.0;
+    d.style.top = (Math.random() * 100) + 'vh';
+    d.style.height = (3 + Math.random() * 4) + 'px';
+    d.style.width = (8 + Math.random() * 18) + 'px';
+    d.style.background = TANS[(Math.random() * TANS.length) | 0];
+    d.style.setProperty('--dur', dur + 's');
+    d.style.setProperty('--rot', ((200 + Math.random() * 900) | 0) + 'deg');
+    layer.appendChild(d);
+    setTimeout(() => d.remove(), dur * 1000 + 120);
+  };
+
+  const spawnLine = () => {
+    const l = document.createElement('div');
+    l.className = 'wind-line';
+    const dur = 0.45 + Math.random() * 0.55;
+    l.style.top = (Math.random() * 100) + 'vh';
+    l.style.width = (12 + Math.random() * 28) + 'vw';
+    l.style.setProperty('--dur', dur + 's');
+    layer.appendChild(l);
+    setTimeout(() => l.remove(), dur * 1000 + 120);
+  };
+
+  const tick = () => {
+    spawnLeaf(); spawnLeaf();
+    if (Math.random() < 0.6) spawnLeaf();
+    if (Math.random() < 0.8) spawnDebris();
+    if (Math.random() < 0.55) spawnLine();
+  };
+  tick(); tick();
+  const timer = setInterval(tick, 140);
+
+  return {
+    stop(fadeMs = 700) {
+      clearInterval(timer);
+      layer.classList.add('fade-out');                       // fade the haze out…
+      // …let in-flight leaves finish their flight (longest ~2.8s), then remove the layer
+      setTimeout(() => { if (layer && layer.parentNode) layer.remove(); }, 2900 + fadeMs);
+    },
+  };
+}
+
+Object.assign(exports, { spawnCoinShower, spawnCoinFountain, spawnSparkles, spawnWindParticles, spawnDollarBills, spawnConfetti, spawnStarbursts, spawnSideWaterfall, spawnWinVignette, spawnWinPopText, spawnWolfWindBlast, startAmbientParticles, playWinPresentation, startWindStorm });
 
   };
 
@@ -4321,7 +4466,8 @@ Object.assign(exports, { revealDayNight });
  * fires at most once per day.
  */
 
-const { bgm } = require("sound");
+const { bgm, synth } = require("sound");
+const { narrator } = require("narrator");
 
 const overlay = document.getElementById('noon-overlay');
 const video   = document.getElementById('noon-video');
@@ -4338,6 +4484,8 @@ function playNoonStandoff() {
   playing = true;
 
   bgm.pauseForCutscene();          // silence the game music under the clip's own audio
+  synth.stopAll();
+  narrator.stop();
 
   let done = false;
   const finish = () => {
@@ -4624,7 +4772,6 @@ const SIDEWOLF = {
     "assets/webm/Sidewolf_blows.webm",
     "assets/webm/Sidewolf_chillin.webm",
     "assets/webm/Sidewolf_confused.webm",
-    "assets/webm/Sidewolf_dance2.webm",
     "assets/webm/Sidewolf_dances.webm",
     "assets/webm/Sidewolf_excited.webm",
     "assets/webm/Sidewolf_fighting.webm",

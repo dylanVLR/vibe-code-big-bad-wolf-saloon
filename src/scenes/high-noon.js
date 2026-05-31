@@ -8,7 +8,8 @@
  */
 'use strict';
 
-import { bgm } from '../audio/sound.js';
+import { bgm, synth } from '../audio/sound.js';
+import { narrator } from '../audio/narrator.js';
 
 const overlay = document.getElementById('noon-overlay');
 const video   = document.getElementById('noon-video');
@@ -25,6 +26,8 @@ export function playNoonStandoff() {
   playing = true;
 
   bgm.pauseForCutscene();          // silence the game music under the clip's own audio
+  synth.stopAll();
+  narrator.stop();
 
   let done = false;
   const finish = () => {

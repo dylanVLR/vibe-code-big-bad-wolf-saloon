@@ -13,6 +13,8 @@ class Synth {
     this.enabled = true;
     this._volume = 0.7;       // 0..1
     this._spinAudio = null;   // the looping reel-spin sound
+    this._windAudio = null;   // the looping tornado-wind sound
+    this._active = new Set();
   }
 
   /** Play an MP3 from assets/audio/sfx/. Returns the Audio element. */
@@ -21,8 +23,20 @@ class Synth {
     const audio = new Audio(`assets/audio/sfx/${filename}`);
     audio.volume = this._volume * vol;
     audio.loop = loop;
+    this._active.add(audio);
+    audio.addEventListener('ended', () => this._active.delete(audio));
     audio.play().catch(() => {});
     return audio;
+  }
+
+  /** Stop all currently playing one-shot sounds. */
+  stopAll() {
+    for (const a of this._active) {
+      try { a.pause(); a.currentTime = 0; } catch (e) {}
+    }
+    this._active.clear();
+    this.stopSpin();
+    this.windStop();
   }
 
   /** Play a one-shot SFX that may overlap others. */
@@ -57,6 +71,12 @@ class Synth {
   // ── wolf & houses ──
   wolfHuff()    { this._oneShot('wolf_huff.mp3', 0.8); }
   wolfHowl()    { this._oneShot('wolf_howl.mp3', 0.6); }
+
+  // ── wind / tornado (the wolf's big blow in the bonus reveal) ──
+  windStart()    { if (this.enabled) { this.windStop(); this._windAudio = this._play('wind_storm.mp3', 0.55, true); } }
+  windStop()     { if (this._windAudio) { try { this._windAudio.pause(); this._windAudio.currentTime = 0; } catch (e) {} this._windAudio = null; } }
+  windGust()     { this._oneShot('wind_gust.mp3', 0.5); }
+  leavesRustle() { this._oneShot('leaves_rustle.mp3', 0.4); }
   strawBreak()  { this._oneShot('straw_break.mp3', 0.7); }
   stickBreak()  { this._oneShot('stick_break.mp3', 0.7); }
   brickImpact() { this._oneShot('brick_impact.mp3', 0.7); }
@@ -97,6 +117,7 @@ class Synth {
   setVolume(v) {
     this._volume = Math.max(0, Math.min(1, v));
     if (this._spinAudio) this._spinAudio.volume = this._volume * 0.3;
+    if (this._windAudio) this._windAudio.volume = this._volume * 0.55;
   }
   getVolume() { return this._volume; }
 }

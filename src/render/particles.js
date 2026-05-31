@@ -308,7 +308,111 @@ export function playWinPresentation(ratio, isMega = false) {
     spawnConfetti(15, 1800);
     for (let i = 0; i < 3; i++) setTimeout(() => synth.coinClink(), 100 + i * 120);
   } else if (ratio > 0) {
-    spawnCoinFountain(12, 1500); 
+    spawnCoinFountain(12, 1500);
     spawnDollarBills(3, 1500);
   }
+}
+
+/**
+ * Full-screen WIND / TORNADO storm — leaves, straw and debris blown clear across
+ * the whole screen with whooshing speed-lines and a faint swirling dust haze, so
+ * the wolf's big blow feels like a tornado everywhere (not just on the reels).
+ * Spawns continuously until you call the returned controller's stop(); in-flight
+ * particles then finish their flight and the layer cleans itself up.
+ *
+ * @returns {{ stop: (fadeMs?: number) => void }}
+ */
+export function startWindStorm() {
+  let layer = document.getElementById('wind-storm');
+  if (!layer) {
+    layer = document.createElement('div');
+    layer.id = 'wind-storm';
+    layer.innerHTML = '<div class="wind-haze"></div>';
+    document.body.appendChild(layer);
+  }
+  layer.classList.remove('fade-out');
+  void layer.offsetWidth;            // restart the haze fade-in if re-used
+  layer.classList.add('active');
+
+  const LEAVES = ['🍂', '🍃', '🌿'];
+  const TANS   = ['#caa45a', '#b5863c', '#9c6b2e', '#d8c089', '#8a6a34'];
+  // autumn palettes for CSS-drawn leaves (guaranteed to render even where the
+  // color-emoji font is missing) — [light, dark] for the leaf gradient
+  const LEAF_COLORS = [
+    ['#8FCF4F', '#3E7A24'], ['#E7B23A', '#B5751F'], ['#DD7A2E', '#9C4A18'],
+    ['#CF5A3A', '#8A2F18'], ['#C7A95B', '#7A5A2A'], ['#B7C24A', '#6E7A1E'],
+  ];
+
+  const spawnLeaf = () => {
+    const outer = document.createElement('div');
+    outer.className = 'wind-leaf';
+    const dur = 1.1 + Math.random() * 1.7;
+    outer.style.top = (Math.random() * 100) + 'vh';
+    outer.style.setProperty('--dur', dur + 's');
+
+    // mix CSS-drawn leaves (always visible) with emoji leaves (richer on devices
+    // that have a color-emoji font)
+    const useEmoji = Math.random() < 0.45;
+    const body = document.createElement(useEmoji ? 'span' : 'i');
+    body.className = 'wind-leaf-body ' + (useEmoji ? 'emoji' : 'shape');
+    body.style.setProperty('--dur', dur + 's');
+    body.style.setProperty('--ty', ((Math.random() * 64 - 32) | 0) + 'px');
+    if (useEmoji) {
+      body.textContent = LEAVES[(Math.random() * LEAVES.length) | 0];
+      body.style.fontSize = (15 + Math.random() * 26) + 'px';
+    } else {
+      const pal = LEAF_COLORS[(Math.random() * LEAF_COLORS.length) | 0];
+      body.style.setProperty('--c1', pal[0]);
+      body.style.setProperty('--c2', pal[1]);
+      const w = 11 + Math.random() * 17;
+      body.style.width = w.toFixed(0) + 'px';
+      body.style.height = (w * (0.68 + Math.random() * 0.3)).toFixed(0) + 'px';
+    }
+    outer.appendChild(body);
+    layer.appendChild(outer);
+    setTimeout(() => outer.remove(), dur * 1000 + 120);
+  };
+
+  const spawnDebris = () => {
+    const d = document.createElement('div');
+    d.className = 'wind-debris';
+    const dur = 0.7 + Math.random() * 1.0;
+    d.style.top = (Math.random() * 100) + 'vh';
+    d.style.height = (3 + Math.random() * 4) + 'px';
+    d.style.width = (8 + Math.random() * 18) + 'px';
+    d.style.background = TANS[(Math.random() * TANS.length) | 0];
+    d.style.setProperty('--dur', dur + 's');
+    d.style.setProperty('--rot', ((200 + Math.random() * 900) | 0) + 'deg');
+    layer.appendChild(d);
+    setTimeout(() => d.remove(), dur * 1000 + 120);
+  };
+
+  const spawnLine = () => {
+    const l = document.createElement('div');
+    l.className = 'wind-line';
+    const dur = 0.45 + Math.random() * 0.55;
+    l.style.top = (Math.random() * 100) + 'vh';
+    l.style.width = (12 + Math.random() * 28) + 'vw';
+    l.style.setProperty('--dur', dur + 's');
+    layer.appendChild(l);
+    setTimeout(() => l.remove(), dur * 1000 + 120);
+  };
+
+  const tick = () => {
+    spawnLeaf(); spawnLeaf();
+    if (Math.random() < 0.6) spawnLeaf();
+    if (Math.random() < 0.8) spawnDebris();
+    if (Math.random() < 0.55) spawnLine();
+  };
+  tick(); tick();
+  const timer = setInterval(tick, 140);
+
+  return {
+    stop(fadeMs = 700) {
+      clearInterval(timer);
+      layer.classList.add('fade-out');                       // fade the haze out…
+      // …let in-flight leaves finish their flight (longest ~2.8s), then remove the layer
+      setTimeout(() => { if (layer && layer.parentNode) layer.remove(); }, 2900 + fadeMs);
+    },
+  };
 }

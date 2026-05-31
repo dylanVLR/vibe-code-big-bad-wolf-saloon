@@ -7,7 +7,6 @@ export const SIDEWOLF = {
     "assets/webm/Sidewolf_blows.webm",
     "assets/webm/Sidewolf_chillin.webm",
     "assets/webm/Sidewolf_confused.webm",
-    "assets/webm/Sidewolf_dance2.webm",
     "assets/webm/Sidewolf_dances.webm",
     "assets/webm/Sidewolf_excited.webm",
     "assets/webm/Sidewolf_fighting.webm",

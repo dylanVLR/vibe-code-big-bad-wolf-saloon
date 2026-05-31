@@ -737,7 +737,7 @@ body.pre-reveal #bg-video { opacity: 1; }   /* full, undimmed background during 
   object-fit: contain;
 }
 .logo-medallion-img {
-  transform: scale(0.85);
+  transform: scale(0.91);
   cursor: pointer;
   transition: filter 0.2s;
 }
@@ -748,9 +748,9 @@ body.pre-reveal #bg-video { opacity: 1; }   /* full, undimmed background during 
   animation: med-jump 0.4s ease-out;
 }
 @keyframes med-jump {
-  0% { transform: scale(0.85) translateY(0); }
-  50% { transform: scale(0.95) translateY(-15px); }
-  100% { transform: scale(0.85) translateY(0); }
+  0% { transform: scale(0.91) translateY(0); }
+  50% { transform: scale(1.01) translateY(-15px); }
+  100% { transform: scale(0.91) translateY(0); }
 }
 
 #logo-text {
@@ -3299,6 +3299,115 @@ body.pre-reveal #bg-video { opacity: 1; }   /* full, undimmed background during 
   0%   { opacity: 0; transform: translateX(-20px) scaleX(0.5); }
   20%  { opacity: 0.8; }
   100% { opacity: 0; transform: translateX(150px) scaleX(2); }
+}
+
+/* ════════════════════════════════════════
+   FULL-SCREEN WIND / TORNADO STORM (wolf's big blow in the bonus)
+   Leaves, straw and debris blown clear across the whole screen, with whooshing
+   speed-lines and a faint swirling dust haze — "a tornado everywhere".
+════════════════════════════════════════ */
+#wind-storm {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 350;                 /* above the cabinet/reels, below modals & big-win overlays */
+  transition: opacity 0.7s ease;
+}
+#wind-storm.fade-out { opacity: 0; }
+
+.wind-haze {
+  position: absolute;
+  inset: -15%;
+  background:
+    radial-gradient(60% 80% at 28% 38%, rgba(120, 92, 44, 0.12), transparent 70%),
+    radial-gradient(55% 75% at 74% 62%, rgba(150, 120, 70, 0.10), transparent 70%),
+    radial-gradient(40% 60% at 50% 50%, rgba(90, 70, 35, 0.08), transparent 75%);
+  opacity: 0;
+  animation: wind-haze-in 0.9s ease forwards, wind-haze-swirl 7s linear infinite;
+  will-change: transform, opacity;
+}
+@keyframes wind-haze-in   { to { opacity: 1; } }
+@keyframes wind-haze-swirl {
+  from { transform: rotate(0deg)   scale(1.06); }
+  to   { transform: rotate(360deg) scale(1.06); }
+}
+
+/* a leaf: the outer box flies left→right across the screen… */
+.wind-leaf {
+  position: absolute;
+  left: 0;
+  will-change: transform;
+  animation: wind-cross var(--dur) linear forwards;
+}
+@keyframes wind-cross {
+  from { transform: translateX(-14vw); }
+  to   { transform: translateX(116vw); }
+}
+/* …while the leaf itself tumbles (wobbles up/down + spins) as it goes. */
+.wind-leaf-body {
+  display: inline-block;
+  will-change: transform;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.35));
+  animation: wind-tumble var(--dur) linear forwards;
+}
+/* CSS-drawn leaf (always renders, even without a color-emoji font) */
+.wind-leaf-body.shape {
+  position: relative;
+  background: linear-gradient(135deg, var(--c1), var(--c2));
+  border-radius: 0 100% 0 100%;
+  box-shadow: inset 0 0 4px rgba(0, 0, 0, 0.22);
+}
+.wind-leaf-body.shape::before {                 /* center vein */
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(135deg, transparent 43%, rgba(0, 0, 0, 0.2) 50%, transparent 57%);
+}
+@keyframes wind-tumble {
+  0%   { transform: translateY(0)                    rotate(0deg); }
+  25%  { transform: translateY(calc(var(--ty) * -1)) rotate(200deg); }
+  50%  { transform: translateY(var(--ty))            rotate(390deg); }
+  75%  { transform: translateY(calc(var(--ty) * -1)) rotate(575deg); }
+  100% { transform: translateY(var(--ty))            rotate(770deg); }
+}
+
+/* straw/wood debris — a small chip that streaks across and spins fast */
+.wind-debris {
+  position: absolute;
+  left: 0;
+  border-radius: 2px;
+  opacity: 0;
+  will-change: transform, opacity;
+  animation: wind-debris-cross var(--dur) linear forwards;
+}
+@keyframes wind-debris-cross {
+  0%   { transform: translateX(-12vw) rotate(0deg);          opacity: 0; }
+  10%  { opacity: 0.9; }
+  90%  { opacity: 0.9; }
+  100% { transform: translateX(114vw) rotate(var(--rot));    opacity: 0; }
+}
+
+/* fast translucent speed-lines for the sense of rushing air */
+.wind-line {
+  position: absolute;
+  left: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+  opacity: 0;
+  will-change: transform, opacity;
+  animation: wind-line-cross var(--dur) linear forwards;
+}
+@keyframes wind-line-cross {
+  0%   { transform: translateX(-32vw); opacity: 0; }
+  20%  { opacity: 0.75; }
+  80%  { opacity: 0.75; }
+  100% { transform: translateX(122vw); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wind-haze { animation: wind-haze-in 0.9s ease forwards; }
 }
 
 /* ════════════════════════════════════════

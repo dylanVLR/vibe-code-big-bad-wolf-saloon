@@ -60,6 +60,11 @@ const SFX = {
   // ── wild ──
   wild_expand:  { d: 2.6, p: 'Triumphant Wild-West slot win: a rising magical whoosh and shimmer, a sharp whip crack, a cheerful burst of gold coins clinking and cascading, and a quick sparkly firework pop. Bright, exciting, celebratory, cowboy western.' },
   bolt_lock:    { d: 0.6, p: 'A single heavy metal bolt or rivet hammered and locking firmly into place: one sharp metallic clank then a short ratchet click. Mechanical, blacksmith forge, punchy, dry, no music.' },
+
+  // ── wind / tornado (the wolf's big blow in the bonus) ──
+  wind_storm:    { d: 8, p: 'A powerful sustained tornado windstorm: deep howling wind roaring and whistling, strong continuous gusts swirling like a cyclone, with a low rushing rumble. Intense, immersive, seamless and loopable, no music, no voices.' },
+  wind_gust:     { d: 1.6, p: 'A sudden strong gust of wind whooshing past hard: a sharp powerful blast of air with a brief rising howl, dynamic and punchy, no music.' },
+  leaves_rustle: { d: 1.5, p: 'Dry autumn leaves and loose bits of straw rustling, fluttering and skittering as they are blown across by wind: light papery crackle and scattering debris, no music.' },
 };
 
 async function gen(name, attempt = 1) {

@@ -22,7 +22,7 @@ import { animateAllReels, highlightWinners, clearHighlights, animateWinCount, ge
 import {
   spawnCoinShower, spawnCoinFountain, spawnDollarBills, spawnConfetti, spawnSparkles,
   spawnStarbursts, spawnWinVignette, spawnWinPopText,
-  playWinPresentation
+  playWinPresentation, startWindStorm
 } from '../render/particles.js';
 import { setStatus, updateDisplays, setControlsEnabled, stopAuto, elWin } from '../render/readouts.js';
 
@@ -141,6 +141,8 @@ export async function startBonus(bet, triggerGrid) {
 
   // silence the base music so it doesn't clash with the intro video's own audio
   bgm.pauseForCutscene();
+  synth.stopAll();
+  narrator.stop();
 
   // bonus intro video plays inside the reel window as soon as the bonus triggers
   await playBonusIntro();
@@ -164,10 +166,6 @@ export async function startBonus(bet, triggerGrid) {
   shake(600);
   await sleep(2800);
   hideBonusOverlay();
-
-  showMansionOverlay(bonusFreeSpins);
-  await sleep(3000);
-  hideMansionOverlay();
 
   renderFrameLayers();
   updateBonusHUD();
@@ -273,14 +271,30 @@ async function wolfEndGameReveal() {
   cabinet.classList.add('wolf-reveal-active');
 
   // the wolf huffs & puffs — tornado video plays contained inside the reel window
+  bgm.pauseForCutscene();
+  synth.stopAll();
+  narrator.stop();
   synth.wolfHuff();
   await playWolfTornado();
+  bgm.resumeFromCutscene(400);
 
   const framedCells = [];
   for (let r = 0; r < 5; r++)
     for (let row = 0; row < 3; row++)
       if (frameTiers[r][row] > 0) framedCells.push({ reel: r, row, tier: frameTiers[r][row] });
   framedCells.sort((a, b) => a.tier - b.tier);   // straw first
+
+  // The blow becomes a screen-wide tornado: wind, leaves and debris everywhere
+  // while each house is tested by it (straw/wood scatter, brick stands firm).
+  const storm = framedCells.length ? startWindStorm() : null;
+  let gustTimer, leafTimer, shakeTimer;
+  if (storm) {
+    synth.windStart();
+    synth.windGust();
+    gustTimer  = setInterval(() => synth.windGust(), 2300);
+    leafTimer  = setInterval(() => synth.leavesRustle(), 1500);
+    shakeTimer = setInterval(() => shake(220), 1900);   // periodic gusts rattle the cabinet
+  }
 
   for (const { reel, row, tier } of framedCells) {
     const cellEl = reelStrips[reel].querySelectorAll('.sym-cell')[row];
@@ -317,6 +331,13 @@ async function wolfEndGameReveal() {
     await animateWinCount(bonusTotalWin, 500);
     updateBonusHUD();
     await sleep(800);
+  }
+
+  // the storm dies down once every house has been tested
+  if (storm) {
+    clearInterval(gustTimer); clearInterval(leafTimer); clearInterval(shakeTimer);
+    synth.windStop();
+    storm.stop();
   }
 
   cabinet.classList.remove('wolf-reveal-active');
@@ -643,6 +664,8 @@ if (DEV_MODE && typeof window !== 'undefined') {
     removeSlot: (r, row) => removeFrameSlot(r, row),
     clear:      () => clearFrameLayers(),
     reset:      () => { frameTiers = makeGrid(); prevFrameTiers = makeGrid(); clearFrameLayers(); },
+    wind:       () => startWindStorm(),    // returns a controller with stop()
+    windSound:  () => { synth.windStart(); synth.windGust(); },
     slots: () => [...document.querySelectorAll('.frame-layer .frame-slot')].map(s => {
       const ov = s.querySelector('.frame-overlay');
       const still = s.querySelector('.frame-still');
