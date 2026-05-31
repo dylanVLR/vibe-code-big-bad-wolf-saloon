@@ -50,6 +50,37 @@ function scopeOf(relPath) {
   if (p.startsWith('assets/')) return 'player';
   return 'dev';
 }
+/**
+ * Load-phase split WITHIN the player build (what the browser actually fetches):
+ *   "first" = pulled up front so the first spin is instant — the code, reel
+ *      symbols, UI art, base music, core SFX, and the page/intro/spin/idle-wolf
+ *      videos (everything flagged preload="auto").
+ *   "lazy"  = streamed in after first paint or fetched on demand — the bonus
+ *      cutscenes & music, frame-morph clips, bonus-reveal pigs, the SideWolf
+ *      reaction clips, the narrator voice lines, and rare easter-egg media.
+ * Mirrors the real behaviour in src/system/lazy-assets.js + the index.html
+ * preload hints. Returns null for dev files (never fetched by the browser).
+ */
+const LAZY_FILES = new Set([
+  'assets/webm/Wanted_poster.webm',          // reel-window backdrop (data-lazy-src)
+  'assets/webm/Three_pigs_bonus_intro.webm', // bonus intro cutscene
+  'assets/webm/Wolf_blowing_tornado.webm',   // bonus reveal cutscene
+  'assets/webm/F1-straw.webm',               // frame-morph clips
+  'assets/webm/F2-wood.webm',
+  'assets/webm/F3-brick.webm',
+  'assets/webm/High_noon_standoff.webm',     // rare noon easter egg (preload="none")
+  'assets/audio/music/bgm_bonus.mp3',        // bonus music (preload="none")
+]);
+function loadPhaseOf(relPath) {
+  const p = relPath.split('\\').join('/');
+  if (scopeOf(p) !== 'player') return null;
+  const base = p.split('/').pop();
+  if (LAZY_FILES.has(p)) return 'lazy';
+  if (p.startsWith('assets/audio/narrator/')) return 'lazy';  // voice lines — on demand
+  if (base.startsWith('Sidewolf_')) return 'lazy';            // wolf reaction clips — on demand
+  if (base.startsWith('bonus_pig_')) return 'lazy';           // bonus reveal art
+  return 'first';                                             // everything else loads up front
+}
 function walkSizes(dir, acc) {
   for (const e of readdirSync(dir, { withFileTypes: true })) {
     if (e.name.startsWith('.')) continue;           // skip hidden (.git, .env, .DS_Store…)
@@ -61,8 +92,12 @@ function walkSizes(dir, acc) {
       (acc.cats[k] ||= { bytes: 0, files: 0 });
       acc.cats[k].bytes += size; acc.cats[k].files += 1;
       acc.totalBytes += size;    acc.fileCount += 1;
-      const scope = scopeOf(relative(root, full));   // player vs dev split
+      const rel = relative(root, full);
+      const scope = scopeOf(rel);                    // player vs dev split
       acc[scope].bytes += size;  acc[scope].files += 1;
+      const phase = loadPhaseOf(rel);                // first-play vs progressive (player only)
+      if (phase === 'first')     { acc.firstPlay.bytes += size;    acc.firstPlay.files += 1; }
+      else if (phase === 'lazy') { acc.progressive.bytes += size;  acc.progressive.files += 1; }
     }
   }
   return acc;
@@ -71,6 +106,7 @@ function generateSizeManifest() {
   const acc = walkSizes(root, {
     cats: {}, totalBytes: 0, fileCount: 0,
     player: { bytes: 0, files: 0 }, dev: { bytes: 0, files: 0 },
+    firstPlay: { bytes: 0, files: 0 }, progressive: { bytes: 0, files: 0 },
   });
   const labelFor = k => (SIZE_CATEGORIES.find(c => c.key === k)?.label) || 'Other';
   const categories = Object.entries(acc.cats)
@@ -80,8 +116,10 @@ function generateSizeManifest() {
     totalBytes: acc.totalBytes,
     fileCount:  acc.fileCount,
     generatedAt: new Date().toISOString().slice(0, 10),
-    player: acc.player,   // shipped to players
+    player: acc.player,   // shipped to players (deployed to the web)
     dev:    acc.dev,      // dev/gaff-only tooling + source
+    firstPlay:   acc.firstPlay,    // player files fetched up front (before first spin)
+    progressive: acc.progressive,  // player files streamed in later / on demand
     categories,
   };
   writeFileSync(join(root, 'src', 'panels', 'size-manifest.js'),

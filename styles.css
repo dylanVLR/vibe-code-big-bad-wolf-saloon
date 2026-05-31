@@ -3583,6 +3583,24 @@ body.pre-reveal #bg-video { opacity: 1; }   /* full, undimmed background during 
 .size-scope-name{flex:1;font-weight:800;font-size:.78rem;letter-spacing:.4px;color:#E6DCF5}
 .size-scope-meta{flex:0 0 auto;min-width:64px;text-align:right;font-size:.66rem;font-weight:700;color:#7E7298}
 .size-scope-val{flex:0 0 auto;min-width:78px;text-align:right;font-family:var(--font-title);font-size:1rem;color:#fff}
+/* Download footprint — what loads, and when */
+.size-divider{height:1px;margin:20px 0 16px;background:linear-gradient(90deg,transparent,rgba(176,124,240,.3),transparent)}
+.size-phases{margin-top:18px}
+.size-phases-title{font-family:var(--font-title);font-size:.92rem;letter-spacing:.5px;color:#2EE85A;margin-bottom:14px}
+.size-phase-row{margin-bottom:13px}
+.size-phase-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.size-phase-name{font-family:var(--font-main);font-weight:800;font-size:.78rem;letter-spacing:.3px;color:#E6DCF5}
+.size-phase-val{flex:0 0 auto;font-family:var(--font-title);font-size:1.05rem;color:#fff}
+.size-phase-track{height:9px;margin:5px 0 4px;border-radius:5px;overflow:hidden;background:rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.06)}
+.size-phase-fill{height:100%;border-radius:5px;transition:width .4s ease}
+.size-phase-fill.machine{background:linear-gradient(90deg,#7E8AA0,#9AA8BE)}
+.size-phase-fill.web{background:linear-gradient(90deg,#2BB6E0,#40D8FF)}
+.size-phase-fill.first{background:linear-gradient(90deg,#16A33C,#3BF06A);box-shadow:0 0 10px rgba(46,232,90,.5)}
+.size-phase-fill.lazy{background:linear-gradient(90deg,#8E5CD0,#B07CF0)}
+.size-phase-sub{display:flex;justify-content:space-between;gap:10px;font-size:.68rem;color:rgba(207,200,225,.6)}
+.size-phase-files{flex:0 0 auto;font-weight:700;color:rgba(207,200,225,.45)}
+.size-phases-note{margin:14px 0 4px;font-size:.78rem;line-height:1.55;color:#CFE8D6}
+.size-phases-note b{color:#3BF06A}
 .size-bar{display:flex;width:100%;height:26px;border-radius:13px;overflow:hidden;background:rgba(0,0,0,.45);border:1px solid rgba(176,124,240,.2);box-shadow:inset 0 1px 4px rgba(0,0,0,.5)}
 .size-bar-seg{height:100%;transition:width .5s ease;min-width:2px}
 .size-bar-seg:hover{filter:brightness(1.15)}

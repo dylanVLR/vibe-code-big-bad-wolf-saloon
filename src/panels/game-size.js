@@ -26,6 +26,7 @@ const closeBtn  = document.getElementById('btn-close-size');
 const doneBtn   = document.getElementById('btn-size-done');
 const totalEl   = document.getElementById('size-total');
 const scopeEl   = document.getElementById('size-scope');
+const phasesEl  = document.getElementById('size-phases');
 const barEl     = document.getElementById('size-bar');
 const legendEl  = document.getElementById('size-legend');
 
@@ -38,7 +39,8 @@ function fmtSize(bytes) {
 
 /** Build the popup contents from the manifest (once). */
 function render() {
-  const { totalBytes, fileCount, generatedAt, categories, player, dev } = SIZE_MANIFEST;
+  const { totalBytes, fileCount, generatedAt, categories, player, dev,
+          firstPlay, progressive } = SIZE_MANIFEST;
   if (!totalBytes) return;
   const pct = b => (b / totalBytes) * 100;
 
@@ -68,6 +70,31 @@ function render() {
           `<span class="size-scope-meta">${dev.files.toLocaleString()} files</span>` +
           `<span class="size-scope-val">${fmtSize(dev.bytes)}</span></div>` +
       `</div>`;
+  }
+
+  // download footprint — how much loads, and WHEN (bars relative to the on-disk total)
+  if (phasesEl && player && firstPlay && progressive) {
+    const max = totalBytes || 1;
+    const firstPctOfWeb = player.bytes ? Math.round((firstPlay.bytes / player.bytes) * 100) : 0;
+    const row = (cls, icon, name, sub, b, files) =>
+      `<div class="size-phase-row">` +
+        `<div class="size-phase-head">` +
+          `<span class="size-phase-name">${icon} ${name}</span>` +
+          `<span class="size-phase-val">${fmtSize(b)}</span>` +
+        `</div>` +
+        `<div class="size-phase-track">` +
+          `<div class="size-phase-fill ${cls}" style="width:${((b / max) * 100).toFixed(1)}%"></div>` +
+        `</div>` +
+        `<div class="size-phase-sub"><span>${sub}</span>` +
+          `<span class="size-phase-files">${files.toLocaleString()} files</span></div>` +
+      `</div>`;
+    phasesEl.innerHTML =
+      `<div class="size-phases-title">📡 What downloads, and when</div>` +
+      row('machine', '💻', 'On your machine',           'Full project, including dev tools',          totalBytes,        fileCount) +
+      row('web',     '🌐', 'Deployed to the web',        "What's uploaded to Netlify",                player.bytes,      player.files) +
+      row('first',   '⚡', 'Loads before the first spin', 'Code, reels, base music & the page videos',  firstPlay.bytes,   firstPlay.files) +
+      row('lazy',    '🌙', 'Streams in afterwards',       'Bonus, voice lines & wolf reaction clips',   progressive.bytes, progressive.files) +
+      `<p class="size-phases-note">Only <b>${fmtSize(firstPlay.bytes)}</b> (${firstPctOfWeb}% of the live site) downloads before you can play — the rest streams in quietly in the background or on demand.</p>`;
   }
 
   // stacked bar
