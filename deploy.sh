@@ -26,7 +26,7 @@ echo "    app.js rebuilt."
 
 echo "→ [2/3] Refreshing clean deploy folder ($DEST) ..."
 mkdir -p "$DEST"
-cp index.html app.js styles.css netlify.toml "$DEST/"
+cp index.html app.js styles.css netlify.toml manifest.json "$DEST/"
 rsync -a --delete --exclude='.DS_Store' assets/ "$DEST/assets/"
 find "$DEST" -name '.DS_Store' -delete
 echo "    $(find "$DEST" -type f | wc -l | tr -d ' ') files staged."

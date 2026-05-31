@@ -3825,6 +3825,47 @@ body.fit-mode #game-root {
   .bet-adj-btn::after { content: ''; position: absolute; inset: -9px; }
 }
 
+/* ── "Add to Home Screen" one-time hint (iOS Safari only) ── */
+#a2hs-hint {
+  position: fixed;
+  left: 50%;
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  transform: translate(-50%, 140%);
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: min(92vw, 440px);
+  padding: 10px 12px;
+  border-radius: 16px;
+  border: 1.5px solid rgba(245, 196, 0, 0.55);
+  background: linear-gradient(165deg, #143a1e 0%, #0a1c0d 100%);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6), 0 0 18px rgba(46, 232, 90, 0.18);
+  opacity: 0;
+  transition: transform .42s cubic-bezier(.34,1.4,.64,1), opacity .42s ease;
+  font-family: var(--font-main);
+}
+#a2hs-hint.show { transform: translate(-50%, 0); opacity: 1; }
+#a2hs-hint .a2hs-ico {
+  width: 46px; height: 46px; flex: 0 0 auto;
+  border-radius: 11px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.5);
+}
+#a2hs-hint .a2hs-text { display: flex; flex-direction: column; gap: 2px; line-height: 1.35; }
+#a2hs-hint .a2hs-text b { color: #FFD86A; }
+#a2hs-hint .a2hs-text > b { font-size: .9rem; letter-spacing: .3px; }
+#a2hs-hint .a2hs-text span { font-size: .76rem; color: #CFE8D6; }
+#a2hs-hint .a2hs-share {
+  width: 1em; height: 1em; vertical-align: -2px; color: #7CF09A;
+}
+#a2hs-hint .a2hs-close {
+  flex: 0 0 auto; align-self: flex-start;
+  width: 26px; height: 26px; margin: -4px -2px 0 0;
+  border: none; background: transparent;
+  color: #9FB8A6; font-size: 1.4rem; line-height: 1; cursor: pointer;
+}
+#a2hs-hint .a2hs-close:hover { color: #fff; }
+
 /* ── Rotate-to-landscape prompt — only in portrait on phone-sized screens ── */
 #rotate-prompt { display: none; }
 @media (orientation: portrait) and (max-width: 920px) {

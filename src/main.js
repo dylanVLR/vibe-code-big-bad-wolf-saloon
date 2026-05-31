@@ -47,6 +47,7 @@ import './panels/math-breakdown.js';
 import { initFitScreen } from './system/fit-screen.js';   // scale-to-fit for mobile / iPhone landscape
 import { initLazyAssets } from './system/lazy-assets.js';  // defer heavy/rare assets for instant first play
 import { initBackgroundLoop } from './system/background-loop.js';  // keep the bg video looping (iOS-safe)
+import { initInstallHint } from './system/install-hint.js';   // one-time "Add to Home Screen" nudge on iOS
 import { initAlphaVideos } from './system/video-format.js';  // serve HEVC-alpha .mp4 to Safari, WebM elsewhere
 
 /* ══════════════════════════════════════════
@@ -167,6 +168,7 @@ function init() {
   initFitScreen();            // fit the cabinet to short / mobile (iPhone landscape) viewports
   initLazyAssets();           // stream in decorative/bonus assets after first play
   initBackgroundLoop();       // keep the background video reliably looping (iOS-safe)
+  initInstallHint();          // gentle one-time "Add to Home Screen" prompt on iPhone
 }
 
 // Module scripts run after the DOM is parsed, so it's safe to init now.

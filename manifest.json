@@ -1,0 +1,15 @@
+{
+  "name": "Big Bad Wolf Saloon",
+  "short_name": "BBW Saloon",
+  "description": "Cowboy-themed 243-ways slot — huff & puff the houses down for the jackpot.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#0c0805",
+  "theme_color": "#1a0f0a",
+  "icons": [
+    { "src": "assets/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}
