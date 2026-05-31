@@ -148,10 +148,14 @@ export async function startBonus(bet, triggerGrid) {
   bgm.switchToBonus(700);
 
   // trigger hats become the first straw frames
+  const triggerUpgrades = [];
   for (let r = 0; r < 5; r++)
     for (let row = 0; row < 3; row++)
-      if (HAT_IDS.includes(triggerGrid[r][row]))
-        frameTiers[r][row] = Math.min(frameTiers[r][row] + 1, MAX_FRAME_TIER);
+      if (HAT_IDS.includes(triggerGrid[r][row])) {
+        const old = frameTiers[r][row];
+        frameTiers[r][row] = Math.min(old + 1, MAX_FRAME_TIER);
+        if (frameTiers[r][row] > old) triggerUpgrades.push({ reel: r, row, tier: frameTiers[r][row] });
+      }
 
   synth.bonusSiren();
   showBonusOverlay('BONUS REEL FEATURE!', 'FREE SPINS STARTING');
@@ -166,6 +170,7 @@ export async function startBonus(bet, triggerGrid) {
 
   renderFrameOverlays();
   updateBonusHUD();
+  await animateFrameUpgrades(triggerUpgrades);   // play the straw-frame morph on the trigger cells
   await runFreeSpins();
 }
 
@@ -217,15 +222,18 @@ async function runFreeSpins() {
     // hats upgrade houses; track new bricks
     let newHats = 0;
     const newBrickCells = [];
+    const upgradedCells = [];
     for (let r = 0; r < 5; r++)
       for (let row = 0; row < 3; row++)
         if (HAT_IDS.includes(targetGrid[r][row])) {
           const old = frameTiers[r][row];
           frameTiers[r][row] = Math.min(old + 1, MAX_FRAME_TIER);
           newHats++;
+          if (frameTiers[r][row] > old) upgradedCells.push({ reel: r, row, tier: frameTiers[r][row] });
           if (old === 2 && frameTiers[r][row] === 3) newBrickCells.push({ reel: r, row });
         }
     renderFrameOverlays();
+    await animateFrameUpgrades(upgradedCells);   // play the frame-upgrade morph (straw/…) on each upgraded cell
 
     if (newHats > 0) {
       if (newBrickCells.length > 0) narrator.onFrameUpgrade(3);
@@ -447,8 +455,63 @@ function renderFrameOverlays() {
 
 function clearFrameOverlays() {
   document.querySelectorAll('.frame-overlay').forEach(el => el.remove());
+  document.querySelectorAll('.frame-upgrade-vid').forEach(el => el.remove());
   document.querySelectorAll('.frame-straw, .frame-stick, .frame-brick')
     .forEach(el => el.classList.remove('frame-straw', 'frame-stick', 'frame-brick'));
+}
+
+/* ── Frame-upgrade morph videos (Huff-&-Puff style) ──
+   Transparent in the center (the symbol shows through) with edges that animate
+   from nothing into the new frame material. Keyed by the tier they produce, so
+   future materials drop in by adding a file here. Tier 3 (brick) keeps its own
+   bespoke animateBrickBuild build-up, so it stays out of this map. */
+const FRAME_UPGRADE_VIDEOS = {
+  1: 'assets/webm/F1-straw.webm',
+  // 2: 'assets/webm/F2-stick.webm',   // (drop in when ready)
+  // 3: handled by animateBrickBuild
+};
+
+/**
+ * Play the upgrade-morph video on top of each freshly-upgraded cell. The video
+ * sits above the symbol with a see-through center, and its edges grow into the
+ * new frame. The persistent CSS frame underneath is held hidden (`frame-pending`)
+ * until the video lands, then cross-faded in so the hand-off is seamless.
+ * Resolves once every video has finished (or a safety timeout fires). Cells whose
+ * tier has no video (e.g. brick) are simply skipped.
+ */
+async function animateFrameUpgrades(cells) {
+  if (!cells || !cells.length) return;
+  const reelStrips = getReelStrips();
+  await Promise.all(cells.map(({ reel, row, tier }) => new Promise(resolve => {
+    const src = FRAME_UPGRADE_VIDEOS[tier];
+    const cellEl = reelStrips[reel] && reelStrips[reel].querySelectorAll('.sym-cell')[row];
+    if (!src || !cellEl) return resolve();
+
+    const staticFrame = cellEl.querySelector('.frame-overlay');
+    if (staticFrame) staticFrame.classList.add('frame-pending');   // hide the end-state until the morph lands
+
+    const vid = document.createElement('video');
+    vid.className = 'frame-upgrade-vid';
+    vid.src = src;
+    vid.muted = true;
+    vid.playsInline = true;
+    vid.setAttribute('playsinline', '');
+    vid.preload = 'auto';
+    cellEl.appendChild(vid);
+
+    let done = false;
+    const land = () => {
+      if (done) return; done = true;
+      try { vid.pause(); } catch (e) {}
+      vid.classList.add('fading');                                 // cross-fade: video out…
+      if (staticFrame) staticFrame.classList.remove('frame-pending'); // …persistent frame in
+      setTimeout(() => { vid.remove(); resolve(); }, 420);
+    };
+    vid.addEventListener('ended', land);
+    vid.addEventListener('error', land);
+    setTimeout(land, 6000);                                        // safety net if the video stalls
+    vid.play().catch(land);
+  })));
 }
 
 /* ══════════════════════════════════════════

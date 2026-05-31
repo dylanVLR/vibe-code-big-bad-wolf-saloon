@@ -3007,7 +3007,28 @@ body.pre-reveal #bg-video { opacity: 1; }   /* full, undimmed background during 
   border-radius: 10px;
   pointer-events: none;
   z-index: 5;
+  transition: opacity 0.4s ease;        /* cross-fades in after the upgrade morph lands */
 }
+/* held hidden while the upgrade-morph video plays, so the end-state doesn't show early */
+.frame-overlay.frame-pending { opacity: 0; }
+
+/* ── Frame-upgrade morph video (Huff-&-Puff style) ──
+   Plays on top of a cell as its frame is upgraded: the edges grow into the new
+   material while the transparent center keeps the symbol visible. The persistent
+   CSS frame underneath is revealed (cross-faded) only once this lands. */
+.frame-upgrade-vid {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;                     /* map the square video onto the cell edge-to-edge */
+  border-radius: 10px;
+  pointer-events: none;
+  z-index: 7;                           /* above the static frame (5) and the symbol */
+  opacity: 1;
+  transition: opacity 0.4s ease;
+}
+.frame-upgrade-vid.fading { opacity: 0; }
 
 /* ── Tier 1: STRAW FRAME — Golden marquee running-light track ── */
 .frame-tier-1 {
