@@ -50,13 +50,12 @@ if (first && SIDEWOLF.default) {
   let activeMode = 'idle';                       // 'idle' | 'special'
   let idlesPlayed = 0;                           // idle loops in the current streak
   let lastSpecial = -1;
-  let queued = false;                            // a tap asks for a reaction next
   let bufferKind = 'idle';                       // what's primed in `buffer`
   let swapping = false;
 
   const baseName = v => ((v && (v.__logical || v.getAttribute('src'))) || '').split('/').pop();
-  function show(v) { v.style.opacity = '1'; v.style.pointerEvents = 'auto'; }
-  function hide(v) { v.style.opacity = '0'; v.style.pointerEvents = 'none'; }
+  function show(v) { v.style.opacity = '1'; }
+  function hide(v) { v.style.opacity = '0'; }
 
   /** pick a random reaction clip, never repeating the previous one */
   function pickReaction() {
@@ -70,7 +69,6 @@ if (first && SIDEWOLF.default) {
 
   /** what should follow the current active clip */
   function predictNext() {
-    if (queued) return { src: pickReaction(), kind: 'special' };
     if (activeMode === 'idle' && idlesPlayed < IDLE_LOOPS) return { src: SIDEWOLF.default, kind: 'idle' };
     if (activeMode === 'idle') return { src: pickReaction(), kind: 'special' };
     return { src: SIDEWOLF.default, kind: 'idle' };   // after a reaction → idle
@@ -91,7 +89,7 @@ if (first && SIDEWOLF.default) {
   /** commit the swap: reveal the (now painting) buffer, hide the old clip */
   function commitSwap() {
     if (bufferKind === 'idle') { activeMode = 'idle'; idlesPlayed += 1; }
-    else { activeMode = 'special'; idlesPlayed = 0; queued = false; }
+    else { activeMode = 'special'; idlesPlayed = 0; }
 
     show(buffer); hide(active);
     try { active.pause(); } catch (err) {}
@@ -128,12 +126,6 @@ if (first && SIDEWOLF.default) {
   }
 
   layers.forEach(v => v.addEventListener('ended', onEnded));
-
-  // tap the wolf → queue a reaction; preload it now so the swap stays gapless
-  layers.forEach(v => v.addEventListener('pointerdown', () => {
-    queued = true;
-    if (bufferKind !== 'special') prime(pickReaction(), 'special');
-  }));
 
   // "Animations" gaff button → show/hide the current clip name under the wolf
   if (animBtn && animLabel) {
