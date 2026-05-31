@@ -112,8 +112,8 @@
 /* ── SIDE WOLF ── Looping character standing on a platform attached to the cabinet */
 #wolf-container {
   position: absolute;
-  left: -220px; /* shift to the left of the cabinet */
-  bottom: 0px; /* lowered ~80px (the whole wolf-container — wolf + platform — moves together) */
+  left: -195px; /* shift to the left of the cabinet */
+  bottom: 50px; /* lowered ~80px (the whole wolf-container — wolf + platform — moves together) */
   width: 280px; /* fixed size so he doesn't shrink */
   height: 550px;
   z-index: 105; /* higher than side-borders (101) so his arm is in foreground */
