@@ -3614,10 +3614,11 @@ body.pre-reveal #bg-video { opacity: 1; }   /* full, undimmed background during 
 .size-foot{margin:12px 0 0;text-align:left;font-size:.7rem;line-height:1.4;color:rgba(207,200,225,.5)}
 
 /* Three-column horizontal layout (fits landscape without scrolling) */
-.size-box{max-width:900px;max-height:96vh}
+.size-box{max-width:700px;max-height:96vh}
 #size-modal .modal-header{padding:11px 24px}
 #size-modal .modal-header h2{font-size:1.05rem;letter-spacing:1.5px}
 .size-body{text-align:left;padding:14px 24px 16px}
+.size-body .buy-actions{margin-top:24px}
 .size-grid{display:grid;grid-template-columns:0.82fr 1fr 1fr;gap:0;align-items:stretch}
 .size-col{min-width:0;padding:0 22px}
 .size-col:first-child{padding-left:0}

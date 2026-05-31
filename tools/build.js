@@ -77,7 +77,8 @@ function loadPhaseOf(relPath) {
   const base = p.split('/').pop();
   if (LAZY_FILES.has(p)) return 'lazy';
   if (p.startsWith('assets/audio/narrator/')) return 'lazy';  // voice lines — on demand
-  if (base.startsWith('Sidewolf_')) return 'lazy';            // wolf reaction clips — on demand
+  if (base.startsWith('Sidewolf_')) return 'lazy';            // wolf reaction clips — on demand (.webm + .mp4)
+  if (/^F[123]-/.test(base)) return 'lazy';                   // frame-morph clips (.webm + HEVC .mp4)
   if (base.startsWith('bonus_pig_')) return 'lazy';           // bonus reveal art
   return 'first';                                             // everything else loads up front
 }

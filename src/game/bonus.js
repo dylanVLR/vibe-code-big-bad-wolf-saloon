@@ -13,6 +13,7 @@
 
 import { HAT_IDS, MAX_FRAME_TIER, BONUS_CONFIG } from '../math/par-sheet.js';
 import { DEV_MODE } from '../system/dev-mode.js';
+import { alphaSrc } from '../system/video-format.js';   // WebM → HEVC-alpha .mp4 on Safari
 import { state } from '../core/state.js';
 import { sleep, fmt } from '../core/utils.js';
 import { synth, bgm } from '../audio/sound.js';
@@ -519,7 +520,7 @@ async function animateFrameUpgrades(cells) {
 
     const vid = document.createElement('video');
     vid.className = 'frame-upgrade-vid';
-    vid.src = src;
+    vid.src = alphaSrc(src);                                     // .mp4 (HEVC-alpha) on Safari, .webm elsewhere
     vid.muted = true;
     vid.playsInline = true;
     vid.setAttribute('playsinline', '');

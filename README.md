@@ -68,6 +68,7 @@ build works* below.
 │   ├── voice.js             Generate the narrator clips via ElevenLabs.
 │   ├── music.js             Generate the base/bonus music via ElevenLabs.
 │   ├── sfx.js               Generate the sound effects via ElevenLabs.
+│   ├── alpha-mp4.js         Make HEVC-alpha .mp4 twins of transparent clips (Safari support).
 │   └── process_images.py    Helper: knock out white image backgrounds.
 │
 ├── docs/                  ── DELIVERABLE MATH DOCS (one set per RTP model) ──

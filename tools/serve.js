@@ -18,8 +18,8 @@ const projectRoot = join(dirname(fileURLToPath(import.meta.url)), '..'); // depl
 const types = {
   '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css',
   '.png': 'image/png', '.webp': 'image/webp', '.svg': 'image/svg+xml',
-  '.mp3': 'audio/mpeg', '.webm': 'video/webm', '.json': 'application/json',
-  '.ico': 'image/x-icon',
+  '.mp3': 'audio/mpeg', '.webm': 'video/webm', '.mp4': 'video/mp4', '.mov': 'video/quicktime',
+  '.json': 'application/json', '.ico': 'image/x-icon',
 };
 
 let deploying = false;

@@ -19,6 +19,8 @@
  */
 'use strict';
 
+import { alphaSrc } from './video-format.js';   // warm the right format (Safari uses .mp4 for alpha)
+
 /** Start any <video data-lazy-src> that was held back from the initial load. */
 function activateLazyVideos() {
   document.querySelectorAll('video[data-lazy-src]').forEach(v => {
@@ -44,7 +46,10 @@ const WARM = [
   'assets/audio/music/bgm_bonus.mp3',
 ];
 function warmExtras() {
-  WARM.forEach((url, i) => setTimeout(() => {
+  // the frame-morph clips (F1/F2/F3) are transparent → fetch the format this
+  // browser will actually use (.mp4 on Safari). The rest are opaque / audio.
+  WARM.forEach((u, i) => setTimeout(() => {
+    const url = /F[123]-/.test(u) ? alphaSrc(u) : u;
     try { fetch(url, { cache: 'force-cache', priority: 'low' }).catch(() => {}); } catch (e) {}
   }, i * 500));   // stagger so the warm-up never saturates the connection
 }

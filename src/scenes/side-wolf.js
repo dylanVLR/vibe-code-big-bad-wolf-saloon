@@ -13,6 +13,7 @@
 'use strict';
 
 import { SIDEWOLF } from './sidewolf-clips.js';
+import { alphaSrc } from '../system/video-format.js';   // WebM → HEVC-alpha .mp4 on Safari
 
 const video = document.getElementById('side-wolf');
 const IDLE_LOOPS = 1;        // loop the default this many times before a reaction
@@ -32,7 +33,8 @@ if (video && SIDEWOLF.default) {
 
   /** Point the video at `src` (only swapping the source if it changed) and play. */
   function play(src) {
-    if (video.getAttribute('src') !== src) video.setAttribute('src', src);
+    const real = alphaSrc(src);   // .webm on Chrome/FF, .mp4 (HEVC-alpha) on Safari
+    if (video.getAttribute('src') !== real) video.setAttribute('src', real);
     try { video.currentTime = 0; } catch (e) {}
     video.play().catch(() => {});
     if (animLabel) animLabel.textContent = src.split('/').pop();   // keep the dev label current
