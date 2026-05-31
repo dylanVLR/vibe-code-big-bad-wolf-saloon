@@ -88,17 +88,11 @@ if (first && SIDEWOLF.default) {
   }
   function primeNext() { const n = predictNext(); prime(n.src, n.kind); }
 
-  /** the active clip finished → cross to the preloaded buffer with no blank frame */
-  function onEnded(e) {
-    if (e.target !== active || swapping) return;   // only the playing layer drives swaps
-    swapping = true;
-
-    // adopt the buffered clip as the new active
+  /** commit the swap: reveal the (now painting) buffer, hide the old clip */
+  function commitSwap() {
     if (bufferKind === 'idle') { activeMode = 'idle'; idlesPlayed += 1; }
     else { activeMode = 'special'; idlesPlayed = 0; queued = false; }
 
-    try { buffer.currentTime = 0; } catch (err) {}
-    buffer.play().catch(() => {});
     show(buffer); hide(active);
     try { active.pause(); } catch (err) {}
     if (animLabel) animLabel.textContent = baseName(buffer);
@@ -107,6 +101,30 @@ if (first && SIDEWOLF.default) {
     active = buffer; buffer = justPlayed;          // swap roles
     swapping = false;
     primeNext();                                   // preload the following clip
+  }
+
+  /**
+   * The active clip finished. A finished <video> keeps showing its LAST frame,
+   * so we leave it visible and start the preloaded buffer underneath. Safari
+   * doesn't paint a paused video's frame until it actually plays, so we wait for
+   * the buffer's first PAINTED frame (requestVideoFrameCallback) before swapping
+   * — that's what kills the last bit of blank-frame flicker.
+   */
+  function onEnded(e) {
+    if (e.target !== active || swapping) return;   // only the playing layer drives swaps
+    swapping = true;
+
+    try { buffer.currentTime = 0; } catch (err) {}
+    buffer.play().catch(() => {});
+
+    let done = false;
+    const go = () => { if (done) return; done = true; commitSwap(); };
+    if (typeof buffer.requestVideoFrameCallback === 'function') {
+      buffer.requestVideoFrameCallback(() => go());   // fires when frame 0 is on screen
+      setTimeout(go, 250);                            // safety net if rVFC never fires
+    } else {
+      setTimeout(go, 60);                             // older browsers: small fixed delay
+    }
   }
 
   layers.forEach(v => v.addEventListener('ended', onEnded));
