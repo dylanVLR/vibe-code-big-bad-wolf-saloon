@@ -12,6 +12,7 @@
 'use strict';
 
 import { HAT_IDS, MAX_FRAME_TIER, BONUS_CONFIG } from '../math/par-sheet.js';
+import { DEV_MODE } from '../system/dev-mode.js';
 import { state } from '../core/state.js';
 import { sleep, fmt } from '../core/utils.js';
 import { synth, bgm } from '../audio/sound.js';
@@ -406,16 +407,10 @@ const FRAME_UPGRADE_VIDEOS = {
   3: 'assets/webm/F3-brick.webm',
 };
 
-/* Persistent final-frame STILLS. After a morph video finishes we lock the frame
-   onto its last frame and hold it until the next upgrade. If a PNG of that final
-   frame (transparent center) is present it's used — crisp and light; otherwise we
-   simply freeze the morph video on its own last frame. Drop these PNGs in to use
-   them; no code change needed. */
-const FRAME_STILL_IMAGES = {
-  1: 'assets/frames/F1-straw.png',
-  2: 'assets/frames/F2-wood.png',
-  3: 'assets/frames/F3-brick.png',
-};
+/* Resolution at which a morph's last frame is snapshotted onto its persistent
+   still canvas. The frame is 720² source; this is plenty crisp for a reel cell
+   while staying light (one small bitmap per built frame, no video kept alive). */
+const STILL_CAPTURE_PX = 384;
 
 /** The persistent frame layer for a reel column (lazily created, lives on the col). */
 function frameLayerFor(reel) {
@@ -511,27 +506,35 @@ async function animateFrameUpgrades(cells) {
     const land = () => {
       if (done) return; done = true;
       try { vid.pause(); } catch (e) {}      // stop on the very last frame
-      setFrameStill(slot, tier, vid);         // lock it in: PNG still if available, else freeze this video
+      setFrameStill(slot, tier, vid);         // snapshot that last frame → persistent still; drop the video
+      sparkleAt(slot, 9);                      // a little burst so each upgrade reads as a reward
       resolve();
     };
     vid.addEventListener('ended', land);
     vid.addEventListener('error', land);
-    setTimeout(land, 6000);                   // safety net if the video stalls
-    vid.play().catch(land);
+    // Start the morph once it actually has data (don't .catch→land, which would
+    // snapshot the blank first frame if play() rejects). Muted autoplay is allowed.
+    const begin = () => { const p = vid.play(); if (p) p.catch(() => {}); };
+    if (vid.readyState >= 2) begin();
+    else vid.addEventListener('loadeddata', begin, { once: true });
+    setTimeout(land, 7000);                   // safety net: by now the morph has played through
   })));
 }
 
 /**
  * Lock in a frame's persistent end-state after its upgrade morph finishes, and
- * hold it until the next upgrade. Prefers a PNG of the final frame (crisp + light);
- * if that file isn't present yet, freezes the morph video on its last frame. The
- * paused morph video stays visible the whole time, so the swap never flickers.
+ * hold it until the next upgrade (or until the bonus ends). We snapshot the
+ * morph's LAST frame onto a lightweight <canvas> — which preserves the transparent
+ * center so the reel symbol shows through — and then drop the video, so no PNG
+ * asset is needed and no video decoder is kept alive. If the snapshot ever fails
+ * (e.g. the frame isn't decoded yet) we fall back to freezing the paused video.
  */
 function setFrameStill(slot, tier, morphVid) {
+  if (!slot) return;
   const oldStill = slot.querySelector('.frame-still');
   const overlay  = slot.querySelector('.frame-overlay');
 
-  const freezeVideo = () => {                 // no PNG → keep the morph video, paused on its last frame
+  const freezeVideo = () => {                 // fallback: keep the morph video, paused on its last frame
     if (!morphVid) return;
     if (oldStill) oldStill.remove();
     try { morphVid.pause(); } catch (e) {}
@@ -540,20 +543,39 @@ function setFrameStill(slot, tier, morphVid) {
     if (overlay) overlay.className = 'frame-overlay';
   };
 
-  const src = FRAME_STILL_IMAGES[tier];
-  if (!src) { freezeVideo(); return; }
+  if (!morphVid) return;
+  try {
+    const w = morphVid.videoWidth, h = morphVid.videoHeight;
+    if (!w || !h) { freezeVideo(); return; }
+    const cv = document.createElement('canvas');
+    cv.className = 'frame-still';
+    cv.width = STILL_CAPTURE_PX;
+    cv.height = STILL_CAPTURE_PX;
+    const ctx = cv.getContext('2d');          // alpha:true by default → transparent center is kept
+    ctx.clearRect(0, 0, STILL_CAPTURE_PX, STILL_CAPTURE_PX);
+    ctx.drawImage(morphVid, 0, 0, STILL_CAPTURE_PX, STILL_CAPTURE_PX);
 
-  const img = new Image();
-  img.className = 'frame-still';
-  img.alt = '';
-  img.onload = () => {
-    slot.appendChild(img);                    // crisp still slots in beneath the paused morph video…
+    // Guard: make sure we actually captured the built frame and not a blank first
+    // frame (which would happen if the morph never played). The frame's edges are
+    // opaque, so at least one border sample must have alpha.
+    const S = STILL_CAPTURE_PX;
+    const pts = [[S >> 1, 2], [S >> 1, S - 3], [2, S >> 1], [S - 3, S >> 1], [4, 4], [S - 4, S - 4]];
+    let maxA = 0;
+    for (const [x, y] of pts) { const a = ctx.getImageData(x, y, 1, 1).data[3]; if (a > maxA) maxA = a; }
+    if (maxA < 8) {                           // blank snapshot → show the CSS frame instead of nothing
+      if (oldStill) oldStill.remove();
+      morphVid.remove();
+      if (overlay) overlay.className = 'frame-overlay ' + FRAME_TIER_CLASS[tier];
+      return;
+    }
+
+    slot.appendChild(cv);                     // the frozen bitmap slots in beneath the paused video…
     if (oldStill) oldStill.remove();
-    if (morphVid) morphVid.remove();          // …then the morph video is removed — img holds the last frame
+    morphVid.remove();                        // …then the video (and its decoder) is released
     if (overlay) overlay.className = 'frame-overlay';
-  };
-  img.onerror = () => freezeVideo();          // PNG not uploaded yet → fall back to freezing the video
-  img.src = src;
+  } catch (e) {
+    freezeVideo();                            // any capture failure → just freeze the video
+  }
 }
 
 function countBrickFrames() {
@@ -606,4 +628,30 @@ function sparkleAt(cellEl, n) {
   const rect = cellEl.getBoundingClientRect();
   const cr = particleContainer.getBoundingClientRect();
   spawnSparkles(rect.left + rect.width / 2 - cr.left, rect.top + rect.height / 2 - cr.top, n);
+}
+
+/* ── Dev-only test hook (DEV_MODE) ──
+   Drives the real frame render/upgrade/persist functions so the Huff-&-Puff
+   hold-frame behaviour can be exercised without a live reel spin (headless test
+   harnesses can't run the rAF-driven reels). No effect on gameplay. */
+if (DEV_MODE && typeof window !== 'undefined') {
+  window.__frames = {
+    grid:       () => frameTiers.map(c => [...c]),
+    setTier:    (r, row, t) => { frameTiers[r][row] = t; },
+    render:     () => renderFrameLayers(),
+    upgrade:    (cells) => animateFrameUpgrades(cells),
+    removeSlot: (r, row) => removeFrameSlot(r, row),
+    clear:      () => clearFrameLayers(),
+    reset:      () => { frameTiers = makeGrid(); prevFrameTiers = makeGrid(); clearFrameLayers(); },
+    slots: () => [...document.querySelectorAll('.frame-layer .frame-slot')].map(s => {
+      const ov = s.querySelector('.frame-overlay');
+      const still = s.querySelector('.frame-still');
+      return {
+        reel: s.parentElement.parentElement.id,
+        row: +s.dataset.row,
+        overlay: ov ? ov.className.replace('frame-overlay', '').trim() : null,
+        still: still ? still.tagName : null,
+      };
+    }),
+  };
 }
