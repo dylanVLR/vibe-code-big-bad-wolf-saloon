@@ -3731,3 +3731,87 @@ body.pre-reveal #bg-video { opacity: 1; }   /* full, undimmed background during 
   background: #444;
 }
 
+
+/* ════════════════════════════════════════════════════════════════════════
+   MOBILE / iOS — landscape phone delivery (iPhone Safari)
+   The game is designed at a fixed 920×663; on a short viewport it is scaled to
+   fit by src/system/fit-screen.js (adds body.fit-mode + sizes #game-root). Here
+   we harden touch behaviour, dodge the notch / home-indicator via safe-area
+   insets, and prompt for landscape in portrait.
+════════════════════════════════════════════════════════════════════════ */
+
+/* No tap-flash, no callout menus, no text selection, no pinch/double-tap zoom,
+   no rubber-band scroll — it should feel like a native game. */
+html {
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  overscroll-behavior: none;
+}
+body {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  overscroll-behavior: none;
+}
+button, .drawer-btn, .rtp-option, .modal-overlay, #spin-video, .sym-cell {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* ── Fit-to-screen mode (set by fit-screen.js when the game can't fit natural size) ── */
+body.fit-mode {
+  height: 100vh;            /* fallback */
+  height: 100dvh;          /* dynamic viewport: tracks Safari's collapsing toolbar */
+  min-height: 0;
+  overflow: hidden;
+  padding: 0;
+  justify-content: center;
+}
+body.fit-mode #game-root {
+  position: fixed;
+  transform-origin: top left;   /* fit-screen.js sets left/top (safe-area aware) + scale() */
+  margin: 0;
+  max-width: none;
+}
+
+/* Bigger, finger-friendly bet ± on touch devices (they shrink under the fit scale),
+   plus an invisible enlarged hit area so they stay easy to tap on the phone. */
+@media (pointer: coarse) {
+  .bet-adj-btn { width: 44px; height: 44px; font-size: 1.5rem; position: relative; }
+  .bet-adj-btn::after { content: ''; position: absolute; inset: -9px; }
+}
+
+/* ── Rotate-to-landscape prompt — only in portrait on phone-sized screens ── */
+#rotate-prompt { display: none; }
+@media (orientation: portrait) and (max-width: 920px) {
+  #rotate-prompt {
+    display: flex;
+    position: fixed;
+    inset: 0;
+    z-index: 100000;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    text-align: center;
+    padding: max(24px, env(safe-area-inset-top)) 24px max(24px, env(safe-area-inset-bottom));
+    background: radial-gradient(ellipse at center, #241608 0%, #0c0805 100%);
+    color: #F5C400;
+    font-family: var(--font-main);
+  }
+  .rotate-icon {
+    font-size: 4rem;
+    animation: rotate-hint 2.4s ease-in-out infinite;
+  }
+  .rotate-text { font-size: 1.5rem; font-weight: 900; letter-spacing: 1px; color: #FFE88A; }
+  .rotate-sub  { font-size: 0.95rem; color: #C9A24B; max-width: 18em; }
+}
+@keyframes rotate-hint {
+  0%, 45% { transform: rotate(0deg); }
+  55%, 100% { transform: rotate(-90deg); }
+}
+
+/* In fit-mode the background video must cover the whole device incl. safe areas. */
+body.fit-mode #bg-video { width: 100vw; height: 100dvh; }

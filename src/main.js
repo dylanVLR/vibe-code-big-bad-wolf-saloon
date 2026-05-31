@@ -43,6 +43,7 @@ import './game/bonus.js';
 import './game/buy-bonus.js';
 import './panels/simulator.js';
 import './panels/math-breakdown.js';
+import { initFitScreen } from './system/fit-screen.js';   // scale-to-fit for mobile / iPhone landscape
 
 /* ══════════════════════════════════════════
    VOLUME / SOUND CONTROLS
@@ -158,6 +159,7 @@ function init() {
   if (bigWin) bigWin.addEventListener('click', () => bigWin.classList.add('hidden'));
 
   startAmbientParticles();
+  initFitScreen();            // fit the cabinet to short / mobile (iPhone landscape) viewports
 }
 
 // Module scripts run after the DOM is parsed, so it's safe to init now.
