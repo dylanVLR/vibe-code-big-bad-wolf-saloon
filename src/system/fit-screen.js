@@ -3,12 +3,12 @@
  * @description Scales the whole game to fit short / mobile viewports without
  * scrolling — the key to a good iPhone-landscape experience.
  *
- * The game is authored at a fixed natural size (#game-root ≈ 920×663). On a
- * desktop it shows at natural size and this module does nothing. On a phone —
- * especially landscape, where the height is tiny — it measures the natural size,
- * subtracts the safe-area insets (Dynamic Island / home indicator), and applies
- * a uniform `scale()` so the entire cabinet fits on screen, centred inside the
- * safe area. Re-runs on resize / orientation change.
+ * The game is authored at a fixed natural size (#game-root ≈ 920×663). This
+ * module ALWAYS centres it in the viewport with equal margins top & bottom, and
+ * — when the window is too small (phone landscape, short windows) — also applies
+ * a uniform `scale()` so the whole cabinet still fits without scrolling. On a
+ * roomy desktop the scale is simply 1, so it just sits perfectly centred.
+ * Re-runs on resize / orientation change.
  */
 'use strict';
 
@@ -38,6 +38,7 @@ export function fitScreen() {
   g.style.transform = '';
   g.style.left = '';
   g.style.top = '';
+  g.style.width = '';
 
   const gw = g.offsetWidth, gh = g.offsetHeight;
   if (!gw || !gh) return;
@@ -47,14 +48,16 @@ export function fitScreen() {
   const availH = Math.max(1, window.innerHeight - ins.t - ins.b - PAD * 2);
 
   const scale = Math.min(availW / gw, availH / gh, 1);   // never upscale past natural
-  if (scale >= 0.999) return;                            // fits as-is (desktop) — leave default layout
 
-  // Centre the scaled game inside the safe-area box.
+  // Always centre the game (fixed) inside the safe-area box so it has EQUAL
+  // margins top & bottom and can never produce a scrollbar — even at natural
+  // size (scale 1) on a roomy desktop.
   const sw = gw * scale, sh = gh * scale;
   const left = ins.l + PAD + Math.max(0, (availW - sw) / 2);
   const top  = ins.t + PAD + Math.max(0, (availH - sh) / 2);
 
   document.body.classList.add('fit-mode');
+  g.style.width = gw + 'px';        // pin natural width (fixed pos would otherwise stretch to 100%)
   g.style.left = left + 'px';
   g.style.top = top + 'px';
   g.style.transform = `scale(${scale})`;
