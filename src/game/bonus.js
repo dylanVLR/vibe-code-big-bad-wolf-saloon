@@ -120,8 +120,12 @@ function playWolfTornado() {
     // house down?" moment, so a stray click on the reels must not dismiss it.
     wolfTornadoOverlay.classList.remove('hidden');
     try { wolfTornadoVideo.currentTime = 0; } catch (e) {}
-    wolfTornadoVideo.muted = true;                 // webm has no audio; the synth wolfHuff carries the sound
-    wolfTornadoVideo.play().catch(finish);
+    // Try with sound; fall back to muted so it always shows.
+    wolfTornadoVideo.muted = false;
+    wolfTornadoVideo.play().catch(() => {
+      wolfTornadoVideo.muted = true;
+      wolfTornadoVideo.play().catch(finish);
+    });
     setTimeout(finish, 12000);                     // hard safety cap
   });
 }
@@ -274,7 +278,6 @@ async function wolfEndGameReveal() {
   bgm.pauseForCutscene();
   synth.stopAll();
   narrator.stop();
-  synth.wolfHuff();
   await playWolfTornado();
   bgm.resumeFromCutscene(400);
 

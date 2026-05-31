@@ -28,7 +28,7 @@ const insightsEl    = document.getElementById('sim-insights');
    MONTE CARLO ENGINE (chunked async, uses mathcore)
 ══════════════════════════════════════════ */
 export async function runSimulation(totalSpins, bet, startBankroll) {
-  const CHUNK = 500;
+  const CHUNK = 4000;   // spins per yield — bigger = fewer timer yields = faster runs
   const R = {
     totalWagered: 0, totalWon: 0, baseWon: 0, bonusWon: 0,
     wins: 0, losses: 0, bonusTriggers: 0, bonusTotalFS: 0,
@@ -53,23 +53,27 @@ export async function runSimulation(totalSpins, bet, startBankroll) {
       bal -= bet;
 
       const grid = generateGrid();
-      const { totalWin, winners } = evaluateGrid(grid, bet);
-      let spinWin = totalWin;
-      winners.forEach(w => {
-        if (R.symbolWins[w.symId]) { R.symbolWins[w.symId].count++; R.symbolWins[w.symId].totalPaid += w.winAmount; }
-      });
-
       let hatCount = 0;
       for (let r = 0; r < 5; r++) for (let row = 0; row < 3; row++) if (HAT_IDS.includes(grid[r][row])) hatCount++;
+
+      // Match the live game: a 6+-hat spin triggers the bonus and pays ONLY the
+      // bonus — its base line/way wins are forfeited (base-game.js early-returns).
+      let spinWin = 0;
       if (hatCount >= BONUS_CONFIG.triggerHats) {
         R.bonusTriggers++;
         const b = simulateBonusOutcome(bet, grid);
-        spinWin += b.bonusWin;
+        spinWin = b.bonusWin;
         R.bonusWon += b.bonusWin;
         R.bonusTotalFS += b.freeSpins;
+      } else {
+        const { totalWin, winners } = evaluateGrid(grid, bet);
+        spinWin = totalWin;
+        R.baseWon += totalWin;
+        winners.forEach(w => {
+          if (R.symbolWins[w.symId]) { R.symbolWins[w.symId].count++; R.symbolWins[w.symId].totalPaid += w.winAmount; }
+        });
       }
 
-      R.baseWon += totalWin;
       R.totalWon += spinWin;
       bal += spinWin;
       const m = spinWin / bet;

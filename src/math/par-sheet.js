@@ -12,9 +12,12 @@
  * ════════════════════════════════════════════════════════════════════════
  *
  * Design target: ~97% RTP, high volatility (real "Big Bad Wolf" feel).
- *   • Base game  ≈ 50% RTP  (243-ways, fairly quiet between features)
+ *   • Base game  ≈ 49% RTP  (243-ways line wins ≈ 30% + the expanding Wolf Wild
+ *                            ≈ 19%; line pays were scaled to 0.51× so the wild's
+ *                            extra return doesn't push the total over target)
  *   • Bonus      ≈ 47% RTP  (wolf/house feature drives most of the return)
- *   • Bonus trigger ≈ 1 in 175 spins (6+ hard-hat scatters)
+ *   • Bonus trigger ≈ 1 in 180 spins (6+ hard-hat scatters)
+ *   Measured total ≈ 96.8% (high-variance bonus → ±~0.5% per sim run).
  */
 'use strict';
 
@@ -104,15 +107,18 @@ export const DEFAULT_RTP_MODEL = 'standard';
 
 export const SYMBOLS = {
   // ── PNG Image Symbols ──
-  'hat-yellow':     { id: 'hat-yellow',     src: 'assets/hat_yellow.png',     label: 'Yellow Hat',    pays: { 3: 3.5,  4: 14.0, 5: 70.0 }, isHat: true },
-  'hat-green':      { id: 'hat-green',      src: 'assets/hat_green.png',      label: 'Green Hat',     pays: { 3: 1.75, 4: 7.0,  5: 35.0 }, isHat: true },
-  'hat-red':        { id: 'hat-red',        src: 'assets/hat_red.png',        label: 'Red Hat',       pays: { 3: 1.4,  4: 5.6,  5: 28.0 }, isHat: true },
-  'pig-suit':       { id: 'pig-suit',       src: 'assets/pig_suit.png',       label: 'Suit Pig',      pays: { 3: 2.8,  4: 10.5, 5: 52.0 } },
-  'pig-contractor': { id: 'pig-contractor', src: 'assets/pig_builder.png',    label: 'Builder Pig',   pays: { 3: 2.1,  4: 8.4,  5: 42.0 } },
-  'pig-nature':     { id: 'pig-nature',     src: 'assets/shotglass.png',  label: 'Shotglass', pays: { 3: 1.4,  4: 5.6,  5: 28.0 } },
-  'toolbox':        { id: 'toolbox',        src: 'assets/toolbox.png',        label: 'Toolbox',       pays: { 3: 1.2,  4: 4.9,  5: 24.0 } },
-  'wolf':           { id: 'wolf',           src: 'assets/wolf.png',           label: 'Wolf',          pays: { 3: 0.9,  4: 3.5,  5: 17.0 } },
-  'buzzard':        { id: 'buzzard',        src: 'assets/buzzard.png',        label: 'Buzzard',       pays: { 3: 0.7,  4: 2.8,  5: 14.0 } },
+  // Pays were scaled to 0.51× the pre-wild values: the expanding Wolf Wild adds a
+  // big chunk of base RTP on its own, so the line pays come down to keep the base
+  // game near ~49% (total ~97%). Re-verify any change with `node tools/sim.js`.
+  'hat-yellow':     { id: 'hat-yellow',     src: 'assets/hat_yellow.png',     label: 'Yellow Hat',    pays: { 3: 1.78, 4: 7.14, 5: 35.70 }, isHat: true },
+  'hat-green':      { id: 'hat-green',      src: 'assets/hat_green.png',      label: 'Green Hat',     pays: { 3: 0.89, 4: 3.57, 5: 17.85 }, isHat: true },
+  'hat-red':        { id: 'hat-red',        src: 'assets/hat_red.png',        label: 'Red Hat',       pays: { 3: 0.71, 4: 2.86, 5: 14.28 }, isHat: true },
+  'pig-suit':       { id: 'pig-suit',       src: 'assets/pig_suit.png',       label: 'Suit Pig',      pays: { 3: 1.43, 4: 5.36, 5: 26.52 } },
+  'pig-contractor': { id: 'pig-contractor', src: 'assets/pig_builder.png',    label: 'Builder Pig',   pays: { 3: 1.07, 4: 4.28, 5: 21.42 } },
+  'pig-nature':     { id: 'pig-nature',     src: 'assets/shotglass.png',  label: 'Shotglass', pays: { 3: 0.71, 4: 2.86, 5: 14.28 } },
+  'toolbox':        { id: 'toolbox',        src: 'assets/toolbox.png',        label: 'Toolbox',       pays: { 3: 0.61, 4: 2.50, 5: 12.24 } },
+  'wolf':           { id: 'wolf',           src: 'assets/wolf.png',           label: 'Wolf',          pays: { 3: 0.46, 4: 1.79, 5: 8.67 } },
+  'buzzard':        { id: 'buzzard',        src: 'assets/buzzard.png',        label: 'Buzzard',       pays: { 3: 0.36, 4: 1.43, 5: 7.14 } },
 
   // ── WOLF WILD (expanding) ──
   // Lands only on reels 2-4. When one lands it fills its whole reel and
@@ -121,11 +127,11 @@ export const SYMBOLS = {
   'wild':           { id: 'wild',           svgId: '#sym-wild',     label: 'Wolf Wild', pays: null, isWild: true },
 
   // ── Inline SVG Royals (low-pay filler) ──
-  'royal-a':        { id: 'royal-a',        svgId: '#sym-royal-a',  label: 'Ace',    pays: { 3: 0.5,  4: 1.75, 5: 8.75 } },
-  'royal-k':        { id: 'royal-k',        svgId: '#sym-royal-k',  label: 'King',   pays: { 3: 0.5,  4: 1.75, 5: 8.75 } },
-  'royal-q':        { id: 'royal-q',        svgId: '#sym-royal-q',  label: 'Queen',  pays: { 3: 0.42, 4: 1.4,  5: 7.0  } },
-  'royal-j':        { id: 'royal-j',        svgId: '#sym-royal-j',  label: 'Jack',   pays: { 3: 0.42, 4: 1.4,  5: 7.0  } },
-  'royal-10':       { id: 'royal-10',       svgId: '#sym-royal-10', label: 'Ten',    pays: { 3: 0.35, 4: 1.05, 5: 5.25 } },
+  'royal-a':        { id: 'royal-a',        svgId: '#sym-royal-a',  label: 'Ace',    pays: { 3: 0.26, 4: 0.89, 5: 4.46 } },
+  'royal-k':        { id: 'royal-k',        svgId: '#sym-royal-k',  label: 'King',   pays: { 3: 0.26, 4: 0.89, 5: 4.46 } },
+  'royal-q':        { id: 'royal-q',        svgId: '#sym-royal-q',  label: 'Queen',  pays: { 3: 0.21, 4: 0.71, 5: 3.57 } },
+  'royal-j':        { id: 'royal-j',        svgId: '#sym-royal-j',  label: 'Jack',   pays: { 3: 0.21, 4: 0.71, 5: 3.57 } },
+  'royal-10':       { id: 'royal-10',       svgId: '#sym-royal-10', label: 'Ten',    pays: { 3: 0.18, 4: 0.54, 5: 2.68 } },
 };
 
 /** All hat symbol IDs for bonus detection */
@@ -149,9 +155,9 @@ export const BONUS_CONFIG = {
   retriggerHats:  3,   // hats in one free spin to award +1 spin
   retriggerSpins: 1,   // spins added per retrigger
 
-  // BONUS BUY: cost = buyCostMult × bet. Set so the buy carries the same RTP
-  // as the game (avg bonus ≈ 77.8× bet ÷ 0.97 ≈ 80×). Verified by tools/sim.js.
-  buyCostMult:    80,
+  // BONUS BUY: cost = buyCostMult × bet. Set so the buy carries ~the same RTP as
+  // the game (avg bonus ≈ 85.3× bet ÷ 0.968 ≈ 88×). Verified by tools/sim.js.
+  buyCostMult:    88,
 
   /**
    * Per-house award when the wolf blows a frame down.
@@ -159,16 +165,16 @@ export const BONUS_CONFIG = {
    * except with probability `jackpotChance` it pays bet × `jackpotMult`.
    */
   tiers: {
-    1: { min: 0.4,  max: 2.1  },
-    2: { min: 2.1,  max: 8.4,  jackpotChance: 0.04, jackpotMult: 25  },
-    3: { min: 6.3,  max: 38.0, jackpotChance: 0.04, jackpotMult: 126 },
+    1: { min: 0.46, max: 2.44 },
+    2: { min: 2.44, max: 9.74,  jackpotChance: 0.04, jackpotMult: 29  },
+    3: { min: 7.31, max: 44.08, jackpotChance: 0.04, jackpotMult: 146 },
   },
 
   /**
    * Mansion jackpot: awarded once when 3+ brick frames are built.
    * Award = bet × (baseMult + U(0, perBrickMult × brickCount)).
    */
-  mansion: { minBricks: 3, baseMult: 21, perBrickMult: 17 },
+  mansion: { minBricks: 3, baseMult: 24.4, perBrickMult: 19.7 },
 };
 
 /* ══════════════════════════════════════════

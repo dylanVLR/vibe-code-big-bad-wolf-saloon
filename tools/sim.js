@@ -23,18 +23,22 @@ const t0 = Date.now();
 for (let i = 0; i < totalSpins; i++) {
   wagered += bet;
   const grid = generateGrid();
-  const { totalWin, winners } = evaluateGrid(grid, bet);
-  let spinWin = totalWin;
-  baseWon += totalWin;
-  for (const w of winners) baseBySym[w.symId] += w.winAmount;
+  let spinWin = 0;
 
+  // Match the live game (base-game.js): a spin with 6+ hats triggers the bonus
+  // and pays ONLY the bonus — its base line/way wins are forfeited (early return).
   if (countHats(grid).count >= BONUS_CONFIG.triggerHats) {
     bonusTriggers++;
     const b = simulateBonusOutcome(bet, grid);
-    spinWin += b.bonusWin;
+    spinWin = b.bonusWin;
     bonusWon += b.bonusWin;
     bonusFS  += b.freeSpins;
     mansions += b.mansions;
+  } else {
+    const { totalWin, winners } = evaluateGrid(grid, bet);
+    spinWin = totalWin;
+    baseWon += totalWin;
+    for (const w of winners) baseBySym[w.symId] += w.winAmount;
   }
 
   won += spinWin;

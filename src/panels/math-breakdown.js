@@ -14,7 +14,10 @@ const btnMath  = document.getElementById('btn-math');
 const modal    = document.getElementById('math-modal');
 const btnClose = document.getElementById('btn-close-math');
 
-const RTP_SPINS = 1_000_000;   // spins to estimate RTP over when the panel opens
+// The bonus is high-variance (rare mansion / brick jackpots), so a 1M-spin sample
+// wobbles a few % between opens. 2M keeps the headline RTP steadier (±~0.6%) while
+// still finishing quickly (see the larger CHUNK in simulator.js).
+const RTP_SPINS = 2_000_000;
 let lastResult = null;          // cache so re-opening is instant
 
 function openPanel() {
