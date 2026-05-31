@@ -1,0 +1,38 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Wolf HEVC-alpha test</title>
+  <style>
+    body { margin:0; background:#1d130a; color:#fff; font-family:-apple-system,sans-serif; text-align:center; }
+    h2 { margin:14px; font-size:16px; }
+    video { width:60%; max-width:320px; display:block; margin:0 auto; background:rgba(255,255,255,.05); }
+    #status { margin:16px 12px; font-size:15px; line-height:1.5; color:#FFD040; white-space:pre-line; }
+    .ok { color:#3BF06A !important; }
+    .bad { color:#FF6B6B !important; }
+  </style>
+</head>
+<body>
+  <h2>SideWolf HEVC-alpha decode test (1 video)</h2>
+  <video id="v" src="assets/webm/Sidewolf.mp4"
+         autoplay loop muted playsinline
+         poster="assets/wolf_poster.webp"></video>
+  <div id="status">starting…</div>
+  <script>
+    var v = document.getElementById('v');
+    var s = document.getElementById('status');
+    function line(t, cls){ s.textContent += '\n' + t; if (cls) s.className = cls; }
+    s.textContent = 'src: ' + v.getAttribute('src');
+    v.addEventListener('loadedmetadata', function(){ line('loadedmetadata ✓ (' + v.videoWidth + '×' + v.videoHeight + ')'); });
+    v.addEventListener('playing', function(){ line('PLAYING ✓ — iOS CAN decode this file', 'ok'); });
+    v.addEventListener('error', function(){ line('ERROR ✗ code=' + (v.error && v.error.code) + ' — iOS CANNOT decode this file', 'bad'); });
+    v.addEventListener('stalled', function(){ line('stalled'); });
+    v.play().catch(function(e){ line('play() rejected: ' + e.name + ' (tap the video)'); });
+    v.addEventListener('click', function(){ v.play(); });
+    setTimeout(function(){
+      line('after 4s → paused=' + v.paused + '  readyState=' + v.readyState + '  t=' + v.currentTime.toFixed(2));
+    }, 4000);
+  </script>
+</body>
+</html>

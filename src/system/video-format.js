@@ -23,6 +23,10 @@ const isIOS = /iPad|iPhone|iPod/.test(ua) ||
 const isDesktopSafari = /Safari/.test(ua) &&
               !/Chrome|Chromium|CriOS|Android|Edg|OPR|Firefox|FxiOS/.test(ua);
 
+/** True on iPhone / iPad (all iOS browsers are WebKit). iOS software-decodes
+ *  HEVC-alpha and throttles concurrent videos, so callers lighten up here. */
+export const IS_IOS = isIOS;
+
 /** True when this browser needs HEVC-alpha .mp4 instead of WebM-alpha. */
 export const USE_HEVC_ALPHA = isIOS || isDesktopSafari;
 

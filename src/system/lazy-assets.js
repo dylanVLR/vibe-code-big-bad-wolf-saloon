@@ -19,10 +19,13 @@
  */
 'use strict';
 
-import { alphaSrc } from './video-format.js';   // warm the right format (Safari uses .mp4 for alpha)
+import { alphaSrc, IS_IOS } from './video-format.js';   // warm the right format (Safari uses .mp4 for alpha)
 
-/** Start any <video data-lazy-src> that was held back from the initial load. */
+/** Start any <video data-lazy-src> that was held back from the initial load.
+ *  Skipped on iOS: the decorative reel backdrop is just another video competing
+ *  for iOS's limited concurrent decoders — dropping it keeps the wolf + reels smooth. */
 function activateLazyVideos() {
+  if (IS_IOS) return;
   document.querySelectorAll('video[data-lazy-src]').forEach(v => {
     const src = v.dataset.lazySrc;
     if (!src || v.getAttribute('src')) return;
