@@ -1516,6 +1516,17 @@ const FRAME_UPGRADE_VIDEOS = {
   3: 'assets/webm/F3-brick.webm',
 };
 
+/* Persistent final-frame STILLS. After a morph video finishes we lock the frame
+   onto its last frame and hold it until the next upgrade. If a PNG of that final
+   frame (transparent center) is present it's used — crisp and light; otherwise we
+   simply freeze the morph video on its own last frame. Drop these PNGs in to use
+   them; no code change needed. */
+const FRAME_STILL_IMAGES = {
+  1: 'assets/frames/F1-straw.png',
+  2: 'assets/frames/F2-wood.png',
+  3: 'assets/frames/F3-brick.png',
+};
+
 /** The persistent frame layer for a reel column (lazily created, lives on the col). */
 function frameLayerFor(reel) {
   const col = document.getElementById('reel-' + reel);
@@ -1563,8 +1574,11 @@ function renderFrameLayers() {
       if (tier === 0) { removeFrameSlot(r, row); continue; }
       const slot = frameSlotFor(r, row, true);
       const overlay = slot.querySelector('.frame-overlay');
+      // The persistent still (PNG/frozen video) is the real visual; the CSS frame
+      // is only a placeholder shown until a still exists for this cell.
+      const hasStill = !!slot.querySelector('.frame-still');
       const showTier = tier > prev ? prev : tier;              // hold the old material until the morph lands
-      overlay.className = 'frame-overlay' + (showTier > 0 ? ' ' + FRAME_TIER_CLASS[showTier] : '');
+      overlay.className = 'frame-overlay' + (!hasStill && showTier > 0 ? ' ' + FRAME_TIER_CLASS[showTier] : '');
       if (tier > prev) { slot.classList.remove('frame-pop'); void slot.offsetWidth; slot.classList.add('frame-pop'); }
     }
   prevFrameTiers = frameTiers.map(col => [...col]);
@@ -1587,8 +1601,10 @@ async function animateFrameUpgrades(cells) {
     const slot = frameSlotFor(reel, row, true);
     const overlay = slot && slot.querySelector('.frame-overlay');
     const src = FRAME_UPGRADE_VIDEOS[tier];
-    const reveal = () => { if (overlay) overlay.className = 'frame-overlay ' + FRAME_TIER_CLASS[tier]; };
-    if (!src || !slot) { reveal(); return resolve(); }
+    if (!src || !slot) {                                         // defensive: no morph for this tier
+      if (overlay) overlay.className = 'frame-overlay ' + FRAME_TIER_CLASS[tier];
+      return resolve();
+    }
 
     if (tier === 3) for (const t of [200, 500, 800, 1100]) setTimeout(() => synth.brickLay(), t);  // hammer accents
 
@@ -1604,16 +1620,50 @@ async function animateFrameUpgrades(cells) {
     let done = false;
     const land = () => {
       if (done) return; done = true;
-      reveal();                                                  // new material lands under the fading video
-      try { vid.pause(); } catch (e) {}
-      vid.classList.add('fading');
-      setTimeout(() => { vid.remove(); resolve(); }, 420);
+      try { vid.pause(); } catch (e) {}      // stop on the very last frame
+      setFrameStill(slot, tier, vid);         // lock it in: PNG still if available, else freeze this video
+      resolve();
     };
     vid.addEventListener('ended', land);
     vid.addEventListener('error', land);
-    setTimeout(land, 6000);                                      // safety net if the video stalls
+    setTimeout(land, 6000);                   // safety net if the video stalls
     vid.play().catch(land);
   })));
+}
+
+/**
+ * Lock in a frame's persistent end-state after its upgrade morph finishes, and
+ * hold it until the next upgrade. Prefers a PNG of the final frame (crisp + light);
+ * if that file isn't present yet, freezes the morph video on its last frame. The
+ * paused morph video stays visible the whole time, so the swap never flickers.
+ */
+function setFrameStill(slot, tier, morphVid) {
+  const oldStill = slot.querySelector('.frame-still');
+  const overlay  = slot.querySelector('.frame-overlay');
+
+  const freezeVideo = () => {                 // no PNG → keep the morph video, paused on its last frame
+    if (!morphVid) return;
+    if (oldStill) oldStill.remove();
+    try { morphVid.pause(); } catch (e) {}
+    morphVid.classList.remove('fading', 'frame-upgrade-vid');
+    morphVid.classList.add('frame-still');    // demote to the persistent layer (below the next morph)
+    if (overlay) overlay.className = 'frame-overlay';
+  };
+
+  const src = FRAME_STILL_IMAGES[tier];
+  if (!src) { freezeVideo(); return; }
+
+  const img = new Image();
+  img.className = 'frame-still';
+  img.alt = '';
+  img.onload = () => {
+    slot.appendChild(img);                    // crisp still slots in beneath the paused morph video…
+    if (oldStill) oldStill.remove();
+    if (morphVid) morphVid.remove();          // …then the morph video is removed — img holds the last frame
+    if (overlay) overlay.className = 'frame-overlay';
+  };
+  img.onerror = () => freezeVideo();          // PNG not uploaded yet → fall back to freezing the video
+  img.src = src;
 }
 
 function countBrickFrames() {
@@ -3348,22 +3398,22 @@ Object.assign(exports, { runSimulation });
 /* AUTO-GENERATED by tools/build.js — folder-size snapshot. Do not edit. */
 
 const SIZE_MANIFEST = {
-  "totalBytes": 100250119,
+  "totalBytes": 100193655,
   "fileCount": 395,
   "generatedAt": "2026-05-31",
   "player": {
-    "bytes": 100006981,
+    "bytes": 99948240,
     "files": 354
   },
   "dev": {
-    "bytes": 243138,
+    "bytes": 245415,
     "files": 41
   },
   "categories": [
     {
       "key": "video",
       "label": "Videos",
-      "bytes": 65810909,
+      "bytes": 65751310,
       "files": 31
     },
     {
@@ -3381,7 +3431,7 @@ const SIZE_MANIFEST = {
     {
       "key": "code",
       "label": "Code",
-      "bytes": 648119,
+      "bytes": 651254,
       "files": 41
     },
     {

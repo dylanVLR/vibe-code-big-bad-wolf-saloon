@@ -3026,6 +3026,19 @@ body.pre-reveal #bg-video { opacity: 1; }   /* full, undimmed background during 
   z-index: 5;
 }
 
+/* The persistent end-state of a built frame: a PNG of the morph's final frame,
+   or the morph video frozen on its last frame. Held until the next upgrade. */
+.frame-still {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  border-radius: 10px;
+  pointer-events: none;
+  z-index: 6;                           /* above the CSS-frame fallback, below a playing morph */
+}
+
 /* ── Frame-upgrade morph video (Huff-&-Puff style) ──
    Plays on top of a held frame as it is upgraded: the edges grow into the new
    material while the transparent center keeps the symbol visible. The new frame
