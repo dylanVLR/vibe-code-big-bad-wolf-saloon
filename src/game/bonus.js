@@ -168,7 +168,7 @@ export async function startBonus(bet, triggerGrid) {
   await sleep(3000);
   hideMansionOverlay();
 
-  renderFrameOverlays();
+  renderFrameLayers();
   updateBonusHUD();
   await animateFrameUpgrades(triggerUpgrades);   // play the straw-frame morph on the trigger cells
   await runFreeSpins();
@@ -232,15 +232,13 @@ async function runFreeSpins() {
           if (frameTiers[r][row] > old) upgradedCells.push({ reel: r, row, tier: frameTiers[r][row] });
           if (old === 2 && frameTiers[r][row] === 3) newBrickCells.push({ reel: r, row });
         }
-    renderFrameOverlays();
-    await animateFrameUpgrades(upgradedCells);   // play the frame-upgrade morph (straw/…) on each upgraded cell
+    renderFrameLayers();
+    await animateFrameUpgrades(upgradedCells);   // morph each upgraded house in place (straw/wood/brick)
 
     if (newHats > 0) {
       if (newBrickCells.length > 0) narrator.onFrameUpgrade(3);
       else narrator.onFrameUpgrade(Math.min(frameTiers.flat().filter(t => t > 0).slice(-1)[0] || 1, 2));
     }
-
-    if (newBrickCells.length > 0) await animateBrickBuild(newBrickCells);
 
     const brickCount = countBrickFrames();
     if (brickCount >= BONUS_CONFIG.mansion.minBricks && newBrickCells.length > 0) {
@@ -286,14 +284,17 @@ async function wolfEndGameReveal() {
   for (const { reel, row, tier } of framedCells) {
     const cellEl = reelStrips[reel].querySelectorAll('.sym-cell')[row];
     if (!cellEl) continue;
+    const slot = frameSlotFor(reel, row, false);   // the persistent locked frame
 
     narrator.onWolfBlow(tier);
 
     cellEl.classList.add('bonus-shake');
+    if (slot) slot.classList.add('bonus-shake');   // the locked frame rattles, then breaks
     synth.houseBreak(tier);          // straw scatters / sticks crash / bricks hold
     if (tier === 3) shake(600);
     await sleep(800);
     cellEl.classList.remove('bonus-shake');
+    removeFrameSlot(reel, row);                     // house blown down — the frame is gone
 
     // award (formula from mathcore; presentation here)
     const { amount, isJackpot } = rollHouseAward(tier, bonusBet);
@@ -368,7 +369,7 @@ async function endBonus() {
   setStatus(`BONUS COMPLETE — WON ${fmt(bonusTotalWin)}!`, 'win');
   narrator.onBonusComplete(bonusTotalWin);
 
-  clearFrameOverlays();
+  clearFrameLayers();
   if (bonusHud) bonusHud.classList.add('hidden');
   document.querySelectorAll('.house-icon').forEach(el => el.remove());
   document.querySelectorAll('.is-house-revealed').forEach(el => el.classList.remove('is-house-revealed'));
@@ -385,110 +386,101 @@ async function endBonus() {
 
 /* ══════════════════════════════════════════
    FRAME / HOUSE VISUALS
+
+   Huff-&-Puff "hold" frames: once a house frame is built on a cell it STAYS
+   locked in that grid position for the rest of the bonus and upgrades in place
+   (straw → wood → brick). To make it truly persistent we render the frames on a
+   per-column overlay LAYER (a child of .reel-col, NOT of the spinning strip), so
+   the symbols can keep spinning behind a frame that never moves or flickers. The
+   `frameTiers` grid stays the single source of truth and matches the headless
+   math in mathcore.simulateBonusOutcome (so RTP is unchanged).
 ══════════════════════════════════════════ */
-function updateCellToHouse(cellEl, tier) {
-  const existing = cellEl.querySelector('.frame-overlay');
-  if (existing) existing.remove();
-  cellEl.classList.add('is-house-revealed');
-  cellEl.classList.remove('frame-straw', 'frame-stick', 'frame-brick');
-  cellEl.classList.add(['', 'house-straw', 'house-stick', 'house-brick'][tier]);
-  const houseDiv = document.createElement('div');
-  houseDiv.className = 'house-icon' + (tier === 3 ? ' mansion-house' : '');
-  houseDiv.textContent = ['', '🏚️', '🏠', '🏰'][tier];
-  cellEl.appendChild(houseDiv);
-  if (tier === 3) cellEl.classList.add('house-mansion');
+const FRAME_TIER_CLASS = ['', 'frame-tier-1', 'frame-tier-2', 'frame-tier-3'];
+
+/* The upgrade-morph videos — transparent center (the symbol shows through) with
+   edges that animate from nothing into the new frame material. Keyed by the tier
+   they PRODUCE, so future materials drop in by adding a file here. */
+const FRAME_UPGRADE_VIDEOS = {
+  1: 'assets/webm/F1-straw.webm',
+  2: 'assets/webm/F2-wood.webm',
+  3: 'assets/webm/F3-brick.webm',
+};
+
+/** The persistent frame layer for a reel column (lazily created, lives on the col). */
+function frameLayerFor(reel) {
+  const col = document.getElementById('reel-' + reel);
+  if (!col) return null;
+  let layer = col.querySelector('.frame-layer');
+  if (!layer) { layer = document.createElement('div'); layer.className = 'frame-layer'; col.appendChild(layer); }
+  return layer;
 }
 
-function countBrickFrames() {
-  let count = 0;
-  for (let r = 0; r < 5; r++) for (let row = 0; row < 3; row++) if (frameTiers[r][row] === 3) count++;
-  return count;
-}
-
-async function animateBrickBuild(cells) {
-  const reelStrips = getReelStrips();
-  for (const { reel, row } of cells) {
-    const cellEl = reelStrips[reel].querySelectorAll('.sym-cell')[row];
-    const frameEl = cellEl && cellEl.querySelector('.frame-tier-3');
-    if (!frameEl) continue;
-    frameEl.classList.add('brick-building');
-    for (const t of [0, 250, 500, 750]) setTimeout(() => synth.brickLay(), t);
-    const rect = cellEl.getBoundingClientRect();
-    const cr = particleContainer.getBoundingClientRect();
-    const cx = rect.left + rect.width / 2 - cr.left, cy = rect.top + rect.height / 2 - cr.top;
-    setTimeout(() => spawnSparkles(cx - rect.width / 2, cy - rect.height / 2, 4), 100);
-    setTimeout(() => spawnSparkles(cx + rect.width / 2, cy - rect.height / 2, 4), 300);
-    setTimeout(() => spawnSparkles(cx + rect.width / 2, cy + rect.height / 2, 4), 550);
-    setTimeout(() => spawnSparkles(cx - rect.width / 2, cy + rect.height / 2, 4), 800);
-    await sleep(1200);
-    frameEl.classList.remove('brick-building');
-    frameEl.classList.add('brick-complete');
-    synth.houseAward(3);
-    spawnSparkles(cx, cy, 12);
-    await sleep(500);
-    frameEl.classList.remove('brick-complete');
+/** The frame slot for a given cell (one fixed grid position), created on demand. */
+function frameSlotFor(reel, row, create = false) {
+  const layer = frameLayerFor(reel);
+  if (!layer) return null;
+  let slot = layer.querySelector('.frame-slot[data-row="' + row + '"]');
+  if (!slot && create) {
+    slot = document.createElement('div');
+    slot.className = 'frame-slot';
+    slot.dataset.row = row;
+    slot.style.top = 'calc(var(--cell-size) * ' + row + ')';   // pinned to its row, resize-safe
+    const overlay = document.createElement('div');
+    overlay.className = 'frame-overlay';
+    slot.appendChild(overlay);
+    layer.appendChild(slot);
   }
+  return slot;
 }
 
-function renderFrameOverlays() {
-  clearFrameOverlays();
-  const reelStrips = getReelStrips();
+function removeFrameSlot(reel, row) {
+  const slot = frameSlotFor(reel, row, false);
+  if (slot) slot.remove();
+}
+
+/**
+ * Sync the persistent frame layers to `frameTiers`. Frames already on screen stay
+ * put (the layer is never torn down by a spin); this only adds new slots and sets
+ * each slot's material. Cells that UPGRADED this step keep showing their OLD frame
+ * here — animateFrameUpgrades plays the morph and reveals the new frame on landing,
+ * so the upgrade reads as a smooth straw→wood→brick transition.
+ */
+function renderFrameLayers() {
   for (let r = 0; r < 5; r++)
     for (let row = 0; row < 3; row++) {
       const tier = frameTiers[r][row];
-      if (tier === 0) continue;
-      const cell = reelStrips[r].querySelectorAll('.sym-cell')[row];
-      if (!cell) continue;
-      cell.classList.remove('frame-straw', 'frame-stick', 'frame-brick');
-      cell.classList.add(['', 'frame-straw', 'frame-stick', 'frame-brick'][tier]);
-      const overlay = document.createElement('div');
-      overlay.className = 'frame-overlay frame-tier-' + tier;
-      cell.appendChild(overlay);
-      if (tier > prevFrameTiers[r][row]) {
-        cell.classList.remove('frame-pop');
-        void cell.offsetWidth;
-        cell.classList.add('frame-pop');
-      }
+      const prev = prevFrameTiers[r][row];
+      if (tier === 0) { removeFrameSlot(r, row); continue; }
+      const slot = frameSlotFor(r, row, true);
+      const overlay = slot.querySelector('.frame-overlay');
+      const showTier = tier > prev ? prev : tier;              // hold the old material until the morph lands
+      overlay.className = 'frame-overlay' + (showTier > 0 ? ' ' + FRAME_TIER_CLASS[showTier] : '');
+      if (tier > prev) { slot.classList.remove('frame-pop'); void slot.offsetWidth; slot.classList.add('frame-pop'); }
     }
   prevFrameTiers = frameTiers.map(col => [...col]);
 }
 
-function clearFrameOverlays() {
-  document.querySelectorAll('.frame-overlay').forEach(el => el.remove());
-  document.querySelectorAll('.frame-upgrade-vid').forEach(el => el.remove());
-  document.querySelectorAll('.frame-straw, .frame-stick, .frame-brick')
-    .forEach(el => el.classList.remove('frame-straw', 'frame-stick', 'frame-brick'));
+function clearFrameLayers() {
+  document.querySelectorAll('.frame-layer').forEach(el => el.remove());
 }
 
-/* ── Frame-upgrade morph videos (Huff-&-Puff style) ──
-   Transparent in the center (the symbol shows through) with edges that animate
-   from nothing into the new frame material. Keyed by the tier they produce, so
-   future materials drop in by adding a file here. Tier 3 (brick) keeps its own
-   bespoke animateBrickBuild build-up, so it stays out of this map. */
-const FRAME_UPGRADE_VIDEOS = {
-  1: 'assets/webm/F1-straw.webm',
-  // 2: 'assets/webm/F2-stick.webm',   // (drop in when ready)
-  // 3: handled by animateBrickBuild
-};
-
 /**
- * Play the upgrade-morph video on top of each freshly-upgraded cell. The video
- * sits above the symbol with a see-through center, and its edges grow into the
- * new frame. The persistent CSS frame underneath is held hidden (`frame-pending`)
- * until the video lands, then cross-faded in so the hand-off is seamless.
- * Resolves once every video has finished (or a safety timeout fires). Cells whose
- * tier has no video (e.g. brick) are simply skipped.
+ * Play the upgrade-morph video on each freshly-upgraded cell, on the persistent
+ * frame layer. While the video plays the cell shows its previous material (or
+ * nothing, for a brand-new straw frame); when the video lands we reveal the new
+ * material underneath as the video cross-fades out. Resolves once every video has
+ * finished (or a safety timeout fires).
  */
 async function animateFrameUpgrades(cells) {
   if (!cells || !cells.length) return;
-  const reelStrips = getReelStrips();
   await Promise.all(cells.map(({ reel, row, tier }) => new Promise(resolve => {
+    const slot = frameSlotFor(reel, row, true);
+    const overlay = slot && slot.querySelector('.frame-overlay');
     const src = FRAME_UPGRADE_VIDEOS[tier];
-    const cellEl = reelStrips[reel] && reelStrips[reel].querySelectorAll('.sym-cell')[row];
-    if (!src || !cellEl) return resolve();
+    const reveal = () => { if (overlay) overlay.className = 'frame-overlay ' + FRAME_TIER_CLASS[tier]; };
+    if (!src || !slot) { reveal(); return resolve(); }
 
-    const staticFrame = cellEl.querySelector('.frame-overlay');
-    if (staticFrame) staticFrame.classList.add('frame-pending');   // hide the end-state until the morph lands
+    if (tier === 3) for (const t of [200, 500, 800, 1100]) setTimeout(() => synth.brickLay(), t);  // hammer accents
 
     const vid = document.createElement('video');
     vid.className = 'frame-upgrade-vid';
@@ -497,21 +489,38 @@ async function animateFrameUpgrades(cells) {
     vid.playsInline = true;
     vid.setAttribute('playsinline', '');
     vid.preload = 'auto';
-    cellEl.appendChild(vid);
+    slot.appendChild(vid);
 
     let done = false;
     const land = () => {
       if (done) return; done = true;
+      reveal();                                                  // new material lands under the fading video
       try { vid.pause(); } catch (e) {}
-      vid.classList.add('fading');                                 // cross-fade: video out…
-      if (staticFrame) staticFrame.classList.remove('frame-pending'); // …persistent frame in
+      vid.classList.add('fading');
       setTimeout(() => { vid.remove(); resolve(); }, 420);
     };
     vid.addEventListener('ended', land);
     vid.addEventListener('error', land);
-    setTimeout(land, 6000);                                        // safety net if the video stalls
+    setTimeout(land, 6000);                                      // safety net if the video stalls
     vid.play().catch(land);
   })));
+}
+
+function countBrickFrames() {
+  let count = 0;
+  for (let r = 0; r < 5; r++) for (let row = 0; row < 3; row++) if (frameTiers[r][row] === 3) count++;
+  return count;
+}
+
+/** Blow a built frame down and show its house/prize on the cell. */
+function updateCellToHouse(cellEl, tier) {
+  cellEl.classList.add('is-house-revealed');
+  cellEl.classList.add(['', 'house-straw', 'house-stick', 'house-brick'][tier]);
+  const houseDiv = document.createElement('div');
+  houseDiv.className = 'house-icon' + (tier === 3 ? ' mansion-house' : '');
+  houseDiv.textContent = ['', '🏚️', '🏠', '🏰'][tier];
+  cellEl.appendChild(houseDiv);
+  if (tier === 3) cellEl.classList.add('house-mansion');
 }
 
 /* ══════════════════════════════════════════

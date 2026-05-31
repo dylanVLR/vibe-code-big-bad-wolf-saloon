@@ -3001,21 +3001,35 @@ body.pre-reveal #bg-video { opacity: 1; }   /* full, undimmed background during 
 }
 
 /* Frame overlay base — absolutely positioned inside sym-cell */
+/* ── Persistent "hold" frame layer (Huff-&-Puff houses) ──
+   One overlay layer per reel column, a child of .reel-col (NOT the spinning
+   strip), so a built house frame stays locked in its grid position for the whole
+   bonus while the symbols keep spinning behind it. */
+.frame-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 6;                           /* above the spinning strip, behind particles/flash */
+}
+.frame-slot {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: var(--cell-size);             /* one cell tall; `top` is set inline per row */
+}
+
 .frame-overlay {
   position: absolute;
   inset: 2px;
   border-radius: 10px;
   pointer-events: none;
   z-index: 5;
-  transition: opacity 0.4s ease;        /* cross-fades in after the upgrade morph lands */
 }
-/* held hidden while the upgrade-morph video plays, so the end-state doesn't show early */
-.frame-overlay.frame-pending { opacity: 0; }
 
 /* ── Frame-upgrade morph video (Huff-&-Puff style) ──
-   Plays on top of a cell as its frame is upgraded: the edges grow into the new
-   material while the transparent center keeps the symbol visible. The persistent
-   CSS frame underneath is revealed (cross-faded) only once this lands. */
+   Plays on top of a held frame as it is upgraded: the edges grow into the new
+   material while the transparent center keeps the symbol visible. The new frame
+   material is revealed underneath and the video cross-fades out as it lands. */
 .frame-upgrade-vid {
   position: absolute;
   inset: 0;
