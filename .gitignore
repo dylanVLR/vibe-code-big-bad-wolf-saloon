@@ -56,3 +56,6 @@ assets/
 
 # Editor / agent config (local only)
 .claude/
+
+# Netlify CLI local link state
+.netlify/

@@ -28,6 +28,7 @@ import { updateDisplays, setStatus } from './render/readouts.js';
 
 // Side-effect imports: these wire up their own controls on load.
 import './system/dev-mode.js';    // hide dev/admin tools on the public build (?dev=1 to show)
+import './system/web-push.js';    // dev "Web Push" button → opens the live deployed site
 import './scenes/intro.js';      // full-screen intro splash
 import './scenes/day-night.js';   // time-of-day background darkening
 import './scenes/reveal.js';     // post-intro: hold on the background, then fade the game in
