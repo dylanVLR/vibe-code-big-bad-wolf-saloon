@@ -614,7 +614,13 @@ function updateCellToHouse(cellEl, tier) {
   cellEl.classList.add(['', 'house-straw', 'house-stick', 'house-brick'][tier]);
   const houseDiv = document.createElement('div');
   houseDiv.className = 'house-icon' + (tier === 3 ? ' mansion-house' : '');
-  houseDiv.textContent = ['', '🏚️', '🏠', '🏰'][tier];
+  const houseImg = document.createElement('img');
+  houseImg.src = ['', 'assets/pig_straw.png', 'assets/pig_wood.png', 'assets/pig_brick.png'][tier];
+  houseImg.style.width = '85%';
+  houseImg.style.height = '85%';
+  houseImg.style.objectFit = 'contain';
+  houseImg.style.filter = 'drop-shadow(0 4px 6px rgba(0,0,0,0.5))';
+  houseDiv.appendChild(houseImg);
   cellEl.appendChild(houseDiv);
   if (tier === 3) cellEl.classList.add('house-mansion');
 }

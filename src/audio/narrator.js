@@ -18,9 +18,18 @@ import { PHRASES } from './phrases.js';
 class Narrator {
   constructor() {
     this.audio = new Audio();
-    this.audio.addEventListener('play',  () => { this._speaking = true; });
-    this.audio.addEventListener('ended', () => { this._speaking = false; });
-    this.audio.addEventListener('error', () => { this._speaking = false; });
+    this.audio.addEventListener('ended', () => this._onClipDone());
+    this.audio.addEventListener('error', () => this._onClipDone());
+
+    // ── Sequential voice queue ──
+    // Clips NEVER overlap: each one plays fully, then a short "breath" pause,
+    // then the next. We keep at most one clip waiting (the most recent request),
+    // so the wolf finishes his thought without falling far behind the action.
+    this._queue = [];
+    this._playing = false;
+    this._gapMs = 550;        // breath pause between clips (ms)
+    this._maxQueue = 1;       // pending clips kept while one plays
+    this._gapTimer = null;
 
     this.enabled = true;
     this._volume = 0.8;
@@ -46,13 +55,36 @@ class Narrator {
 
   setVolume(v) { this._volume = Math.max(0, Math.min(1, v)); this.audio.volume = this._volume; }
 
-  _playAudio(filename) {
+  /** Queue a clip. Never interrupts what's playing; the most recent request wins. */
+  _enqueue(filename) {
     if (!this.enabled || this._volume === 0) return;
-    this.audio.pause();
-    this.audio.src = `assets/audio/narrator/${filename}`;
-    this.audio.volume = this._volume;
-    this.audio.play().catch(() => {});   // play() can be interrupted; ignore
-    this._lastSpoke = Date.now();
+    while (this._queue.length >= this._maxQueue) this._queue.shift();  // keep only the newest pending
+    this._queue.push(filename);
+    if (!this._playing && !this._gapTimer) this._drain();
+  }
+
+  /** Start the next queued clip (if any) — only when nothing is playing. */
+  _drain() {
+    if (this._playing || this._gapTimer) return;
+    const next = this._queue.shift();
+    if (!next) return;
+    this._playing = true;
+    this._speaking = true;
+    try {
+      this.audio.src = `assets/audio/narrator/${next}`;
+      this.audio.volume = this._volume;
+      const p = this.audio.play();
+      if (p && p.catch) p.catch(() => this._onClipDone());
+    } catch (e) { this._onClipDone(); }
+  }
+
+  /** A clip finished (or errored): hold a breath, then play the next one. */
+  _onClipDone() {
+    if (!this._playing) return;                  // guard against ended+error double-fire
+    this._playing = false;
+    this._speaking = false;
+    if (this._gapTimer) clearTimeout(this._gapTimer);
+    this._gapTimer = setTimeout(() => { this._gapTimer = null; this._drain(); }, this._gapMs);
   }
 
   /** Pick and play a random clip from a category, respecting the cooldown. */
@@ -73,7 +105,8 @@ class Narrator {
     }
     this._lastPhraseIndex = index;
     this._lastEvent = category;
-    this._playAudio(`${category}_${index}.mp3`);
+    this._lastSpoke = Date.now();
+    this._enqueue(`${category}_${index}.mp3`);
     this._resetIdleTimer();
   }
 
@@ -150,7 +183,13 @@ class Narrator {
     }, 8000 + Math.random() * 7000); // 8-15 seconds idle
   }
 
-  stop() { this.audio.pause(); this.audio.currentTime = 0; this._speaking = false; }
+  stop() {
+    if (this._gapTimer) { clearTimeout(this._gapTimer); this._gapTimer = null; }
+    this._queue.length = 0;
+    this._playing = false;
+    this._speaking = false;
+    try { this.audio.pause(); this.audio.currentTime = 0; } catch (e) {}
+  }
 }
 
 export const narrator = new Narrator();
