@@ -3884,6 +3884,43 @@ body.fit-mode #game-root {
   .bet-adj-btn::after { content: ''; position: absolute; inset: -9px; }
 }
 
+/* ── SEO report popup (dev-only) ── */
+.seo-box { max-width: 600px; }
+.seo-body { text-align: left; max-height: 70vh; overflow-y: auto; }
+.seo-intro { font-size: .88rem; color: #CFE8D6; line-height: 1.5; margin-bottom: 14px; }
+.seo-sec { margin-bottom: 14px; }
+.seo-sec h4 {
+  font-family: var(--font-title); font-size: .92rem; letter-spacing: .4px;
+  color: #F5C400; margin: 0 0 7px;
+}
+.seo-sec ul, .seo-sec ol { margin: 0; padding-left: 20px; }
+.seo-sec li {
+  font-size: .82rem; line-height: 1.5; color: #E3EFE6; margin-bottom: 6px;
+  list-style: none; position: relative; padding-left: 22px;
+}
+.seo-sec ul li::before { content: '✓'; position: absolute; left: 0; color: #3BF06A; font-weight: 900; }
+.seo-sec ol { counter-reset: seo; padding-left: 0; }
+.seo-sec ol li { counter-increment: seo; }
+.seo-sec ol li::before { content: counter(seo); position: absolute; left: 0; color: #F5C400; font-weight: 800; }
+.seo-sec li b { color: #FFE49A; }
+.seo-sec code {
+  font-family: ui-monospace, Menlo, monospace; font-size: .76rem;
+  background: rgba(0,0,0,.35); color: #9FE3B2; padding: 1px 5px; border-radius: 4px;
+}
+.seo-next h4 { color: #7CF09A; }
+
+/* Visually-hidden but present for search engines & screen readers (SEO/a11y).
+   Uses the clip technique, NOT display:none, so crawlers still index it. */
+.sr-only {
+  position: absolute !important;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* ══════════════════════════════════════════
    HELP / RULES / PAYTABLE screen
 ══════════════════════════════════════════ */

@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /tools/
+Disallow: /docs/
+
+Sitemap: https://super-lolly-c99fd8.netlify.app/sitemap.xml

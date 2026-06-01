@@ -45,6 +45,7 @@ import './game/buy-bonus.js';
 import './panels/simulator.js';
 import './panels/math-breakdown.js';
 import './panels/help.js';        // 📖 HELP / RULES / PAYTABLE (built from the par sheet)
+import './panels/seo-info.js';    // 🔍 SEO report (dev-only)
 import { initFitScreen } from './system/fit-screen.js';   // scale-to-fit for mobile / iPhone landscape
 import { initLazyAssets } from './system/lazy-assets.js';  // defer heavy/rare assets for instant first play
 import { initBackgroundLoop } from './system/background-loop.js';  // keep the bg video looping (iOS-safe)
