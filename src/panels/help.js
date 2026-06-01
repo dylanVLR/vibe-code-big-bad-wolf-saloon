@@ -76,7 +76,7 @@ function buildPages() {
   const minBet = fmt(BET_LEVELS[0]), maxBet = fmt(BET_LEVELS[BET_LEVELS.length - 1]);
   const buyMult = BONUS_CONFIG.buyCostMult;
 
-  return [
+  const pages = [
     { nav: 'How to Play', title: 'How to Play', html: `
       <p>Big Bad Wolf Saloon is a <b>${REEL_COUNT}-reel, ${ROWS_PER_REEL}-row</b> video slot with <b>243 ways to win</b> and a Hard-Hat Free Spins bonus.</p>
       <h4>Objective</h4>
@@ -188,11 +188,18 @@ function buildPages() {
       </ul>
       <p class="help-note">This help reflects the current game configuration: <b>${ACTIVE_MODEL.label} — RTP ${pct(ACTIVE_MODEL.rtp)}</b>.</p>` },
   ];
+  // Split across two buttons so neither screen has too many tabs:
+  //   HELP  = how to play, betting, buy bonus, auto/turbo  (indices 0,1,7,8)
+  //   RULES = how wins pay, paytable, wild, hats, bonus, additional rules
+  const HELP_PAGES = new Set([0, 1, 7, 8]);
+  pages.forEach((p, i) => { p.group = HELP_PAGES.has(i) ? 'help' : 'rules'; });
+  return pages;
 }
 
-/* ── modal wiring ── */
+/* ── modal wiring (one modal, two entry points: HELP and RULES) ── */
 const modal = document.getElementById('help-modal');
-const btnInfo = document.getElementById('btn-info');
+const btnHelp = document.getElementById('btn-help');
+const btnRules = document.getElementById('btn-rules');
 const btnClose = document.getElementById('btn-close-help');
 const contentEl = document.getElementById('help-content');
 const tocEl = document.getElementById('help-toc');
@@ -202,23 +209,26 @@ const nextBtn = document.getElementById('help-next');
 const titleEl = document.getElementById('help-title');
 
 if (modal && contentEl) {
-  let PAGES = null;
+  let PAGES = null;     // all pages
+  let view = [];        // the current group's subset
+  let group = 'help';
   let page = 0;
+  const ICON = { help: '📖', rules: '📋' };
 
   function render() {
-    const p = PAGES[page];
-    titleEl.innerHTML = '📖 ' + p.title;
+    const p = view[page]; if (!p) return;
+    titleEl.innerHTML = `${ICON[group]} ${p.title}`;
     contentEl.innerHTML = p.html;
     contentEl.scrollTop = 0;
-    indEl.textContent = `${page + 1} / ${PAGES.length}`;
+    indEl.textContent = `${page + 1} / ${view.length}`;
     prevBtn.disabled = page === 0;
-    nextBtn.disabled = page === PAGES.length - 1;
+    nextBtn.disabled = page === view.length - 1;
     [...tocEl.children].forEach((chip, i) => chip.classList.toggle('active', i === page));
   }
 
   function buildToc() {
     tocEl.innerHTML = '';
-    PAGES.forEach((p, i) => {
+    view.forEach((p, i) => {
       const chip = document.createElement('button');
       chip.className = 'help-chip';
       chip.type = 'button';
@@ -228,23 +238,27 @@ if (modal && contentEl) {
     });
   }
 
-  function open() {
-    if (!PAGES) { PAGES = buildPages(); buildToc(); }
+  function open(g) {
+    if (!PAGES) PAGES = buildPages();
+    group = g;
+    view = PAGES.filter(p => p.group === g);
     page = 0;
+    buildToc();
     render();
     modal.classList.remove('hidden');
   }
   function close() { modal.classList.add('hidden'); narrator.onMenuReturn(); }
 
-  if (btnInfo) btnInfo.addEventListener('click', open);
+  if (btnHelp) btnHelp.addEventListener('click', () => open('help'));
+  if (btnRules) btnRules.addEventListener('click', () => open('rules'));
   if (btnClose) btnClose.addEventListener('click', close);
   modal.addEventListener('click', e => { if (e.target === modal) close(); });
   prevBtn.addEventListener('click', () => { if (page > 0) { page--; render(); } });
-  nextBtn.addEventListener('click', () => { if (page < PAGES.length - 1) { page++; render(); } });
+  nextBtn.addEventListener('click', () => { if (page < view.length - 1) { page++; render(); } });
   document.addEventListener('keydown', e => {
     if (modal.classList.contains('hidden')) return;
     if (e.key === 'Escape') close();
     else if (e.key === 'ArrowLeft' && page > 0) { page--; render(); }
-    else if (e.key === 'ArrowRight' && page < PAGES.length - 1) { page++; render(); }
+    else if (e.key === 'ArrowRight' && page < view.length - 1) { page++; render(); }
   });
 }
