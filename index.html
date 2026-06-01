@@ -1261,6 +1261,21 @@
           <video id="bonus-intro-video" src="assets/webm/Three_pigs_bonus_intro.webm" playsinline preload="none"></video>
           <div id="bonus-intro-skip">CLICK TO SKIP</div>
         </div>
+
+        <!-- HIGH NOON easter egg (12:00 PM) — gunfight + title card, then the standoff
+             clip; all contained in the reel window so the side wolf & borders stay visible -->
+        <div id="noon-overlay" class="hidden">
+          <div id="noon-card" class="hidden">
+            <div class="noon-card-star">★</div>
+            <div class="noon-card-kicker">— HIGH&nbsp;NOON —</div>
+            <div class="noon-card-title">A Stranger Rides In</div>
+            <p class="noon-card-text">A stranger just moseyed into town on the stroke of twelve&hellip;<br>
+              but these here parts ain&rsquo;t big enough for the both of us.<br>
+              There&rsquo;s only one <b>Big&nbsp;Bad&nbsp;Wolf</b> in this saloon.</p>
+          </div>
+          <video id="noon-video" src="assets/webm/High_noon_standoff.webm" playsinline preload="none"></video>
+          <div id="noon-skip">CLICK TO SKIP</div>
+        </div>
       </div>
 
       <!-- Right REEL WAYS pill -->
@@ -1849,20 +1864,6 @@
   <div id="intro-skip">CLICK TO SKIP</div>
 </div>
 
-<!-- HIGH NOON easter egg — full-screen takeover at exactly 12:00 PM local time -->
-<div id="noon-overlay" class="hidden">
-  <!-- Western "stranger in town" title card, shown over a gunfight before the standoff clip -->
-  <div id="noon-card" class="hidden">
-    <div class="noon-card-star">★</div>
-    <div class="noon-card-kicker">— HIGH&nbsp;NOON —</div>
-    <div class="noon-card-title">A Stranger Rides In</div>
-    <p class="noon-card-text">A stranger just moseyed into town on the stroke of twelve&hellip;<br>
-      but these here parts ain&rsquo;t big enough for the both of us.<br>
-      There&rsquo;s only one <b>Big&nbsp;Bad&nbsp;Wolf</b> in this saloon.</p>
-  </div>
-  <video id="noon-video" src="assets/webm/High_noon_standoff.webm" playsinline preload="none"></video>
-  <div id="noon-skip">CLICK TO SKIP</div>
-</div>
 
 
 <!-- Bundled from js/*.js by tools/build.js (classic script so it runs from file://). -->

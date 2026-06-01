@@ -62,7 +62,7 @@ input, textarea {
 
 /* ── BODY — BRIGHT GRASS CARTOON THEME ── */
 /* ── INTRO SPLASH ── full-screen video on load, fades into the game ── */
-#intro-overlay, #noon-overlay {
+#intro-overlay {
   position: fixed;
   inset: 0;
   z-index: 9999;
@@ -73,9 +73,9 @@ input, textarea {
   opacity: 1;
   transition: opacity 0.6s ease;
 }
-#intro-overlay.fade-out, #noon-overlay.fade-out { opacity: 0; }
-#intro-overlay.hidden, #noon-overlay.hidden { display: none; }
-#intro-video, #noon-video {
+#intro-overlay.fade-out { opacity: 0; }
+#intro-overlay.hidden { display: none; }
+#intro-video {
   width: 100%;
   height: 100%;
   object-fit: cover;   /* fill the screen */
@@ -105,7 +105,7 @@ input, textarea {
   align-items: center;
   justify-content: center;
   text-align: center;
-  padding: 24px;
+  padding: 16px;
   background: radial-gradient(ellipse at center, #2a1c0c 0%, #160d05 55%, #000 100%);
   transition: opacity .5s ease;
 }
@@ -123,44 +123,47 @@ input, textarea {
 #noon-card.show .noon-card-title  { transition-delay: .30s; }
 #noon-card.show .noon-card-text   { transition-delay: .55s; }
 .noon-card-star {
-  font-size: 2.6rem;
+  font-size: 2.1rem;
   line-height: 1;
   color: var(--gold);
   text-shadow: 0 0 18px rgba(245,196,0,.55), 0 2px 4px rgba(0,0,0,.7);
   transition-delay: 0s;
 }
 .noon-card-kicker {
-  margin-top: 10px;
+  margin-top: 8px;
   font-family: var(--font-main);
   font-weight: 800;
-  font-size: 0.9rem;
-  letter-spacing: 6px;
+  font-size: 0.72rem;
+  letter-spacing: 4px;
   color: var(--gold-light);
   text-shadow: 0 1px 4px rgba(0,0,0,.8);
 }
 .noon-card-title {
-  margin-top: 6px;
+  margin-top: 5px;
   font-family: var(--font-title);
-  font-size: clamp(2rem, 6vw, 3.6rem);
+  font-size: clamp(1.5rem, 4.4vw, 2.7rem);
   color: #fff5dc;
   text-shadow: 0 0 22px rgba(245,196,0,.45), 0 3px 0 var(--gold-dark), 0 5px 10px rgba(0,0,0,.8);
 }
 .noon-card-text {
-  margin: 18px 0 0;
-  max-width: 40ch;
+  margin: 12px 0 0;
+  max-width: 34ch;
   font-family: var(--font-main);
   font-weight: 700;
-  font-size: clamp(0.95rem, 2.4vw, 1.25rem);
-  line-height: 1.6;
+  font-size: clamp(0.8rem, 1.9vw, 1.05rem);
+  line-height: 1.5;
   color: #e8d6b0;
   text-shadow: 0 1px 4px rgba(0,0,0,.85);
 }
 .noon-card-text b { color: var(--gold-light); white-space: nowrap; }
 
 /* ── REEL-WINDOW VIDEOS ── full-bleed clips contained inside the reel window:
-      the bonus intro (Three Pigs) and the wolf-blow (tornado) reveal.        ── */
+      the bonus intro (Three Pigs), the wolf-blow (tornado) reveal, and the
+      High-Noon standoff easter egg. Contained here so the side wolf & outer
+      borders (which live outside the reel window) stay visible during play.  ── */
 #bonus-intro-overlay,
-#wolf-tornado-overlay {
+#wolf-tornado-overlay,
+#noon-overlay {
   position: absolute;
   inset: 0;               /* fill the reel window (which is position:relative, overflow:hidden) */
   z-index: 60;            /* above the reels & their overlays, within the window */
@@ -172,11 +175,14 @@ input, textarea {
   transition: opacity 0.5s ease;
 }
 #bonus-intro-overlay.fade-out,
-#wolf-tornado-overlay.fade-out { opacity: 0; }
+#wolf-tornado-overlay.fade-out,
+#noon-overlay.fade-out { opacity: 0; }
 #bonus-intro-overlay.hidden,
-#wolf-tornado-overlay.hidden { display: none; }
+#wolf-tornado-overlay.hidden,
+#noon-overlay.hidden { display: none; }
 #bonus-intro-video,
-#wolf-tornado-video {
+#wolf-tornado-video,
+#noon-video {
   width: 100%;
   height: 100%;
   object-fit: cover;   /* fill the reel window */

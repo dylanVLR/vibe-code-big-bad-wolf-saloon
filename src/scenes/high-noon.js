@@ -4,8 +4,9 @@
  * browser's local clock the showdown plays out in two beats:
  *   1. A cowboy gunfight (showdown_shootout SFX) under a Western "a stranger
  *      rides into town" title card.
- *   2. The full-screen High_noon_standoff.webm clip (with its own audio).
- * The background music ducks out for the whole thing and returns afterward.
+ *   2. The High_noon_standoff.webm clip (with its own audio).
+ * Both beats are contained inside the reel window (the side wolf and outer
+ * borders stay visible). The background music ducks out and returns afterward.
  * Dismisses on end, on click (skip), on error, or via a safety timeout — and
  * fires at most once per day.
  */
