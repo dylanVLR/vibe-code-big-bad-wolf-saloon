@@ -48,7 +48,7 @@ export function playNoonStandoff() {
     if (cardTimer)  { clearTimeout(cardTimer);  cardTimer = null; }
     if (speakTimer) { clearTimeout(speakTimer); speakTimer = null; }
     if (voAudio) { try { voAudio.pause(); } catch (e) {} voAudio = null; }
-    if (card) card.classList.remove('show');
+    if (card) card.classList.remove('show', 'leaving');
     overlay.classList.add('fade-out');
     try { video.pause(); } catch (e) {}
     setTimeout(() => {
@@ -67,7 +67,8 @@ export function playNoonStandoff() {
     if (cardTimer)  { clearTimeout(cardTimer);  cardTimer = null; }
     if (speakTimer) { clearTimeout(speakTimer); speakTimer = null; }
     if (voAudio) { try { voAudio.pause(); } catch (e) {} voAudio = null; }
-    if (card) card.classList.remove('show');
+    // Fade the whole card (text + opaque background) out so the clip is visible.
+    if (card) { card.classList.remove('show'); card.classList.add('leaving'); }
     video.addEventListener('ended', finish, { once: true });
     video.addEventListener('error', finish, { once: true });
     try { video.currentTime = 0; } catch (e) {}
@@ -87,7 +88,7 @@ export function playNoonStandoff() {
   overlay.classList.remove('hidden');
   synth.shootout();                // cowboy high-noon gunfire
   if (card) {
-    card.classList.remove('hidden');
+    card.classList.remove('hidden', 'leaving');
     void card.offsetWidth;         // reflow so the entrance transition runs
     card.classList.add('show');
   }

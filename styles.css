@@ -107,8 +107,12 @@ input, textarea {
   text-align: center;
   padding: 24px;
   background: radial-gradient(ellipse at center, #2a1c0c 0%, #160d05 55%, #000 100%);
+  transition: opacity .5s ease;
 }
 #noon-card.hidden { display: none; }
+/* when the standoff clip rolls, fade the WHOLE card (text + its opaque
+   background) out so the video underneath is fully visible */
+#noon-card.leaving { opacity: 0; pointer-events: none; }
 #noon-card > * {
   opacity: 0;
   transform: translateY(14px);
