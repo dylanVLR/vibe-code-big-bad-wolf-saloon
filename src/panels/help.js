@@ -17,9 +17,8 @@
  * Numbers are read at runtime, so they always match the active math model and can
  * never drift from the game. NO RTP/odds are invented; nothing claims certification.
  *
- * KNOWN ART TODOs (flagged for the team, do NOT affect this screen's accuracy):
- *   1. The Wolf Wild is placed only on the CENTRE reel in REEL_COUNTS, although
- *      some comments/README say "reels 2-4". This screen states the truth (centre).
+ * Note: the Wolf Wild lands only on the CENTRE reel (reel 3) in REEL_COUNTS, and
+ * every comment in the codebase now reflects that; this screen states the same.
  */
 'use strict';
 

@@ -121,21 +121,6 @@ class Narrator {
 
   setVolume(v) { this._volume = Math.max(0, Math.min(1, v)); this.audio.volume = this._volume; }
   getVolume() { return this._volume; }
-
-  /**
-   * Speak a single narrator line right now for a cutscene — bypasses the queue,
-   * cooldowns and idle logic, but still honors the VOICE on/off + volume. Plays
-   * on its own Audio element so it can be awaited/stopped by the caller.
-   * @returns {HTMLAudioElement|null} the playing audio, or null if VO is off.
-   */
-  sayCutscene(file, vol = 1) {
-    if (!this.enabled || this._volume === 0) return null;
-    this.stop();                       // clear anything queued/playing + idle timer
-    const a = new Audio(`assets/audio/narrator/${file}`);
-    a.volume = this._volume * vol;
-    a.play().catch(() => {});
-    return a;
-  }
   _log(...a) { if (typeof window !== 'undefined' && window.WOLF_VO_DEBUG) console.log('%c[WolfVO]', 'color:#F5C400', ...a); }
 
   /* ════════ context helpers ════════ */
@@ -1205,9 +1190,6 @@ class Synth {
   bigWinAlarm() { this._oneShot('win_big.mp3', 0.9); }
   wildExpand()  { this._oneShot('wild_expand.mp3', 0.85); }
   boltLock()    { this._oneShot('bolt_lock.mp3', 0.7); }
-
-  // ── high-noon easter egg ──
-  shootout()    { return this._oneShot('showdown_shootout.mp3', 0.85); }
 
   // ── wolf & houses ──
   wolfHuff()    { this._oneShot('wolf_huff.mp3', 0.8); }
@@ -2836,10 +2818,10 @@ function generateGrid() {
 /* ══════════════════════════════════════════
    EXPANDING WILDS
    ─────────────────────────────────────────
-   The Wolf Wild lands only on the middle reels (2-4). When at least one shows on
-   a reel, the WHOLE reel turns wild — except hat (scatter) cells, which are left
-   alone so the bonus trigger is unaffected. A wild substitutes for every paying
-   symbol but the hats. The wild has no pay of its own.
+   The Wolf Wild lands only on reel 3 (the centre reel — see REEL_COUNTS). When it
+   shows on a reel, the WHOLE reel turns wild — except hat (scatter) cells, which
+   are left alone so the bonus trigger is unaffected. A wild substitutes for every
+   paying symbol but the hats. The wild has no pay of its own.
 ══════════════════════════════════════════ */
 
 /**
@@ -3198,24 +3180,33 @@ const RTP_MODEL_KEY = 'bbw_rtp_model';
 ══════════════════════════════════════════ */
 
 const SYMBOLS = {
-  // ── PNG Image Symbols ──
+  // ── Image symbols (the mid/high pays) ──
+  // NOTE FOR REVIEWERS: a few symbol **ids** are legacy names from the game's
+  // original Three-Little-Pigs theme; the ART and the player-facing `label` were
+  // later changed to Western objects. The id is internal only (never shown). The
+  // `label` and `src` below are the source of truth for what the player sees:
+  //     id 'pig-suit'       → Sheriff Badge   (assets/sheriff_badge.webp)
+  //     id 'pig-contractor' → Horseshoe       (assets/horseshoe.webp)
+  //     id 'pig-nature'     → Tornado         (assets/tornado.webp)
+  //     id 'toolbox'        → Shot Glass      (assets/shotglass.webp)
   // Pays were scaled to 0.51× the pre-wild values: the expanding Wolf Wild adds a
   // big chunk of base RTP on its own, so the line pays come down to keep the base
   // game near ~49% (total ~97%). Re-verify any change with `node tools/sim.js`.
   'hat-yellow':     { id: 'hat-yellow',     src: 'assets/hat_yellow.webp',     label: 'Yellow Hat',    pays: { 3: 1.78, 4: 7.14, 5: 35.70 }, isHat: true },
   'hat-green':      { id: 'hat-green',      src: 'assets/hat_white.webp',      label: 'White Hat',     pays: { 3: 0.89, 4: 3.57, 5: 17.85 }, isHat: true },
   'hat-red':        { id: 'hat-red',        src: 'assets/hat_red.webp',        label: 'Red Hat',       pays: { 3: 0.71, 4: 2.86, 5: 14.28 }, isHat: true },
-  'pig-suit':       { id: 'pig-suit',       src: 'assets/sheriff_badge.webp',   label: 'Sheriff Badge',  pays: { 3: 1.43, 4: 5.36, 5: 26.52 } },
-  'pig-contractor': { id: 'pig-contractor', src: 'assets/horseshoe.webp',    label: 'Horseshoe',   pays: { 3: 1.07, 4: 4.28, 5: 21.42 } },
-  'pig-nature':     { id: 'pig-nature',     src: 'assets/tornado.webp',  label: 'Tornado', pays: { 3: 0.71, 4: 2.86, 5: 14.28 } },
-  'toolbox':        { id: 'toolbox',        src: 'assets/shotglass.webp',        label: 'Wood Pig',       pays: { 3: 0.61, 4: 2.50, 5: 12.24 } },
+  'pig-suit':       { id: 'pig-suit',       src: 'assets/sheriff_badge.webp', label: 'Sheriff Badge', pays: { 3: 1.43, 4: 5.36, 5: 26.52 } },
+  'pig-contractor': { id: 'pig-contractor', src: 'assets/horseshoe.webp',     label: 'Horseshoe',     pays: { 3: 1.07, 4: 4.28, 5: 21.42 } },
+  'pig-nature':     { id: 'pig-nature',     src: 'assets/tornado.webp',       label: 'Tornado',       pays: { 3: 0.71, 4: 2.86, 5: 14.28 } },
+  'toolbox':        { id: 'toolbox',        src: 'assets/shotglass.webp',     label: 'Shot Glass',    pays: { 3: 0.61, 4: 2.50, 5: 12.24 } },
   'wolf':           { id: 'wolf',           src: 'assets/wolf.webp',           label: 'Wolf',          pays: { 3: 0.46, 4: 1.79, 5: 8.67 } },
   'buzzard':        { id: 'buzzard',        src: 'assets/buzzard.webp',        label: 'Buzzard',       pays: { 3: 0.36, 4: 1.43, 5: 7.14 } },
 
   // ── WOLF WILD (expanding) ──
-  // Lands only on reels 2-4. When one lands it fills its whole reel and
-  // substitutes for every paying symbol EXCEPT the hats (scatters). It has no
-  // pay of its own — it only helps the other symbols form wins.
+  // Lands only on reel 3 (the centre reel — see REEL_COUNTS below). When it lands
+  // it fills its whole reel and substitutes for every paying symbol EXCEPT the
+  // hats (scatters). It has no pay of its own — it only helps the other symbols
+  // form wins.
   'wild':           { id: 'wild',           svgId: '#sym-wild',     label: 'Wolf Wild', pays: null, isWild: true },
 
   // ── Inline SVG Royals (low-pay filler) ──
@@ -3593,9 +3584,8 @@ if (btnSize && modal) {
  * Numbers are read at runtime, so they always match the active math model and can
  * never drift from the game. NO RTP/odds are invented; nothing claims certification.
  *
- * KNOWN ART TODOs (flagged for the team, do NOT affect this screen's accuracy):
- *   1. The Wolf Wild is placed only on the CENTRE reel in REEL_COUNTS, although
- *      some comments/README say "reels 2-4". This screen states the truth (centre).
+ * Note: the Wolf Wild lands only on the CENTRE reel (reel 3) in REEL_COUNTS, and
+ * every comment in the codebase now reflects that; this screen states the same.
  */
 
 const {
@@ -4637,19 +4627,19 @@ Object.assign(exports, { runSimulation });
 /* AUTO-GENERATED by tools/build.js — folder-size snapshot. Do not edit. */
 
 const SIZE_MANIFEST = {
-  "totalBytes": 159245637,
+  "totalBytes": 159246219,
   "fileCount": 767,
   "generatedAt": "2026-06-01",
   "player": {
-    "bytes": 158348060,
+    "bytes": 158347969,
     "files": 707
   },
   "dev": {
-    "bytes": 897577,
+    "bytes": 898250,
     "files": 60
   },
   "firstPlay": {
-    "bytes": 17549992,
+    "bytes": 17549901,
     "files": 68
   },
   "progressive": {
@@ -4678,13 +4668,13 @@ const SIZE_MANIFEST = {
     {
       "key": "code",
       "label": "Code",
-      "bytes": 893148,
+      "bytes": 893305,
       "files": 51
     },
     {
       "key": "other",
       "label": "Other",
-      "bytes": 546981,
+      "bytes": 547406,
       "files": 12
     }
   ]
@@ -5089,7 +5079,7 @@ Object.assign(exports, { spawnCoinShower, spawnCoinFountain, spawnSparkles, spaw
  * basegame and bonus can both use it without importing each other.
  */
 
-const { BET_LEVELS } = require("par-sheet");
+const { BET_LEVELS, BONUS_CONFIG, REEL_COUNT } = require("par-sheet");
 const { state } = require("state");
 const { fmt } = require("utils");
 
@@ -5112,11 +5102,17 @@ function updateDisplays() {
   elBet.textContent = fmt(BET_LEVELS[state.betIndex]);
 }
 
+// The Mansion Jackpot tops out at baseMult + perBrickMult × (one Brick house per
+// reel). Derived from BONUS_CONFIG so this marketing figure can never drift out
+// of sync with the math (it was a hard-coded "126X" that no longer matched).
+const MANSION_MAX = Math.round(
+  BONUS_CONFIG.mansion.baseMult + BONUS_CONFIG.mansion.perBrickMult * REEL_COUNT
+);
 const IDLE_MESSAGES = [
   "GOOD LUCK – PRESS SPIN!",
   "243 WAYS TO WIN EVERY SPIN!",
   "6+ HARD HATS TRIGGER THE BONUS!",
-  "BUILD BRICK HOUSES FOR A CHANCE AT A MASSIVE 126X JACKPOT!",
+  `BUILD BRICK HOUSES FOR A CHANCE AT A MASSIVE ${MANSION_MAX}X JACKPOT!`,
   "GET 3+ BRICK HOUSES IN THE BONUS FOR THE MANSION JACKPOT!",
   "3 HARD HATS IN THE BONUS AWARDS +1 FREE SPIN!",
   "HIGH VOLATILITY: THE BIGGEST WINS ARE HIDING IN THE BONUS!"

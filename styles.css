@@ -395,6 +395,10 @@ input, textarea {
 #options-drawer.open .opt-chevron { transform: rotate(180deg); }
 /* the sliding panel of options */
 #options-panel {
+  /* Drawer-button height lives in a variable so the plain buttons AND the
+     .drawer-sub wrappers (VOLUME/TIME) always match. The public build has only
+     ~6 buttons, so it runs a touch more compact than the busy dev build below. */
+  --drawer-btn-h: 38px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -416,13 +420,33 @@ input, textarea {
   opacity: 1;
   pointer-events: auto;
 }
+/* The public (non-dev) build shows only ~6 buttons, so tighten it up a touch:
+   shorter buttons, smaller gaps and padding. */
+body:not(.dev-mode) #options-panel {
+  --drawer-btn-h: 34px;
+  gap: 6px;
+  padding: 12px;
+}
+/* The dev build has ~17 tools — far too many for one column on a short landscape
+   phone (they'd squish illegibly AND still overflow). Lay them out in two columns
+   at a uniform, tappable height so the whole toolset fits with no scrolling and
+   no clipped fly-out panels. The "DEV MODE" header spans both columns. */
+body.dev-mode #options-panel {
+  display: grid;
+  grid-template-columns: repeat(2, 170px);
+  gap: 6px;
+  padding: 12px;
+  align-content: start;
+  --drawer-btn-h: 30px;
+}
+body.dev-mode #options-panel > .drawer-gaff-header { grid-column: 1 / -1; margin-top: 4px; }
 /* uniform option buttons */
 .drawer-btn {
   display: flex;
   align-items: center;
   gap: 8px;
   width: 170px;
-  height: 38px;
+  height: var(--drawer-btn-h, 38px);
   padding: 0 14px;
   border: 1px solid rgba(46,232,90,0.3);
   border-radius: 9px;
@@ -474,7 +498,7 @@ input, textarea {
    (38px) and shrink factor as a plain drawer button, and let the inner button
    fill the wrapper's height — so VOLUME/TIME shrink in lockstep with every other
    button when the dev list overflows the column (no taller odd ones out). */
-.drawer-sub { position: relative; width: 170px; display: flex; flex: 0 1 38px; }
+.drawer-sub { position: relative; width: 170px; display: flex; flex: 0 1 var(--drawer-btn-h, 38px); }
 .drawer-sub > .drawer-btn { width: 100%; height: 100%; }
 #options-panel #volume-panel,
 #options-panel #time-panel {
@@ -3596,13 +3620,6 @@ body.pre-reveal #bg-video { opacity: 1; }   /* full, undimmed background during 
    SIMULATION DASHBOARD — Professional Analytics
 ════════════════════════════════════════ */
 
-.simulate-btn{height:34px;padding:0 10px;border-radius:17px;border:2px solid #00BFFF;background:linear-gradient(180deg,#0A2040,#061020);color:#40D8FF;font-family:var(--font-main);font-size:.7rem;font-weight:800;letter-spacing:1px;cursor:pointer;transition:all .15s ease;flex-shrink:0;opacity:.7}
-.simulate-btn:hover{opacity:1;border-color:#40D8FF;box-shadow:0 0 12px rgba(0,191,255,.5);background:linear-gradient(180deg,#103060,#082040)}
-
-/* MATH breakdown button (amber accent, matches SIM button shape) */
-.math-btn{height:34px;padding:0 10px;border-radius:17px;border:2px solid #C8860A;background:linear-gradient(180deg,#2A1E06,#140C02);color:#FFD040;font-family:var(--font-main);font-size:.7rem;font-weight:800;letter-spacing:1px;cursor:pointer;transition:all .15s ease;flex-shrink:0;opacity:.7}
-.math-btn:hover{opacity:1;border-color:#FFD040;box-shadow:0 0 12px rgba(245,196,0,.5);background:linear-gradient(180deg,#3A2A08,#1A1004)}
-
 /* ── MATH BREAKDOWN MODAL ── */
 .math-section{padding:8px 24px 18px}
 .math-section + .math-section{border-top:1px solid rgba(46,232,90,.15)}
@@ -3635,11 +3652,6 @@ body.pre-reveal #bg-video { opacity: 1; }   /* full, undimmed background during 
 .mc-barcell{width:42%}
 .mc-bar{display:block;height:9px;border-radius:5px;background:linear-gradient(90deg,#1DB954,#3FE07A);min-width:2px}
 .mc-bar.is-hat{background:linear-gradient(90deg,#E0A000,#FFD86A)}
-
-/* ── BUY BONUS button ── */
-.buy-bonus-btn{height:34px;padding:0 12px;border-radius:17px;border:2px solid #F5C400;background:linear-gradient(180deg,#2A6B2A,#0E3A12);color:#FFE88A;font-family:var(--font-main);font-size:.7rem;font-weight:800;letter-spacing:1px;cursor:pointer;transition:all .15s ease;flex-shrink:0;box-shadow:0 0 10px rgba(245,196,0,.25)}
-.buy-bonus-btn:hover:not(:disabled){border-color:#FFE88A;box-shadow:0 0 16px rgba(245,196,0,.6);background:linear-gradient(180deg,#3A8B3A,#145018);transform:translateY(-1px)}
-.buy-bonus-btn:disabled{opacity:.4;cursor:not-allowed}
 
 /* ── BUY BONUS modal ── */
 .buy-box{max-width:440px}

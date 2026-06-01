@@ -7,7 +7,7 @@
  */
 'use strict';
 
-import { BET_LEVELS } from '../math/par-sheet.js';
+import { BET_LEVELS, BONUS_CONFIG, REEL_COUNT } from '../math/par-sheet.js';
 import { state } from '../core/state.js';
 import { fmt } from '../core/utils.js';
 
@@ -30,11 +30,17 @@ export function updateDisplays() {
   elBet.textContent = fmt(BET_LEVELS[state.betIndex]);
 }
 
+// The Mansion Jackpot tops out at baseMult + perBrickMult × (one Brick house per
+// reel). Derived from BONUS_CONFIG so this marketing figure can never drift out
+// of sync with the math (it was a hard-coded "126X" that no longer matched).
+const MANSION_MAX = Math.round(
+  BONUS_CONFIG.mansion.baseMult + BONUS_CONFIG.mansion.perBrickMult * REEL_COUNT
+);
 const IDLE_MESSAGES = [
   "GOOD LUCK – PRESS SPIN!",
   "243 WAYS TO WIN EVERY SPIN!",
   "6+ HARD HATS TRIGGER THE BONUS!",
-  "BUILD BRICK HOUSES FOR A CHANCE AT A MASSIVE 126X JACKPOT!",
+  `BUILD BRICK HOUSES FOR A CHANCE AT A MASSIVE ${MANSION_MAX}X JACKPOT!`,
   "GET 3+ BRICK HOUSES IN THE BONUS FOR THE MANSION JACKPOT!",
   "3 HARD HATS IN THE BONUS AWARDS +1 FREE SPIN!",
   "HIGH VOLATILITY: THE BIGGEST WINS ARE HIDING IN THE BONUS!"

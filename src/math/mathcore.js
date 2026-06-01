@@ -44,10 +44,10 @@ export function generateGrid() {
 /* ══════════════════════════════════════════
    EXPANDING WILDS
    ─────────────────────────────────────────
-   The Wolf Wild lands only on the middle reels (2-4). When at least one shows on
-   a reel, the WHOLE reel turns wild — except hat (scatter) cells, which are left
-   alone so the bonus trigger is unaffected. A wild substitutes for every paying
-   symbol but the hats. The wild has no pay of its own.
+   The Wolf Wild lands only on reel 3 (the centre reel — see REEL_COUNTS). When it
+   shows on a reel, the WHOLE reel turns wild — except hat (scatter) cells, which
+   are left alone so the bonus trigger is unaffected. A wild substitutes for every
+   paying symbol but the hats. The wild has no pay of its own.
 ══════════════════════════════════════════ */
 
 /**

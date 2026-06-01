@@ -103,21 +103,6 @@ class Narrator {
 
   setVolume(v) { this._volume = Math.max(0, Math.min(1, v)); this.audio.volume = this._volume; }
   getVolume() { return this._volume; }
-
-  /**
-   * Speak a single narrator line right now for a cutscene — bypasses the queue,
-   * cooldowns and idle logic, but still honors the VOICE on/off + volume. Plays
-   * on its own Audio element so it can be awaited/stopped by the caller.
-   * @returns {HTMLAudioElement|null} the playing audio, or null if VO is off.
-   */
-  sayCutscene(file, vol = 1) {
-    if (!this.enabled || this._volume === 0) return null;
-    this.stop();                       // clear anything queued/playing + idle timer
-    const a = new Audio(`assets/audio/narrator/${file}`);
-    a.volume = this._volume * vol;
-    a.play().catch(() => {});
-    return a;
-  }
   _log(...a) { if (typeof window !== 'undefined' && window.WOLF_VO_DEBUG) console.log('%c[WolfVO]', 'color:#F5C400', ...a); }
 
   /* ════════ context helpers ════════ */

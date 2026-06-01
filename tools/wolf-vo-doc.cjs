@@ -113,6 +113,9 @@ const GROUPS = [
     ['clickRoyals', 'Tapping a royal card symbol (A / K / Q / J / 10)'],
     ['clickWild', 'Tapping the Wolf Wild symbol'],
   ]],
+  ['High-Noon easter egg', [
+    ['highNoon', 'The hidden “High Noon” standoff (fires at exactly 12:00 PM local time, or from the dev Time panel) — the wolf reads the on-screen title card aloud'],
+  ]],
   ['Friendly roasts — DISABLED by default', [
     ['roasts', 'Tongue-in-cheek nods to the “other” huff-and-puff game. OFF by default; enable only if you want them.'],
   ]],
