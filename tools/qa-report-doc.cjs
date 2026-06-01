@@ -1,5 +1,5 @@
 /*
- * Generate the professional QA report (docs/Big_Bad_Wolf_Saloon_QA_Report.docx).
+ * Generate the professional QA report (docs/QA_Report.docx).
  *   NODE_PATH=/tmp/wolfdoc/node_modules node tools/qa-report-doc.cjs
  * Content reflects the QA test pass executed on the build noted below.
  */
@@ -12,7 +12,7 @@ const {
 } = require('docx');
 
 const ROOT = path.join(__dirname, '..');
-const OUT = path.join(ROOT, 'docs', 'Big_Bad_Wolf_Saloon_QA_Report.docx');
+const OUT = path.join(ROOT, 'docs', 'QA_Report.docx');
 
 // ── palette ──
 const NAVY = '14331F', GOLD = '8A6D1A', GREY = '666666', RULE = 'C9A24B';

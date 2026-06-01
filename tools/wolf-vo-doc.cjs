@@ -23,7 +23,7 @@ try {
 const PHRASES = JSON.parse(execSync(
   'node --input-type=module -e "import {PHRASES} from \'./src/audio/phrases.js\'; process.stdout.write(JSON.stringify(PHRASES))"',
   { cwd: ROOT }).toString());
-const OUT = path.join(ROOT, 'docs', 'Big_Bad_Wolf_Saloon_Wolf_Voiceover_Script.docx');
+const OUT = path.join(ROOT, 'docs', 'Wolf_Voiceover_Script.docx');
 
 // group → [ [category, "trigger description"] ]
 const GROUPS = [

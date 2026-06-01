@@ -72,10 +72,10 @@ build works* below.
 │   └── process_images.py    Helper: knock out white image backgrounds.
 │
 ├── docs/                  ── DELIVERABLE MATH DOCS (one set per RTP model) ──
-│   ├── Big_Bad_Wolf_Saloon_Math_Model_97%_RTP.xlsx     full par sheet as a workbook
-│   ├── Big_Bad_Wolf_Saloon_Math_Overview_97%_RTP.docx  verification summary + overview
-│   ├── Big_Bad_Wolf_Saloon_Math_Model_85%_RTP.xlsx     the 85% "Lean" model
-│   └── Big_Bad_Wolf_Saloon_Math_Overview_85%_RTP.docx
+│   ├── Math_Model_97%_RTP.xlsx     full par sheet as a workbook
+│   ├── Math_Overview_97%_RTP.docx  verification summary + overview
+│   ├── Math_Model_85%_RTP.xlsx     the 85% "Lean" model
+│   └── Math_Overview_85%_RTP.docx
 │
 └── assets/                Media (images, video, audio) — gitignored, not in version control.
     ├── audio/ {music, sfx, narrator}
