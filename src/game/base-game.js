@@ -31,6 +31,19 @@ const spinVideo  = document.getElementById('spin-video');   // animated SPIN bad
 
 const shake = ms => { cabinet.classList.add('screen-shake'); setTimeout(() => cabinet.classList.remove('screen-shake'), ms); };
 
+/* Win-celebration banners, biggest first. `min` is the win÷bet threshold (from
+   WIN_TIERS), `cls` the label style ('' = the base BIG-WIN gold look), `heavy`
+   selects the louder coin/fanfare presentation, `count`/`hold` are the count-up
+   and on-screen durations (ms). One table drives both the live win and the dev
+   preview, so they always match. */
+const WIN_BANNERS = [
+  { key: 'colossal', min: WIN_TIERS.colossal, label: 'COLOSSAL WIN!', cls: 'colossal-win', heavy: true,  count: 3600, hold: 5000 },
+  { key: 'epic',     min: WIN_TIERS.epic,     label: 'EPIC WIN!',     cls: 'epic-win',     heavy: true,  count: 3200, hold: 4500 },
+  { key: 'mega',     min: WIN_TIERS.mega,     label: 'MEGA WIN!',     cls: 'mega-win',     heavy: true,  count: 2500, hold: 3800 },
+  { key: 'big',      min: WIN_TIERS.big,      label: 'BIG WIN!',      cls: '',             heavy: false, count: 1800, hold: 3500 },
+];
+const bannerForRatio = r => WIN_BANNERS.find(b => r >= b.min);     // highest tier reached (or undefined)
+
 // Rest the badge on its first frame; replay it from the start on each spin.
 if (spinVideo) {
   spinVideo.addEventListener('loadeddata', () => { try { spinVideo.currentTime = 0; } catch (e) {} });
@@ -126,7 +139,7 @@ async function finalizeSpin(targetGrid, bet) {
       if (cell) cell.classList.add('is-winner');
     });
     shake(600);
-    playWinPresentation(8, false); // 8 is a big win threshold, sufficient for the bonus trigger celebration
+    playWinPresentation(WIN_TIERS.big, false); // big-win-level celebration for the bonus trigger
     spawnWinVignette(); spawnStarbursts(hatCells);
     narrator.onBonusTrigger();
     state.spinning = false;
@@ -149,24 +162,21 @@ async function finalizeSpin(targetGrid, bet) {
 
     const ratio = totalWin / bet;
     if (ratio >= WIN_TIERS.big) {
-      // Pick the top celebration the win qualifies for: MAX > MEGA > BIG.
-      const isMax  = ratio >= WIN_TIERS.max;
-      const isMega = !isMax && ratio >= WIN_TIERS.mega;
-      bigWinLabel.textContent = isMax ? 'MAX WIN!' : isMega ? 'MEGA WIN!' : 'BIG WIN!';
-      bigWinLabel.classList.toggle('mega-win', isMega);
-      bigWinLabel.classList.toggle('max-win', isMax);
-      shake(isMax ? 900 : 600);
-      playWinPresentation(ratio, isMega || isMax);
+      const b = bannerForRatio(ratio);                  // BIG / MEGA / EPIC / COLOSSAL
+      bigWinLabel.textContent = b.label;
+      bigWinLabel.className = b.cls;                     // '' keeps the base BIG-WIN gold style
+      shake(b.heavy ? 900 : 600);
+      playWinPresentation(ratio, b.heavy);
       synth.bigWinAlarm();
       narrator.onWin(totalWin, bet);
-      await animateWinCount(totalWin, isMax ? 3200 : isMega ? 2500 : 1800);
+      await animateWinCount(totalWin, b.count);
       bigWinAmt.textContent = fmt(totalWin);
       bigWinOver.classList.remove('hidden');
       state.balance += totalWin;
       updateDisplays();
       setStatus(`YOU WON ${fmt(totalWin)}!`, 'win');
-      setTimeout(() => bigWinOver.classList.add('hidden'), isMax ? 4500 : 3500);
-    } else if (ratio >= WIN_TIERS.medium) {
+      setTimeout(() => bigWinOver.classList.add('hidden'), b.hold);
+    } else if (ratio >= WIN_TIERS.nice) {
       playWinPresentation(ratio);
       synth.win(totalWin, bet);
       narrator.onWin(totalWin, bet);
@@ -202,30 +212,28 @@ async function finalizeSpin(targetGrid, bet) {
 }
 
 /**
- * DEV preview: replay a BIG / MEGA / MAX win celebration on demand (banner, shake,
- * coins, fanfare) WITHOUT changing the balance or touching spin state — so the
- * team can review how each tier looks. Amount shown = the tier's threshold × the
- * current bet. Wired to the dev "WINS" panel.
- * @param {'big'|'mega'|'max'} tier
+ * DEV preview: replay a win celebration banner on demand (banner, shake, coins,
+ * fanfare) WITHOUT changing the balance or touching spin state — so the team can
+ * review how each tier looks. Amount shown = the tier's threshold × the current
+ * bet. Wired to the dev "WINS" panel; uses the same WIN_BANNERS table as live play.
+ * @param {'big'|'mega'|'epic'|'colossal'} tier
  */
 export function previewWin(tier) {
   if (state.spinning) return;                       // don't collide with a live spin
-  const bet  = BET_LEVELS[state.betIndex] || 1;
-  const mult = tier === 'max' ? WIN_TIERS.max : tier === 'mega' ? WIN_TIERS.mega : WIN_TIERS.big;
-  const amount = mult * bet;
-  const isMax = tier === 'max', isMega = tier === 'mega';
+  const b = WIN_BANNERS.find(x => x.key === tier);
+  if (!b) return;
+  const amount = b.min * (BET_LEVELS[state.betIndex] || 1);
 
-  bigWinLabel.textContent = isMax ? 'MAX WIN!' : isMega ? 'MEGA WIN!' : 'BIG WIN!';
-  bigWinLabel.classList.toggle('mega-win', isMega);
-  bigWinLabel.classList.toggle('max-win', isMax);
+  bigWinLabel.textContent = b.label;
+  bigWinLabel.className = b.cls;
   bigWinAmt.textContent = fmt(amount);
-  shake(isMax ? 900 : 600);
+  shake(b.heavy ? 900 : 600);
   spawnWinVignette();
-  playWinPresentation(mult, isMega || isMax);        // coins / sparkles / fanfare particles
+  playWinPresentation(b.min, b.heavy);               // coins / sparkles / fanfare particles
   synth.bigWinAlarm();
   bigWinOver.classList.remove('hidden');
   clearTimeout(previewWin._t);
-  previewWin._t = setTimeout(() => bigWinOver.classList.add('hidden'), isMax ? 4500 : 3500);
+  previewWin._t = setTimeout(() => bigWinOver.classList.add('hidden'), b.hold);
 }
 
 /* ══════════════════════════════════════════

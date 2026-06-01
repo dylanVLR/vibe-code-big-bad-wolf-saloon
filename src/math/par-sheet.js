@@ -75,16 +75,22 @@ export const DEFAULT_BET_INDEX = 2;
 
 /**
  * Win-celebration tiers, expressed as a multiple of the total bet. A spin's win
- * ÷ bet decides which on-screen celebration plays. These are the single source
- * of truth for the win presentation (base-game.js) AND the dev "WINS" panel, so
- * the two can never disagree. Wins below `big` get only light effects (a "nice"
- * win is `medium`–`big`, anything smaller is a plain win).
+ * ÷ bet decides which on-screen celebration plays. This is the single source of
+ * truth for the win presentation (base-game.js), the wolf's voice reactions
+ * (narrator.js) and the dev "WINS" panel, so they can never disagree.
+ *
+ * The ladder follows the US land-based convention (Big at the ~10× benchmark,
+ * then escalating banners) but is tuned a touch for this game's high volatility.
+ * NOTE: these are *celebration* thresholds (multiples of bet, so the dollar
+ * trigger scales with the bet) — NOT a max-win cap. The game has no artificial
+ * win cap; the bonus has its own dedicated jackpots on top of these.
  */
 export const WIN_TIERS = {
-  medium: 2,    // 2×–8× bet — a "nice" win (count-up + coins, no full-screen banner)
-  big:    8,    // ≥ 8× bet  — BIG WIN! banner
-  mega:   15,   // ≥ 15× bet — MEGA WIN! banner
-  max:    50,   // ≥ 50× bet — MAX WIN! banner (the top celebration)
+  nice:     2,    // 2×–10× bet — a "Nice Win": colour + count-up, no banner
+  big:      10,   // ≥ 10× bet  — BIG WIN! banner (the industry benchmark)
+  mega:     25,   // ≥ 25× bet  — MEGA WIN! banner
+  epic:     50,   // ≥ 50× bet  — EPIC WIN! banner (the wolf's biggest voice reaction)
+  colossal: 100,  // ≥ 100× bet — COLOSSAL WIN! banner (the top celebration)
 };
 
 /** Starting player balance */

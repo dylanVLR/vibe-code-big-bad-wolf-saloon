@@ -20,6 +20,7 @@
 
 import { PHRASES } from './phrases.js';
 import { state } from '../core/state.js';
+import { WIN_TIERS } from '../math/par-sheet.js';   // shared celebration thresholds (audio = visual)
 
 // What the player VISUALLY sees ↔ internal symbol ids (see par-sheet.js).
 const SYM = {
@@ -115,10 +116,10 @@ class Narrator {
   }
   winTier(amount, bet) {
     const r = bet > 0 ? amount / bet : 0;
-    if (r >= 50) return 'huge';
-    if (r >= 15) return 'mega';
-    if (r >= 8)  return 'big';
-    if (r >= 2)  return 'medium';
+    if (r >= WIN_TIERS.epic) return 'huge';     // ≥ EPIC (50×) — the wolf's biggest reaction
+    if (r >= WIN_TIERS.mega) return 'mega';      // ≥ MEGA (25×)
+    if (r >= WIN_TIERS.big)  return 'big';       // ≥ BIG  (10×)
+    if (r >= WIN_TIERS.nice) return 'medium';    // ≥ NICE (2×)
     if (r > 0)   return 'small';
     return 'none';
   }

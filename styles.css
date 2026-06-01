@@ -1516,15 +1516,15 @@ body.pre-reveal #bg-video { opacity: 1; }   /* full, undimmed background during 
   100% { color: #FF4060; text-shadow: 0 0 30px rgba(255,64,96,0.8), 0 4px 0 #7A0020; }
 }
 
-/* MAX WIN — the top tier (≥ 50× bet). Bigger, blazing gold-white, hard pulse. */
-#big-win-label.max-win {
+/* EPIC WIN — ≥ 50× bet. Bigger, blazing gold-white, hard pulse. */
+#big-win-label.epic-win {
   font-size: 3.8rem;
   letter-spacing: 4px;
   color: #FFE680;
   -webkit-text-stroke: 1px rgba(122,68,0,0.55);
-  animation: maxwin-blaze 0.7s ease-in-out infinite alternate;
+  animation: epicwin-blaze 0.7s ease-in-out infinite alternate;
 }
-@keyframes maxwin-blaze {
+@keyframes epicwin-blaze {
   from { transform: scale(1);
     color: #FFE680;
     text-shadow: 0 0 26px rgba(255,215,0,0.9), 0 0 60px rgba(255,170,0,0.55), 0 4px 0 #7A4400; }
@@ -1532,6 +1532,22 @@ body.pre-reveal #bg-video { opacity: 1; }   /* full, undimmed background during 
     color: #FFFFFF;
     text-shadow: 0 0 40px rgba(255,235,150,1), 0 0 90px rgba(255,200,0,0.85), 0 0 130px rgba(255,160,0,0.5), 0 4px 0 #7A4400; }
 }
+
+/* COLOSSAL WIN — ≥ 100× bet. The apex: largest, a fast rainbow-gold supernova. */
+#big-win-label.colossal-win {
+  font-size: 4.3rem;
+  letter-spacing: 5px;
+  color: #FFFFFF;
+  -webkit-text-stroke: 1.5px rgba(122,68,0,0.5);
+  animation: colossal-blaze 0.85s ease-in-out infinite, colossal-hue 2.4s linear infinite;
+}
+@keyframes colossal-blaze {
+  0%,100% { transform: scale(1.02);
+    text-shadow: 0 0 34px rgba(255,225,120,0.95), 0 0 80px rgba(255,180,0,0.7), 0 4px 0 #7A4400; }
+  50%     { transform: scale(1.13);
+    text-shadow: 0 0 55px rgba(255,255,200,1), 0 0 120px rgba(255,200,0,0.9), 0 0 170px rgba(255,150,0,0.55), 0 4px 0 #7A4400; }
+}
+@keyframes colossal-hue { from { filter: hue-rotate(0deg); } to { filter: hue-rotate(360deg); } }
 
 #big-win-amount {
   font-family: var(--font-title);
@@ -4074,16 +4090,19 @@ body.fit-mode #game-root {
 .wins-table td.win-tier { font-family: var(--font-title); letter-spacing: .5px; white-space: nowrap; }
 .wins-table td.win-mult { font-variant-numeric: tabular-nums; color: #fff; font-weight: 700; }
 .wins-table td { font-variant-numeric: tabular-nums; color: #CFE8D6; }
-.wins-table tr.tier-big   td.win-tier { color: #FFD040; }
-.wins-table tr.tier-mega  td.win-tier { color: #FF6A86; }
-.wins-table tr.tier-max   td.win-tier { color: #FFE680; text-shadow: 0 0 10px rgba(255,200,0,.55); }
-.wins-table tr.tier-max { background: rgba(245,196,0,.07); }
+.wins-table tr.tier-big      td.win-tier { color: #FFD040; }
+.wins-table tr.tier-mega     td.win-tier { color: #FF6A86; }
+.wins-table tr.tier-epic     td.win-tier { color: #FFE680; text-shadow: 0 0 10px rgba(255,200,0,.55); }
+.wins-table tr.tier-colossal td.win-tier { color: #FFF2C0; text-shadow: 0 0 12px rgba(255,200,0,.7); }
+.wins-table tr.tier-epic { background: rgba(245,196,0,.06); }
+.wins-table tr.tier-colossal { background: rgba(245,196,0,.10); }
 .wins-note { font-size: .78rem; color: #9CC4A8; line-height: 1.5; }
 .wins-note b { color: #FFD040; }
 /* clickable preview rows */
 .wins-table tr.previewable { cursor: pointer; transition: background .12s ease; }
 .wins-table tr.previewable:hover { background: rgba(46,232,90,.10); }
-.wins-table tr.tier-max.previewable:hover { background: rgba(245,196,0,.14); }
+.wins-table tr.tier-epic.previewable:hover,
+.wins-table tr.tier-colossal.previewable:hover { background: rgba(245,196,0,.16); }
 .wins-preview {
   display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 10px;
   font-family: var(--font-main); font-size: .64rem; font-weight: 800; letter-spacing: .4px;
