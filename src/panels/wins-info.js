@@ -10,6 +10,7 @@
 
 import { WIN_TIERS, BET_LEVELS, DEFAULT_BET_INDEX } from '../math/par-sheet.js';
 import { fmt } from '../core/utils.js';
+import { previewWin } from '../game/base-game.js';
 
 const MIN_BET = BET_LEVELS[0];
 const DEF_BET = BET_LEVELS[DEFAULT_BET_INDEX];
@@ -25,16 +26,21 @@ const TIERS = [
 ];
 
 function buildHTML() {
+  const PREVIEWABLE = new Set(['big', 'mega', 'max']);
   const rows = TIERS.map(t => {
     const at = (bet) => t.mult === 0 ? '—' : fmt(t.mult * bet);
     const trig = t.mult === 0 ? 'any win' : `≥ ${t.mult}×`;
-    return `<tr class="${t.cls}">
+    const can = PREVIEWABLE.has(t.key);
+    const screen = can
+      ? `${t.banner} <span class="wins-preview">▶&nbsp;Preview</span>`
+      : t.banner;
+    return `<tr class="${t.cls}${can ? ' previewable' : ''}"${can ? ` data-preview="${t.key}"` : ''}>
       <td class="win-tier">${t.name}</td>
       <td class="win-mult">${trig}</td>
       <td>${at(MIN_BET)}</td>
       <td>${at(DEF_BET)}</td>
       <td>${at(MAX_BET)}</td>
-      <td style="text-align:left;font-size:.74rem;color:#9CC4A8;">${t.banner}</td>
+      <td class="win-screen">${screen}</td>
     </tr>`;
   }).join('');
 
@@ -42,7 +48,9 @@ function buildHTML() {
     <p class="wins-intro">Wins are celebrated in tiers based on how big the win is <b>relative to your bet</b>
       (win &divide; bet). Because the thresholds are multiples of the bet, the dollar trigger scales with how
       much you wager — so the same spin is a “Big Win” at a low bet only if it pays a lot more in dollars at a
-      high bet. The default bet is <b>${fmt(DEF_BET)}</b>.</p>
+      high bet. The default bet is <b>${fmt(DEF_BET)}</b>.
+      <br><b>Tip:</b> click the <b>BIG / MEGA / MAX WIN</b> rows below to preview that celebration in the game
+      (it shows the threshold &times; your current bet, and changes nothing).</p>
     <table class="wins-table">
       <thead><tr>
         <th>Celebration</th><th>Win&nbsp;&ge;</th>
@@ -64,8 +72,18 @@ const contentEl = document.getElementById('wins-content');
 
 if (modal && contentEl) {
   let built = false;
-  const open = () => { if (!built) { contentEl.innerHTML = buildHTML(); built = true; } modal.classList.remove('hidden'); };
   const close = () => modal.classList.add('hidden');
+  const open = () => {
+    if (!built) {
+      contentEl.innerHTML = buildHTML();
+      // clicking a BIG/MEGA/MAX row closes the panel and replays that celebration
+      contentEl.querySelectorAll('tr.previewable').forEach(tr => {
+        tr.addEventListener('click', () => { close(); previewWin(tr.dataset.preview); });
+      });
+      built = true;
+    }
+    modal.classList.remove('hidden');
+  };
   if (btn) btn.addEventListener('click', open);
   if (btnClose) btnClose.addEventListener('click', close);
   modal.addEventListener('click', e => { if (e.target === modal) close(); });

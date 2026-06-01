@@ -4080,6 +4080,16 @@ body.fit-mode #game-root {
 .wins-table tr.tier-max { background: rgba(245,196,0,.07); }
 .wins-note { font-size: .78rem; color: #9CC4A8; line-height: 1.5; }
 .wins-note b { color: #FFD040; }
+/* clickable preview rows */
+.wins-table tr.previewable { cursor: pointer; transition: background .12s ease; }
+.wins-table tr.previewable:hover { background: rgba(46,232,90,.10); }
+.wins-table tr.tier-max.previewable:hover { background: rgba(245,196,0,.14); }
+.wins-preview {
+  display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 10px;
+  font-family: var(--font-main); font-size: .64rem; font-weight: 800; letter-spacing: .4px;
+  color: #08210c; background: var(--neon-green); white-space: nowrap; vertical-align: middle;
+}
+.wins-table tr.previewable:hover .wins-preview { box-shadow: 0 0 10px rgba(46,232,90,.6); }
 
 /* Visually-hidden but present for search engines & screen readers (SEO/a11y).
    Uses the clip technique, NOT display:none, so crawlers still index it. */

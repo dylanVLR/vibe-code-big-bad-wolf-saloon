@@ -201,6 +201,33 @@ async function finalizeSpin(targetGrid, bet) {
   }, delay);
 }
 
+/**
+ * DEV preview: replay a BIG / MEGA / MAX win celebration on demand (banner, shake,
+ * coins, fanfare) WITHOUT changing the balance or touching spin state — so the
+ * team can review how each tier looks. Amount shown = the tier's threshold × the
+ * current bet. Wired to the dev "WINS" panel.
+ * @param {'big'|'mega'|'max'} tier
+ */
+export function previewWin(tier) {
+  if (state.spinning) return;                       // don't collide with a live spin
+  const bet  = BET_LEVELS[state.betIndex] || 1;
+  const mult = tier === 'max' ? WIN_TIERS.max : tier === 'mega' ? WIN_TIERS.mega : WIN_TIERS.big;
+  const amount = mult * bet;
+  const isMax = tier === 'max', isMega = tier === 'mega';
+
+  bigWinLabel.textContent = isMax ? 'MAX WIN!' : isMega ? 'MEGA WIN!' : 'BIG WIN!';
+  bigWinLabel.classList.toggle('mega-win', isMega);
+  bigWinLabel.classList.toggle('max-win', isMax);
+  bigWinAmt.textContent = fmt(amount);
+  shake(isMax ? 900 : 600);
+  spawnWinVignette();
+  playWinPresentation(mult, isMega || isMax);        // coins / sparkles / fanfare particles
+  synth.bigWinAlarm();
+  bigWinOver.classList.remove('hidden');
+  clearTimeout(previewWin._t);
+  previewWin._t = setTimeout(() => bigWinOver.classList.add('hidden'), isMax ? 4500 : 3500);
+}
+
 /* ══════════════════════════════════════════
    AUTO-SPIN  (stopAuto lives in ui.js)
 ══════════════════════════════════════════ */
