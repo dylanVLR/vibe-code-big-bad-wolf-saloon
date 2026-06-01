@@ -500,13 +500,17 @@ body.dev-mode #options-panel > .drawer-gaff-header { grid-column: 1 / -1; margin
    button when the dev list overflows the column (no taller odd ones out). */
 .drawer-sub { position: relative; width: 170px; display: flex; flex: 0 1 var(--drawer-btn-h, 38px); }
 .drawer-sub > .drawer-btn { width: 100%; height: 100%; }
+/* Open the VOLUME/TIME fly-outs to the LEFT of the drawer (into the game area,
+   where there's always room). Align their TOP with the control rather than
+   centring on it, so a tall panel never spills off the top of a short landscape
+   phone when its button sits near the top of the drawer. */
 #options-panel #volume-panel,
 #options-panel #time-panel {
   bottom: auto;
-  top: 50%;
+  top: 0;
   left: auto;
   right: calc(100% + 14px);
-  transform: translateY(-50%);
+  transform: none;
 }
 #options-panel #volume-panel::after,
 #options-panel #time-panel::after { display: none; }
