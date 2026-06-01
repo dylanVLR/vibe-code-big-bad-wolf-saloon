@@ -26,7 +26,7 @@
 'use strict';
 
 import { SIDEWOLF } from './sidewolf-clips.js';
-import { alphaSrc, IS_IOS } from '../system/video-format.js';   // WebM → HEVC-alpha .mp4 on Safari
+import { alphaSrc, IS_MOBILE } from '../system/video-format.js';   // WebM → HEVC-alpha .mp4 on Safari
 
 const first = document.getElementById('side-wolf');
 const IDLE_LOOPS = 1;          // loop the default this many times before a reaction
@@ -36,28 +36,20 @@ const LEAD = 0.18;             // start the next clip this many seconds before t
 const animLabel = document.getElementById('wolf-animation-label');
 const animBtn   = document.getElementById('btn-show-animations');
 
-/* ── iOS: lean single-video idle loop ──────────────────────────────────────
-   iPhone/iPad software-decode HEVC-alpha and throttle the number of videos that
-   can decode at once. The desktop double-buffer (2 wolf layers) + reaction swaps
-   starved the decoder → the wolf vanished and the whole game stuttered. A single
-   static-src looping idle clip is exactly what the standalone test proved plays
-   smoothly, so on iOS we run just that — no second layer, no reaction swaps. */
-if (first && SIDEWOLF.default && IS_IOS) {
-  first.classList.add('side-wolf-layer');
-  first.loop = true; first.muted = true; first.playsInline = true;
-  first.setAttribute('playsinline', '');
-  first.removeAttribute('data-alpha-src');
-  first.setAttribute('src', alphaSrc(SIDEWOLF.default));
-  first.style.opacity = '1';
-  first.play().catch(() => {});
-  if (first.paused) {                       // muted autoplay blocked → start on first touch
-    const kick = () => { first.play().catch(() => {}); };
-    document.addEventListener('pointerdown', kick, { once: true });
-    document.addEventListener('touchstart', kick, { once: true, passive: true });
-  }
-}
+/* ── MOBILE: skip the SideWolf entirely ─────────────────────────────────────
+   On phones and tablets (iPhone, iPad, Android — every browser) the SideWolf
+   character and the little platform he stands on are purely decorative and not
+   worth the video/decoder cost. Remove the whole container so NONE of the
+   ~40 MB of Sidewolf clips (nor the poster image) ever load. The game loses only
+   a visual extra; everything else is unaffected. Desktop is left exactly as-is. */
+if (IS_MOBILE) {
+  const wc = document.getElementById('wolf-container');
+  if (wc) wc.remove();
+} else if (first && SIDEWOLF.default) {
+  // ── DESKTOP (Chrome + Safari): gapless double-buffer with reaction swaps ──
+  // The poster is set here (not in the HTML) so it never loads on mobile.
+  first.setAttribute('poster', 'assets/wolf_poster.webp');
 
-if (first && SIDEWOLF.default && !IS_IOS) {
   // ── build the second, identical layer stacked on top of the first ──
   first.classList.add('side-wolf-layer');
   const second = first.cloneNode(false);

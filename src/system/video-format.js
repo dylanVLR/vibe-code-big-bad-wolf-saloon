@@ -27,6 +27,11 @@ const isDesktopSafari = /Safari/.test(ua) &&
  *  HEVC-alpha and throttles concurrent videos, so callers lighten up here. */
 export const IS_IOS = isIOS;
 
+/** True on any phone or tablet (iOS + Android, every browser). Mobile gets the
+ *  lightest build: purely-decorative video extras (the SideWolf character) are
+ *  skipped entirely there — see src/scenes/side-wolf.js. */
+export const IS_MOBILE = isIOS || /Android|Mobi/i.test(ua);
+
 /** True when this browser needs HEVC-alpha .mp4 instead of WebM-alpha. */
 export const USE_HEVC_ALPHA = isIOS || isDesktopSafari;
 
@@ -42,6 +47,8 @@ export function alphaSrc(url) {
  */
 export function initAlphaVideos() {
   document.querySelectorAll('video[data-alpha-src]').forEach(v => {
+    if (v.id === 'side-wolf') return;   // the SideWolf is managed by side-wolf.js
+                                        // (and skipped outright on mobile) — never auto-load it here
     if (v.getAttribute('src')) return;
     v.setAttribute('src', alphaSrc(v.dataset.alphaSrc));
   });
