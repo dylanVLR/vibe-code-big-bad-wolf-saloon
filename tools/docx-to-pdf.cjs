@@ -17,6 +17,36 @@ const ROOT = path.join(__dirname, '..');
 const DOCS = path.join(ROOT, 'docs');
 const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 
+// Real in-game bonus art, base64-embedded so the PDFs are self-contained. Used to
+// replace the placeholder house emoji in the math docs with what the player sees.
+// The art is full-size on the reels, so down-scale it to a small icon (via macOS
+// `sips`) before embedding — keeps the PDF lean. Falls back to the raw webp if
+// sips isn't available (e.g. non-macOS).
+const { execSync } = require('child_process');
+const os = require('os');
+const HOUSE_ART = {};
+for (const [kind, file] of [['straw', 'bonus_pig_straw.webp'], ['wood', 'bonus_pig_wood.webp'], ['brick', 'bonus_pig_brick.webp']]) {
+  const src = path.join(ROOT, 'assets', file);
+  try {
+    const out = path.join(os.tmpdir(), `bbw-house-${kind}.png`);
+    execSync(`sips -s format png -Z 96 "${src}" --out "${out}"`, { stdio: 'ignore' });
+    HOUSE_ART[kind] = 'data:image/png;base64,' + fs.readFileSync(out).toString('base64');
+  } catch (e) {
+    try { HOUSE_ART[kind] = 'data:image/webp;base64,' + fs.readFileSync(src).toString('base64'); }
+    catch (e2) { HOUSE_ART[kind] = ''; }
+  }
+}
+const houseImg = (kind, alt) => HOUSE_ART[kind] ? `<img class="doc-house" src="${HOUSE_ART[kind]}" alt="${alt}">` : '';
+
+// Swap the placeholder house emoji (🏚 Straw / 🏠 Stick / 🏰 Brick) for the actual
+// in-game bonus art so the docs show exactly what the player sees on the reels.
+function swapHouseIcons(html) {
+  return html
+    .replace(/🏚️?\s*(Straw)/g, houseImg('straw', 'Straw house') + ' $1')
+    .replace(/🏠️?\s*(Stick)/g, houseImg('wood',  'Stick house') + ' $1')
+    .replace(/🏰️?\s*(Brick)/g, houseImg('brick', 'Brick house') + ' $1');
+}
+
 // ── Brand / design tokens ────────────────────────────────────────────────────
 const BRAND = {
   green: '#173E27',     // deep forest green (primary)
@@ -123,6 +153,9 @@ const CSS = `
   /* ── Status badges ── */
   .badge { display: inline-block; font-weight: 700; font-size: 8.4pt; letter-spacing: 0.4px;
     color: #fff; background: var(--bc, ${BRAND.muted}); border-radius: 10px; padding: 1px 9px; }
+
+  /* in-game bonus art that replaces the placeholder house emoji */
+  .doc-house { height: 1.5em; width: auto; vertical-align: -0.42em; margin-right: 4px; }
 `;
 
 function buildHTML(title, subtitle, meta, bodyHTML) {
@@ -173,7 +206,7 @@ async function main() {
     const stem = file.replace(/\.docx$/i, '');
     const title = prettyTitle(stem);
     const { value: rawHtml, messages } = await mammoth.convertToHtml({ path: path.join(DOCS, file) });
-    const bodyHtml = badgeify(stripLeadingTitleBlocks(rawHtml));
+    const bodyHtml = swapHouseIcons(badgeify(stripLeadingTitleBlocks(rawHtml)));
     const meta = [
       ['Document', title],
       ['Project', 'Big Bad Wolf Saloon'],
@@ -187,7 +220,11 @@ async function main() {
     await page.setContent(html, { waitUntil: 'networkidle0', timeout: 60000 });
     if (process.env.SHOT) {
       await page.screenshot({ path: '/tmp/' + stem + '_cover.png' });
-      await page.evaluate(() => window.scrollTo(0, 1140));
+      // scroll to the house art (if present) so the swap can be verified
+      await page.evaluate(() => {
+        const h = document.querySelector('.doc-house');
+        if (h) h.scrollIntoView({ block: 'center' }); else window.scrollTo(0, 1140);
+      });
       await page.screenshot({ path: '/tmp/' + stem + '_content.png' });
       await page.evaluate(() => window.scrollTo(0, 0));
     }
