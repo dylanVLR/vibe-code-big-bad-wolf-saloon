@@ -1487,70 +1487,19 @@
 
 
 <!-- PAYTABLE MODAL -->
-<div id="paytable-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="paytable-title">
-  <div class="modal-box">
+<!-- HELP / RULES / PAYTABLE — pages are built from the par sheet by src/panels/help.js -->
+<div id="help-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="help-title">
+  <div class="modal-box help-box">
     <div class="modal-header">
-      <h2 id="paytable-title">PAYTABLE — 243 WAYS TO WIN</h2>
-      <button id="btn-close-paytable" class="modal-close" aria-label="Close paytable">&times;</button>
+      <h2 id="help-title">📖 HOW TO PLAY</h2>
+      <button id="btn-close-help" class="modal-close" aria-label="Close help">&times;</button>
     </div>
-    <p class="modal-intro">Wins pay left-to-right on adjacent reels starting from the leftmost. Pays multiply your total bet.</p>
-    <div class="pt-grid">
-      <div class="pt-item">
-        <img src="assets/hat_yellow.webp" alt="Yellow Hat" class="pt-img">
-        <div class="pt-name">Yellow Hat</div>
-        <div class="pt-pays">5★ × 10.0 &nbsp;|&nbsp; 4★ × 3.5 &nbsp;|&nbsp; 3★ × 1.5</div>
-      </div>
-      <div class="pt-item">
-        <img src="assets/hat_white.webp" alt="White Hat" class="pt-img">
-        <div class="pt-name">White Hat</div>
-        <div class="pt-pays">5&#9733; &times; 6.0 &nbsp;|&nbsp; 4&#9733; &times; 2.0 &nbsp;|&nbsp; 3&#9733; &times; 0.8</div>
-      </div>
-      <div class="pt-item">
-        <img src="assets/hat_red.webp" alt="Red Hat" class="pt-img">
-        <div class="pt-name">Red Hat</div>
-        <div class="pt-pays">5&#9733; &times; 4.0 &nbsp;|&nbsp; 4&#9733; &times; 1.5 &nbsp;|&nbsp; 3&#9733; &times; 0.6</div>
-      </div>
-      <div class="pt-item">
-        <img src="assets/horseshoe.webp" alt="Straw Pig" class="pt-img">
-        <div class="pt-name">Straw Pig</div>
-        <div class="pt-pays">5&#9733; &times; 8.0 &nbsp;|&nbsp; 4&#9733; &times; 3.0 &nbsp;|&nbsp; 3&#9733; &times; 1.2</div>
-      </div>
-      <div class="pt-item">
-        <img src="assets/horseshoe.webp" alt="Horseshoe" class="pt-img">
-        <div class="pt-name">Horseshoe</div>
-        <div class="pt-pays">5&#9733; &times; 7.0 &nbsp;|&nbsp; 4&#9733; &times; 2.5 &nbsp;|&nbsp; 3&#9733; &times; 1.0</div>
-      </div>
-      <div class="pt-item">
-        <img src="assets/tornado.webp" alt="Tornado" class="pt-img">
-        <div class="pt-name">Tornado</div>
-        <div class="pt-pays">5&#9733; &times; 5.0 &nbsp;|&nbsp; 4&#9733; &times; 2.0 &nbsp;|&nbsp; 3&#9733; &times; 0.8</div>
-      </div>
-      <div class="pt-item">
-        <img src="assets/shotglass.webp" alt="Wood Pig" class="pt-img">
-        <div class="pt-name">Wood Pig</div>
-        <div class="pt-pays">5&#9733; &times; 5.0 &nbsp;|&nbsp; 4&#9733; &times; 2.0 &nbsp;|&nbsp; 3&#9733; &times; 0.8</div>
-      </div>
-      <div class="pt-item">
-        <img src="assets/wolf.webp" alt="Wolf" class="pt-img">
-        <div class="pt-name">Wolf</div>
-        <div class="pt-pays">5&#9733; &times; 3.0 &nbsp;|&nbsp; 4&#9733; &times; 1.2 &nbsp;|&nbsp; 3&#9733; &times; 0.5</div>
-      </div>
-      <div class="pt-item">
-        <img src="assets/buzzard.webp" alt="Buzzard" class="pt-img">
-        <div class="pt-name">Buzzard</div>
-        <div class="pt-pays">5&#9733; &times; 2.0 &nbsp;|&nbsp; 4&#9733; &times; 0.8 &nbsp;|&nbsp; 3&#9733; &times; 0.3</div>
-      </div>
-      <div class="pt-item pt-royals">
-        <div class="royals-row">
-          <svg viewBox="0 0 200 200"><use href="#sym-royal-a"/></svg>
-          <svg viewBox="0 0 200 200"><use href="#sym-royal-k"/></svg>
-          <svg viewBox="0 0 200 200"><use href="#sym-royal-q"/></svg>
-          <svg viewBox="0 0 200 200"><use href="#sym-royal-j"/></svg>
-          <svg viewBox="0 0 200 200"><use href="#sym-royal-10"/></svg>
-        </div>
-        <div class="pt-name">Royal Cards (A K Q J 10)</div>
-        <div class="pt-pays">5★ × 1.5 &nbsp;|&nbsp; 4★ × 0.6 &nbsp;|&nbsp; 3★ × 0.3</div>
-      </div>
+    <div class="help-toc" id="help-toc" role="tablist" aria-label="Help sections"></div>
+    <div class="help-content" id="help-content"></div>
+    <div class="help-nav">
+      <button id="help-prev" class="help-navbtn" aria-label="Previous page">&#8249; Back</button>
+      <span id="help-pageind" class="help-pageind" aria-live="polite"></span>
+      <button id="help-next" class="help-navbtn" aria-label="Next page">Next &#8250;</button>
     </div>
   </div>
 </div>
@@ -1773,9 +1722,9 @@
     <button id="btn-buy-bonus" class="drawer-btn drawer-buy" title="Buy the bonus and skip to free spins">💰 BUY BONUS</button>
 
     <!-- Paytable -->
-    <button id="btn-info" class="drawer-btn" title="Paytable" aria-label="Open Paytable">
+    <button id="btn-info" class="drawer-btn" title="Help, Rules &amp; Paytable" aria-label="Open Help, Rules and Paytable">
       <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M11 7h2v2h-2zm0 4h2v6h-2zm1-9C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
-      <span>PAYTABLE</span>
+      <span>HELP &amp; RULES</span>
     </button>
 
     <!-- ══ DEV MODE — dev/admin tools, only shown with ?dev=1 ══ -->

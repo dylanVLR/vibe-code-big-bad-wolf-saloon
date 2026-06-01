@@ -44,6 +44,7 @@ import './game/bonus.js';
 import './game/buy-bonus.js';
 import './panels/simulator.js';
 import './panels/math-breakdown.js';
+import './panels/help.js';        // 📖 HELP / RULES / PAYTABLE (built from the par sheet)
 import { initFitScreen } from './system/fit-screen.js';   // scale-to-fit for mobile / iPhone landscape
 import { initLazyAssets } from './system/lazy-assets.js';  // defer heavy/rare assets for instant first play
 import { initBackgroundLoop } from './system/background-loop.js';  // keep the bg video looping (iOS-safe)
@@ -120,31 +121,8 @@ function wireMusicAutostart() {
   document.addEventListener('keydown', tryStart);
 }
 
-/* ══════════════════════════════════════════
-   PAYTABLE MODAL (pays auto-filled from the par sheet)
-══════════════════════════════════════════ */
-function wirePaytable() {
-  const btnInfo = document.getElementById('btn-info');
-  const modal   = document.getElementById('paytable-modal');
-  const btnClose = document.getElementById('btn-close-paytable');
-  if (btnInfo) btnInfo.addEventListener('click', () => modal.classList.remove('hidden'));
-  if (btnClose) btnClose.addEventListener('click', () => { modal.classList.add('hidden'); narrator.onMenuReturn(); });
-  if (modal) modal.addEventListener('click', e => { if (e.target === modal) { modal.classList.add('hidden'); narrator.onMenuReturn(); } });
-
-  // keep displayed pays in sync with SYMBOLS
-  const order = ['hat-yellow', 'hat-green', 'hat-red', 'pig-suit', 'pig-contractor', 'pig-nature', 'toolbox', 'wolf', 'buzzard'];
-  const items = document.querySelectorAll('#paytable-modal .pt-item:not(.pt-royals)');
-  order.forEach((id, i) => {
-    const el = items[i] && items[i].querySelector('.pt-pays');
-    const p = SYMBOLS[id] && SYMBOLS[id].pays;
-    if (el && p) el.innerHTML = `5&#9733; &times; ${p[5]} &nbsp;|&nbsp; 4&#9733; &times; ${p[4]} &nbsp;|&nbsp; 3&#9733; &times; ${p[3]}`;
-  });
-  const royalEl = document.querySelector('#paytable-modal .pt-royals .pt-pays');
-  if (royalEl) {
-    const hi = SYMBOLS['royal-a'].pays, lo = SYMBOLS['royal-10'].pays;
-    royalEl.innerHTML = `5&#9733; &times; ${lo[5]}–${hi[5]} &nbsp;|&nbsp; 4&#9733; &times; ${lo[4]}–${hi[4]} &nbsp;|&nbsp; 3&#9733; &times; ${lo[3]}–${hi[3]}`;
-  }
-}
+/* The HELP / RULES / PAYTABLE screen lives in src/panels/help.js (built from the
+   par sheet, opened by the 📖 HELP button). It wires itself on import. */
 
 /* ══════════════════════════════════════════
    INIT
@@ -157,7 +135,6 @@ function init() {
   setStatus('GOOD LUCK – PRESS SPIN!');
 
   wireSoundControls();
-  wirePaytable();
   wireMusicAutostart();
 
   // close the big-win overlay on click

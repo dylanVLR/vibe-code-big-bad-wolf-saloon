@@ -3884,6 +3884,113 @@ body.fit-mode #game-root {
   .bet-adj-btn::after { content: ''; position: absolute; inset: -9px; }
 }
 
+/* ══════════════════════════════════════════
+   HELP / RULES / PAYTABLE screen
+══════════════════════════════════════════ */
+.help-box {
+  max-width: 840px;
+  max-height: 94vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;            /* the content area scrolls, not the box */
+}
+.help-toc {
+  flex: 0 0 auto;
+  display: flex; gap: 6px; flex-wrap: nowrap;
+  overflow-x: auto; -webkit-overflow-scrolling: touch;
+  padding: 9px 14px;
+  background: rgba(0, 0, 0, 0.25);
+  border-bottom: 1px solid rgba(245, 196, 0, 0.22);
+}
+.help-chip {
+  flex: 0 0 auto;
+  padding: 6px 12px; border-radius: 14px;
+  border: 1.5px solid rgba(160, 180, 170, 0.3);
+  background: transparent; color: #BFD8C6;
+  font-family: var(--font-main); font-size: .74rem; font-weight: 800; letter-spacing: .3px;
+  white-space: nowrap; cursor: pointer; transition: all .12s ease;
+}
+.help-chip:hover { border-color: #CFE8D6; color: #fff; }
+.help-chip.active { background: linear-gradient(180deg, #FFD86A, #E0A000); border-color: #F5C400; color: #1A1004; }
+
+.help-content {
+  flex: 1 1 auto; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  padding: 18px 26px 22px;
+  color: #E9F2EA;
+  font-family: var(--font-main); font-size: .95rem; line-height: 1.55;
+  text-align: left;
+}
+.help-content h4 {
+  font-family: var(--font-title); font-size: 1.02rem; letter-spacing: .5px;
+  color: #F5C400; margin: 16px 0 8px; text-shadow: 0 0 8px rgba(245, 196, 0, .25);
+}
+.help-content p { margin: 0 0 12px; }
+.help-content ul { margin: 0 0 12px; padding-left: 22px; }
+.help-content li { margin: 0 0 7px; }
+.help-content b { color: #FFE49A; }
+.help-content em { color: #CFE8D6; font-style: italic; }
+.help-note {
+  font-size: .82rem; color: #AFC6B6;
+  background: rgba(46, 232, 90, 0.06); border-left: 3px solid rgba(46, 232, 90, 0.45);
+  padding: 8px 12px; border-radius: 0 8px 8px 0; margin: 14px 0 4px;
+}
+.help-tag {
+  display: inline-block; font-size: .62rem; font-weight: 800; letter-spacing: .5px;
+  color: #1A1004; background: #F5C400; border-radius: 6px; padding: 1px 6px; vertical-align: 2px;
+}
+.help-bets { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 12px; }
+.help-bets span {
+  font-family: var(--font-title); font-size: .95rem; color: #fff;
+  background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(245, 196, 0, 0.3);
+  border-radius: 8px; padding: 5px 12px;
+}
+.help-feature { display: flex; gap: 18px; align-items: flex-start; }
+.help-hats { display: flex; gap: 16px; margin: 6px 0 14px; }
+.help-sym { width: 44px; height: 44px; object-fit: contain; flex: 0 0 auto; }
+.help-sym-lg { width: 96px; height: 96px; object-fit: contain; flex: 0 0 auto; }
+
+.help-paytable {
+  width: 100%; border-collapse: collapse; margin: 6px 0 12px;
+  font-family: var(--font-main);
+}
+.help-paytable th {
+  text-align: center; font-size: .72rem; letter-spacing: 1px; text-transform: uppercase;
+  color: #F5C400; padding: 8px 6px; border-bottom: 2px solid rgba(245, 196, 0, 0.35);
+}
+.help-paytable th:nth-child(2) { text-align: left; }
+.help-paytable td {
+  padding: 7px 6px; text-align: center; font-size: .9rem; color: #fff;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.help-paytable tbody tr:nth-child(even) { background: rgba(255, 255, 255, 0.03); }
+.help-ptsym { width: 52px; }
+.help-ptsym .help-sym { width: 38px; height: 38px; }
+.help-ptname { text-align: left; font-weight: 700; color: #E9F2EA; }
+.help-bonustable td:first-child { text-align: left; font-weight: 700; }
+.help-bonustable td:last-child { text-align: left; color: #FFE49A; }
+
+.help-nav {
+  flex: 0 0 auto;
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 16px;
+  background: rgba(0, 0, 0, 0.25);
+  border-top: 1px solid rgba(245, 196, 0, 0.22);
+}
+.help-navbtn {
+  min-width: 96px; height: 40px; padding: 0 18px; border-radius: 20px;
+  border: 2px solid #F5C400; background: linear-gradient(180deg, #FFD86A, #E0A000); color: #1A1004;
+  font-family: var(--font-main); font-size: .8rem; font-weight: 800; letter-spacing: .5px; cursor: pointer;
+  transition: all .12s ease;
+}
+.help-navbtn:hover:not(:disabled) { box-shadow: 0 0 16px rgba(245, 196, 0, .5); transform: translateY(-1px); }
+.help-navbtn:disabled { opacity: .35; cursor: default; filter: grayscale(.4); }
+.help-pageind { font-family: var(--font-title); font-size: .9rem; color: #CFE8D6; letter-spacing: 1px; }
+
+@media (max-width: 600px) {
+  .help-content { padding: 14px 16px 18px; font-size: .9rem; }
+  .help-sym-lg { width: 72px; height: 72px; }
+}
+
 /* ── "Add to Home Screen" one-time hint (iOS Safari only) ── */
 #a2hs-hint {
   position: fixed;
