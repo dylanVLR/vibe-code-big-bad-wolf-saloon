@@ -41,7 +41,7 @@ const PRIORITY = {
   mediumWin: 55, twoWinStreak: 52, symShotGlassMulti: 52, symHorseshoeMulti: 52,
   symShotGlass: 48, symHorseshoe: 48, symHats: 46, frameUpgrade: 46, menuReturn: 42,
   bonusSpin: 40, freeSpin: 40, lowBalance: 40, streakEnded: 40, betUp: 36, betDown: 36,
-  saloonHeader: 58, vlrMedallion: 58,
+  saloonHeader: 58, vlrMedallion: 58, sheriffBadge: 58,
   spin: 35, lossStreak: 34, coldStreak: 34, smallWin: 32, loss: 30, postWin: 28,
   idle: 18, idleAfterWin: 20, idleAfterLoss: 20, ambient: 14,
 };
@@ -289,6 +289,12 @@ class Narrator {
     const opts = { bypassGlobal: true, interrupt: true, cooldownMs: 700 };
     if (!this._vlrClicked) { this._vlrClicked = true; opts.forceIndex = 0; }
     this._trigger('vlrMedallion', opts);
+  }
+  /** Player clicked the sheriff's star badge → he lays down the law. */
+  onSheriffClick() {
+    const opts = { bypassGlobal: true, interrupt: true, cooldownMs: 700 };
+    if (!this._sheriffClicked) { this._sheriffClicked = true; opts.forceIndex = 0; }
+    this._trigger('sheriffBadge', opts);
   }
 
   /* ════════ idle (contextual) ════════ */

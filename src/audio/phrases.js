@@ -603,4 +603,11 @@ export const PHRASES = {
     "That's the Vegas Low Roller seal. Tell him the wolf says howdy.",
     "Vegas Low Roller — a low roller with a big heart. Good company to keep.",
   ],
+  // Click the sheriff's star badge → the wolf claims the law.
+  sheriffBadge: [
+    "Careful, partner. That's the Sheriff's badge, and there is only one Sheriff in this town. That's me, Big Bad Wolf.",
+    "That star's the Sheriff's badge. Round here, the law's got fur and a temper.",
+    "Sheriff's badge, partner. I pinned it on myself. Nobody argued twice.",
+    "Easy with that badge. The last fella who wore it... well, the pigs don't ask about him.",
+  ],
 };

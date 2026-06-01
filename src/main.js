@@ -176,6 +176,12 @@ function init() {
     vlr.classList.add('clickable-sign');
     vlr.addEventListener('click', () => narrator.onVlrClick());
   }
+  // click the sheriff's star badge → the wolf claims the law
+  const badge = document.querySelector('.logo-badge img');
+  if (badge) {
+    badge.classList.add('clickable-sign');
+    badge.addEventListener('click', () => narrator.onSheriffClick());
+  }
 
   startAmbientParticles();
   initFitScreen();            // fit the cabinet to short / mobile (iPhone landscape) viewports
