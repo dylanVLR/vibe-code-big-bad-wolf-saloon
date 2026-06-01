@@ -128,8 +128,8 @@ function wirePaytable() {
   const modal   = document.getElementById('paytable-modal');
   const btnClose = document.getElementById('btn-close-paytable');
   if (btnInfo) btnInfo.addEventListener('click', () => modal.classList.remove('hidden'));
-  if (btnClose) btnClose.addEventListener('click', () => modal.classList.add('hidden'));
-  if (modal) modal.addEventListener('click', e => { if (e.target === modal) modal.classList.add('hidden'); });
+  if (btnClose) btnClose.addEventListener('click', () => { modal.classList.add('hidden'); narrator.onMenuReturn(); });
+  if (modal) modal.addEventListener('click', e => { if (e.target === modal) { modal.classList.add('hidden'); narrator.onMenuReturn(); } });
 
   // keep displayed pays in sync with SYMBOLS
   const order = ['hat-yellow', 'hat-green', 'hat-red', 'pig-suit', 'pig-contractor', 'pig-nature', 'toolbox', 'wolf', 'buzzard'];

@@ -167,6 +167,7 @@ export async function startBonus(bet, triggerGrid) {
 
   synth.bonusSiren();
   showBonusOverlay('BONUS REEL FEATURE!', 'FREE SPINS STARTING');
+  narrator.onBonusEnter();   // "Bonus round, partner…" once the title is up
   if (bonusHud) bonusHud.classList.remove('hidden');
   shake(600);
   await sleep(2800);

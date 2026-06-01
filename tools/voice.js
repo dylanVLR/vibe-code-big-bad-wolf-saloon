@@ -12,11 +12,18 @@
  * full `all` run so there are never orphaned clips from an old script.
  */
 import { PHRASES } from '../src/audio/phrases.js';
-import { readFileSync, writeFileSync, mkdirSync, rmSync, existsSync } from 'fs';
+import { readFileSync, writeFileSync, mkdirSync, rmSync, existsSync, readdirSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { createHash } from 'crypto';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+
+/* The chosen Big Bad Wolf voice — "Callum-husky" (husky trickster). Determined
+   by acoustically matching ElevenLabs candidates to the existing narrator clips
+   (F0 ~111 Hz / centroid ~2126 Hz, closest to the shipped voice). Recorded here
+   so the wolf always sounds the same; `sync`/`all` default to it. */
+const WOLF_VOICE_ID = 'N2lVS1w4EtoT3dr4eOWO';
 
 /* ── load the API key from .env (no dotenv dependency) ── */
 function loadKey() {
@@ -140,14 +147,69 @@ async function genOne(voiceId, cat, idx) {
   console.log(`✓ ${cat}_${idx}.mp3  "${text}"`);
 }
 
+/* ── INCREMENTAL sync: generate ONLY new or changed clips ──
+   Keeps a tiny text-hash cache (../.vo-cache.json, not deployed) so unchanged
+   lines are never re-billed. Safe to re-run any time after editing phrases.js.
+   Also prunes orphaned .mp3s whose line no longer exists. */
+const sha = s => createHash('sha1').update(s).digest('hex').slice(0, 12);
+
+async function genSync(voiceId = WOLF_VOICE_ID) {
+  const dir = join(ROOT, 'assets/audio/narrator');
+  mkdirSync(dir, { recursive: true });
+  const cachePath = join(ROOT, '.vo-cache.json');
+  let cache = {};
+  try { cache = JSON.parse(readFileSync(cachePath, 'utf8')); } catch (e) {}
+
+  const valid = new Set();
+  const tasks = [];
+  for (const [cat, lines] of Object.entries(PHRASES))
+    lines.forEach((text, i) => {
+      const file = `${cat}_${i}.mp3`;
+      valid.add(file);
+      const h = sha(text);
+      const onDisk = existsSync(join(dir, file));
+      if (!onDisk) { tasks.push({ file, text, h }); }                 // missing → generate
+      else if (cache[file] !== undefined && cache[file] !== h) {       // present + cache says text changed → regen
+        tasks.push({ file, text, h });
+      } else { cache[file] = h; }                                      // present (seed cache, don't re-bill)
+    });
+
+  // prune orphaned clips (renamed/removed lines)
+  const orphans = readdirSync(dir).filter(f => f.endsWith('.mp3') && !valid.has(f));
+  orphans.forEach(f => { rmSync(join(dir, f), { force: true }); delete cache[f]; });
+  if (orphans.length) console.log(`Pruned ${orphans.length} orphaned clip(s).`);
+
+  if (!tasks.length) { console.log('✓ Up to date — nothing new to generate.'); writeFileSync(cachePath, JSON.stringify(cache)); return; }
+
+  console.log(`Voice ${voiceId} · model ${MODEL_ID}`);
+  console.log(`Generating ${tasks.length} new/changed clip(s) → assets/audio/narrator/ (incremental)\n`);
+  const t0 = Date.now();
+  const failures = [];
+  const jobs = tasks.map(t => async () => {
+    try { writeFileSync(join(dir, t.file), await tts(t.text, voiceId)); cache[t.file] = t.h; }
+    catch (e) { failures.push({ file: t.file, err: e.message }); }
+  });
+  await pool(jobs, 4, (done, total) => {
+    if (done % 5 === 0 || done === total)
+      process.stdout.write(`\r  ${done}/${total} clips (${Math.round((Date.now() - t0) / 1000)}s)   `);
+  });
+  writeFileSync(cachePath, JSON.stringify(cache));
+  console.log('\n');
+  if (failures.length) { console.log(`⚠️  ${failures.length} failed:`); failures.forEach(f => console.log(`   ${f.file}: ${f.err}`)); process.exit(1); }
+  console.log(`✓ Done — ${tasks.length} clip(s) in ${Math.round((Date.now() - t0) / 1000)}s`);
+}
+
 /* ── dispatch ── */
 const [mode, a, b, c] = process.argv.slice(2);
 if (mode === 'samples') await genSamples();
-else if (mode === 'all') await genAll(a);
-else if (mode === 'one') await genOne(a, b, parseInt(c, 10));
+else if (mode === 'sync') await genSync(a || WOLF_VOICE_ID);
+else if (mode === 'all') await genAll(a || WOLF_VOICE_ID);
+else if (mode === 'one') await genOne(a || WOLF_VOICE_ID, b, parseInt(c, 10));
 else {
   console.log('Usage:');
-  console.log('  node tools/voice.js samples');
-  console.log('  node tools/voice.js all <voiceId>');
-  console.log('  node tools/voice.js one <voiceId> <category> <index>');
+  console.log('  node tools/voice.js samples                 # audition candidate voices');
+  console.log('  node tools/voice.js sync                    # generate ONLY new/changed clips (recommended)');
+  console.log('  node tools/voice.js all [voiceId]           # wipe + regenerate everything');
+  console.log('  node tools/voice.js one [voiceId] <cat> <i> # regenerate a single clip');
+  console.log(`  (default voice: ${WOLF_VOICE_ID} — Callum-husky)`);
 }

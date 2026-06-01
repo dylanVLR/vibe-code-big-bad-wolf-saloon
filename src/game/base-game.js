@@ -113,6 +113,7 @@ async function finalizeSpin(targetGrid, bet) {
   if (wildReels.length > 0) {
     synth.wolfHowl();
     setStatus(wildReels.length > 1 ? 'WOLF WILDS!' : 'WOLF WILD!', 'win');
+    narrator.onExpandingWilds(wildReels.length);
     wildReels.forEach(r => expandWildReel(r, shownGrid[r]));
     await sleep(750);
   }
@@ -181,6 +182,7 @@ async function finalizeSpin(targetGrid, bet) {
     }
   } else {
     setStatus('GOOD LUCK – PRESS SPIN!');
+    narrator.onReelsSettled();   // symbol-aware flavor (shot glass / horseshoe / hats) on a no-win spin
     narrator.onLoss();
   }
 

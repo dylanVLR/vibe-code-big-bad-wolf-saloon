@@ -78,7 +78,7 @@ export function animateReel(reelIndex, targetSymIds, onDone, anticipate = false,
   if (anticipate && reelIndex >= 3) {        // suspense slow-down on later reels
     duration += ANTICIPATION_EXTRA;
     col.classList.add('is-anticipating');
-    if (reelIndex === 3) synth.anticipation();
+    if (reelIndex === 3) { synth.anticipation(); narrator.onAnticipation(); }
   }
   
   if (isExtreme) {

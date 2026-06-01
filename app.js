@@ -19,19 +19,49 @@
   __mods["narrator"] = function (exports, require) {
 /**
  * @module narrator
- * @description The BIG BAD WOLF's play-by-play voice — a gruff cowboy wolf who
- * narrates every spin. Plays pre-rendered MP3s from assets/audio/narrator/ named
- * `<category>_<index>.mp3`. The script (what each clip says) lives in phrases.js
- * so the generator tool and the game share one source; here we only need the
- * category names and how many clips each has, to pick a valid random index.
- * Exports a single shared `narrator` instance.
+ * @description The BIG BAD WOLF's voice — now a CONTEXT-AWARE manager. He still
+ * plays pre-rendered MP3s from assets/audio/narrator/ (one per line in
+ * phrases.js, named `<category>_<index>.mp3`), but WHICH line he picks and WHEN
+ * is driven by real game state: the visible symbols, win tier, win/loss streaks,
+ * bonus vs base mode, reel expansions, anticipation, and how long the player has
+ * sat idle. He never overlaps himself, respects per-category cooldowns and
+ * spin-gaps so he isn't annoying, lets important moments interrupt idle chatter,
+ * and keeps a little "memory" so idle lines reference what just happened.
  *
- * Game code calls the on*() event hooks (onSpin, onWin, onBonusTrigger, …); the
- * narrator decides whether/what to say, respecting a cooldown so it doesn't talk
- * over itself, and fills silence with idle chatter.
+ * Responsible play: lines never promise a win, never say "you're due", never
+ * pressure. Cold-streak lines are gentle and rare (see phrases.js).
+ *
+ * Existing public hooks are unchanged for current call sites; NEW ones
+ * (onExpandingWilds, onReelsSettled, onBonusEnter, onAnticipation, onMenuReturn)
+ * are additive. Toggle verbose logging with  window.WOLF_VO_DEBUG = true.
  */
 
 const { PHRASES } = require("phrases");
+const { state } = require("state");
+
+// What the player VISUALLY sees ↔ internal symbol ids (see par-sheet.js).
+const SYM = {
+  shotGlass: ['toolbox'],
+  horseshoe: ['pig-suit', 'pig-contractor'],
+  wild:      ['wild'],
+  hats:      ['hat-yellow', 'hat-green', 'hat-red'],
+};
+
+// Priority floor per category — higher beats lower; a high one can cut off idle.
+const PRIORITY = {
+  mansionJackpot: 100, noFunds: 100,
+  bonusTrigger: 95, bonusEnter: 90, retrigger: 88, miniJackpot: 88,
+  brickAchieved: 86, wolfReveal: 84, bonusBigWin: 84, bigWin: 82,
+  expandingReels: 80, extremeAnticipation: 78, nearMiss: 70, anticipation: 70,
+  wolfBrick: 76, wolfStick: 74, wolfStraw: 72,
+  bonusComplete: 62, bonusEnd: 62, winStreak: 64, threeWinStreak: 66, hotStreak: 66,
+  bonusWin: 60, firstSpin: 60,
+  mediumWin: 55, twoWinStreak: 52, symShotGlassMulti: 52, symHorseshoeMulti: 52,
+  symShotGlass: 48, symHorseshoe: 48, symHats: 46, frameUpgrade: 46, menuReturn: 42,
+  bonusSpin: 40, freeSpin: 40, lowBalance: 40, streakEnded: 40, betUp: 36, betDown: 36,
+  spin: 35, lossStreak: 34, coldStreak: 34, smallWin: 32, loss: 30, postWin: 28,
+  idle: 18, idleAfterWin: 20, idleAfterLoss: 20, ambient: 14,
+};
 
 class Narrator {
   constructor() {
@@ -39,182 +69,264 @@ class Narrator {
     this.audio.addEventListener('ended', () => this._onClipDone());
     this.audio.addEventListener('error', () => this._onClipDone());
 
-    // ── Sequential voice queue ──
-    // Clips NEVER overlap: each one plays fully, then a pause, then the next.
-    // The pause is randomized 1–5 s (a fresh value chosen after every clip) so
-    // the wolf takes a beat to breathe and have a new thought. We keep at most
-    // one clip waiting (the most recent request) so he doesn't fall too far back.
-    this._queue = [];
+    // ── Sequential voice queue (never overlaps) ──
+    this._queue = [];          // [{ file, priority, category }]
     this._playing = false;
-    this._gapMinMs = 1000;    // shortest pause between clips (1 s)
-    this._gapMaxMs = 5000;    // longest pause between clips (5 s)
-    this._maxQueue = 1;       // pending clips kept while one plays
+    this._playingPriority = 0;
+    this._gapMinMs = 1000;
+    this._gapMaxMs = 5000;
+    this._maxQueue = 1;
     this._gapTimer = null;
 
     this.enabled = true;
     this._volume = 0.8;
     this._lastSpoke = 0;
-    this._cooldownMs = 1500;    // short cooldown — talks constantly
+    this._cooldownMs = 1500;   // global floor between any two lines
     this._speaking = false;
-    this._spinCount = 0;
-    this._lossStreak = 0;
-    this._winStreak = 0;
+
+    // counters / memory
     this._totalSpins = 0;
-    this._sessionWins = 0;
-    this._lastEvent = '';
-    this._lastPhraseIndex = -1;
-    this._excitement = 0;      // 0-10 excitement meter
+    this._winStreak = 0;
+    this._lossStreak = 0;
+    this._inBonus = false;
+    this._lastOutcome = 'none';   // 'win' | 'loss' | 'none'
 
-    // Phrase banks — one array per game event, loaded from the shared script in
-    // phrases.js. Each line maps to <category>_<index>.mp3 on disk.
+    this._catLastSpin = {};       // category → _totalSpins when last used (spin-gap caps)
+    this._catLastMs = {};         // category → timestamp (ms cooldowns)
+    this._recent = {};            // category → recent indices (avoid repeats)
+
     this.phrases = PHRASES;
-
     this._idleTimer = null;
+    this._idleCount = 0;
+    this.ENABLE_ROASTS = false;   // L&W parody pool — off by default
+
     this._resetIdleTimer();
   }
 
   setVolume(v) { this._volume = Math.max(0, Math.min(1, v)); this.audio.volume = this._volume; }
+  _log(...a) { if (typeof window !== 'undefined' && window.WOLF_VO_DEBUG) console.log('%c[WolfVO]', 'color:#F5C400', ...a); }
 
-  /** Queue a clip. Never interrupts what's playing; the most recent request wins. */
-  _enqueue(filename) {
-    if (!this.enabled || this._volume === 0) return;
-    while (this._queue.length >= this._maxQueue) this._queue.shift();  // keep only the newest pending
-    this._queue.push(filename);
-    if (!this._playing && !this._gapTimer) this._drain();
+  /* ════════ context helpers ════════ */
+  _grid() { return Array.isArray(state.currentGrid) ? state.currentGrid : null; }
+  _countVisible(ids) {
+    const g = this._grid(); if (!g) return 0;
+    let n = 0;
+    for (const col of g) for (const s of col) if (ids.includes(s)) n++;
+    return n;
+  }
+  winTier(amount, bet) {
+    const r = bet > 0 ? amount / bet : 0;
+    if (r >= 50) return 'huge';
+    if (r >= 15) return 'mega';
+    if (r >= 8)  return 'big';
+    if (r >= 2)  return 'medium';
+    if (r > 0)   return 'small';
+    return 'none';
   }
 
-  /** Start the next queued clip (if any) — only when nothing is playing. */
+  /* ════════ selection ════════ */
+  _pick(category) {
+    const pool = this.phrases[category];
+    if (!pool || !pool.length) return -1;
+    if (pool.length === 1) return 0;
+    const recent = this._recent[category] || [];
+    let idx, tries = 0;
+    do { idx = Math.floor(Math.random() * pool.length); tries++; }
+    while (recent.includes(idx) && tries < 8);
+    this._recent[category] = [idx, ...recent].slice(0, Math.min(3, pool.length - 1));
+    return idx;
+  }
+
+  /**
+   * Central trigger. Decides whether the wolf says a line from `category`.
+   *  opts: { priority, cooldownMs, minSpinGap, chance, interrupt, bypassGlobal }
+   */
+  _trigger(category, opts = {}) {
+    if (!this.enabled || this._volume === 0) return false;
+    const pool = this.phrases[category];
+    if (!pool || !pool.length) return false;
+    if (category === 'roasts' && !this.ENABLE_ROASTS) return false;
+
+    const priority = opts.priority ?? PRIORITY[category] ?? 20;
+    const now = Date.now();
+
+    if (opts.chance != null && Math.random() > opts.chance) { this._log('skip(chance)', category); return false; }
+    if (!opts.bypassGlobal && priority < 60 && now - this._lastSpoke < (opts.cooldownMs ?? this._cooldownMs)) {
+      this._log('skip(global-cd)', category); return false;
+    }
+    if (opts.cooldownMs && now - (this._catLastMs[category] || 0) < opts.cooldownMs) { this._log('skip(cat-cd)', category); return false; }
+    if (opts.minSpinGap && this._totalSpins - (this._catLastSpin[category] ?? -999) < opts.minSpinGap) { this._log('skip(spin-gap)', category); return false; }
+
+    const idx = this._pick(category);
+    if (idx < 0) return false;
+
+    this._catLastMs[category] = now;
+    this._catLastSpin[category] = this._totalSpins;
+    this._lastSpoke = now;
+    this._enqueue(`${category}_${idx}.mp3`, priority, category, !!opts.interrupt);
+    this._resetIdleTimer();
+    this._log('PLAY', category, idx, 'p' + priority);
+    return true;
+  }
+
+  /* ════════ playback queue ════════ */
+  _enqueue(file, priority, category, interrupt) {
+    // a higher-priority line can cut off low-priority idle/ambient chatter
+    if (this._playing && interrupt && priority >= this._playingPriority + 12 && this._playingPriority <= 24) {
+      try { this.audio.pause(); } catch (e) {}
+      this._playing = false; this._speaking = false;
+    }
+    if (this._playing) {
+      if (this._queue.length && priority < this._queue[this._queue.length - 1].priority) return;  // keep the better pending one
+      while (this._queue.length >= this._maxQueue) this._queue.shift();
+      this._queue.push({ file, priority, category });
+      return;
+    }
+    this._queue.push({ file, priority, category });
+    if (!this._gapTimer) this._drain();
+  }
+
   _drain() {
     if (this._playing || this._gapTimer) return;
     const next = this._queue.shift();
     if (!next) return;
-    this._playing = true;
-    this._speaking = true;
+    this._playing = true; this._speaking = true; this._playingPriority = next.priority;
     try {
-      this.audio.src = `assets/audio/narrator/${next}`;
+      this.audio.src = `assets/audio/narrator/${next.file}`;
       this.audio.volume = this._volume;
       const p = this.audio.play();
       if (p && p.catch) p.catch(() => this._onClipDone());
     } catch (e) { this._onClipDone(); }
   }
 
-  /** A clip finished (or errored): pause a random 1–5 s, then play the next one. */
   _onClipDone() {
-    if (!this._playing) return;                  // guard against ended+error double-fire
-    this._playing = false;
-    this._speaking = false;
+    if (!this._playing) return;
+    this._playing = false; this._speaking = false; this._playingPriority = 0;
     if (this._gapTimer) clearTimeout(this._gapTimer);
-    // fresh random gap for THIS transition (1–5 seconds)
     const gap = this._gapMinMs + Math.random() * (this._gapMaxMs - this._gapMinMs);
     this._gapTimer = setTimeout(() => { this._gapTimer = null; this._drain(); }, gap);
   }
 
-  /** Pick and play a random clip from a category, respecting the cooldown. */
-  say(category, forceCooldown = null, excitementBoost = 0) {
-    if (!this.enabled || this._volume === 0) return;
-    const cooldown = forceCooldown ?? this._cooldownMs;
-    if (Date.now() - this._lastSpoke < cooldown) return;
+  /** Legacy simple API kept for any old call sites. */
+  say(category, forceCooldown = null) { return this._trigger(category, { cooldownMs: forceCooldown ?? this._cooldownMs }); }
+  sayNow(category) { return this._trigger(category, { bypassGlobal: true, interrupt: true }); }
 
-    const pool = this.phrases[category];
-    if (!pool || !pool.length) return;
-
-    let index;
-    if (pool.length === 1) {
-      index = 0;
-    } else {
-      do { index = Math.floor(Math.random() * pool.length); }
-      while (index === this._lastPhraseIndex && pool.length > 1 && category === this._lastEvent);
-    }
-    this._lastPhraseIndex = index;
-    this._lastEvent = category;
-    this._lastSpoke = Date.now();
-    this._enqueue(`${category}_${index}.mp3`);
-    this._resetIdleTimer();
-  }
-
-  sayNow(category, excitementBoost = 0) { this.say(category, 0, excitementBoost); }
-
-  _hype(d) { this._excitement = Math.max(0, Math.min(10, this._excitement + d)); }
-  _decayExcitement() { if (this._excitement > 0) this._excitement = Math.max(0, this._excitement - 0.5); }
-
-  /* ── game event hooks ── */
+  /* ════════ game event hooks ════════ */
   onSpin() {
     this._totalSpins++;
-    this._spinCount++;
+    this._idleCount = 0;
     this._resetIdleTimer();
-    this._decayExcitement();
-    if (this._totalSpins === 1) { this._hype(2); this.sayNow('firstSpin', 2); return; }
-    if (Math.random() < 0.75) this.say('spin');
+    this._queue = this._queue.filter(q => q.priority > 24);   // drop stale idle chatter on spin
+    if (this._totalSpins === 1) { this._trigger('firstSpin', { bypassGlobal: true }); return; }
+    if (Date.now() - this._lastSpoke > 8000) this._trigger('spin', { chance: 0.12, minSpinGap: 6 });
   }
+
+  /** Called after the reels settle (grid visible) BEFORE win resolution. */
+  onReelsSettled() {
+    if (this._inBonus) return;
+    const shot = this._countVisible(SYM.shotGlass);
+    const shoe = this._countVisible(SYM.horseshoe);
+    const hats = this._countVisible(SYM.hats);
+    if (hats >= 3 && hats < 6) { this._trigger('symHats', { minSpinGap: 5, chance: 0.7 }); return; }
+    if (shoe >= 2) { this._trigger('symHorseshoeMulti', { minSpinGap: 4 }); return; }
+    if (shot >= 2) { this._trigger('symShotGlassMulti', { minSpinGap: 4 }); return; }
+    if (shoe === 1) { this._trigger('symHorseshoe', { minSpinGap: 6, chance: 0.45 }); return; }
+    if (shot === 1) { this._trigger('symShotGlass', { minSpinGap: 6, chance: 0.45 }); return; }
+  }
+
+  onExpandingWilds() { this._trigger('expandingReels', { bypassGlobal: true, interrupt: true }); }
+  onAnticipation() { this._trigger('anticipation', { interrupt: true, minSpinGap: 1 }); }
 
   onWin(amount, bet) {
     this._lossStreak = 0;
     this._winStreak++;
-    this._sessionWins++;
-    const ratio = amount / bet;
-    if (ratio >= 8) {
-      this._hype(5);
-      this.sayNow('bigWin', 5);
-      setTimeout(() => { if (this.enabled) this.say('postWin', 2000, 3); }, 3500);
-    } else if (ratio >= 2) {
-      this._hype(3);
-      this.sayNow('mediumWin', 3);
-    } else {
-      this._hype(1);
-      this.say('smallWin', 800, 1);
+    this._lastOutcome = 'win';
+    const tier = this.winTier(amount, bet);
+    const streakCat = this._winStreak >= 4 ? 'hotStreak'
+                    : this._winStreak === 3 ? 'threeWinStreak'
+                    : this._winStreak === 2 ? 'twoWinStreak' : null;
+
+    if (this._inBonus) {
+      const cat = (tier === 'big' || tier === 'mega' || tier === 'huge') ? 'bonusBigWin' : 'bonusWin';
+      this._trigger(cat, { bypassGlobal: true, interrupt: true });
+      return;
     }
-    if (this._winStreak >= 3) {
-      setTimeout(() => { if (this.enabled) this.say('winStreak', 1500, 2); }, 2500);
+    if (tier === 'huge' || tier === 'mega' || tier === 'big') {
+      this._trigger('bigWin', { bypassGlobal: true, interrupt: true });
+      // celebrate a 3+ streak right after the big-win line; otherwise a postWin beat
+      if (this._winStreak >= 3) setTimeout(() => this._trigger(streakCat, { bypassGlobal: true }), 3200);
+      else setTimeout(() => this._trigger('postWin', { cooldownMs: 2000 }), 3500);
+    } else if (streakCat) {
+      // 2nd/3rd/4+ consecutive win → the streak line takes the spotlight
+      // (bypass the global cooldown so it still lands on fast/turbo spins)
+      this._trigger(streakCat, { bypassGlobal: true, interrupt: true });
+    } else if (tier === 'medium') {
+      this._trigger('mediumWin', { minSpinGap: 2 });
+    } else {
+      this._trigger('smallWin', { minSpinGap: 5, chance: 0.55 });
     }
   }
 
   onLoss() {
+    const hadStreak = this._winStreak;
     this._winStreak = 0;
     this._lossStreak++;
-    this._decayExcitement();
-    if (this._lossStreak >= 6) this.say('lossStreak', 1000);
-    else if (this._lossStreak >= 3 && Math.random() < 0.70) this.say('lossStreak');
-    else if (Math.random() < 0.60) this.say('loss');
+    this._lastOutcome = 'loss';
+    if (this._inBonus) return;
+    if (hadStreak >= 3) { this._trigger('streakEnded', { chance: 0.7 }); return; }
+    if (this._lossStreak >= 5) this._trigger('coldStreak', { cooldownMs: 30000, chance: 0.6 });  // gentle, rare
+    else if (Math.random() < 0.4) this._trigger('loss', { minSpinGap: 2, chance: 0.7 });
   }
 
-  onNearMiss() { this._hype(2); this.sayNow('nearMiss', 2); }
-  onBonusTrigger() { this._hype(8); this.sayNow('bonusTrigger', 6); }
-  onFreeSpin() { if (Math.random() < 0.60) this.say('freeSpin', 1000, 1); }
+  onNearMiss() { this._trigger('nearMiss', { bypassGlobal: true, interrupt: true }); }
+  onBonusTrigger() { this._inBonus = true; this._trigger('bonusTrigger', { bypassGlobal: true, interrupt: true }); }
+  onBonusEnter() { this._inBonus = true; setTimeout(() => this._trigger('bonusEnter', { bypassGlobal: true }), 700); }
+  onFreeSpin() { this._trigger('bonusSpin', { chance: 0.3, minSpinGap: 2 }); }
   onFrameUpgrade(tier) {
-    if (tier === 3) { this._hype(5); this.sayNow('brickAchieved', 4); }
-    else { this._hype(1); if (Math.random() < 0.70) this.say('frameUpgrade', 1000, 1); }
+    if (tier === 3) this._trigger('brickAchieved', { bypassGlobal: true });
+    else this._trigger('frameUpgrade', { chance: 0.6, minSpinGap: 1 });
   }
-  onWolfReveal() { this._hype(6); this.sayNow('wolfReveal', 4); }
-  onWolfBlow(tier) {
-    const cats = ['', 'wolfStraw', 'wolfStick', 'wolfBrick'];
-    this._hype(tier * 2);
-    this.say(cats[tier], 800, tier * 2);
-  }
-  onMansionJackpot() { this._excitement = 10; this.sayNow('mansionJackpot', 8); }
-  onMiniJackpot() { this._hype(6); this.sayNow('miniJackpot', 5); }
-  onRetrigger() { this._hype(5); this.sayNow('retrigger', 4); }
-  onBonusComplete(totalWin) { this._hype(4); this.sayNow('bonusComplete', 3); }
-  onBetChange(direction) { this.say(direction === 'up' ? 'betUp' : 'betDown', 500, 1); }
-  onLowBalance() { this.say('lowBalance', 8000); }
-  onInsufficientFunds() { this.sayNow('noFunds', 0); }
+  onWolfReveal() { this._trigger('wolfReveal', { bypassGlobal: true, interrupt: true }); }
+  onWolfBlow(tier) { this._trigger(['', 'wolfStraw', 'wolfStick', 'wolfBrick'][tier], { bypassGlobal: true }); }
+  onMansionJackpot() { this._trigger('mansionJackpot', { bypassGlobal: true, interrupt: true }); }
+  onMiniJackpot() { this._trigger('miniJackpot', { bypassGlobal: true, interrupt: true }); }
+  onRetrigger() { this._trigger('retrigger', { bypassGlobal: true, interrupt: true }); }
+  onBonusComplete() { this._inBonus = false; this._trigger('bonusEnd', { bypassGlobal: true, interrupt: true }); }
+  onBetChange(direction) { this._trigger(direction === 'up' ? 'betUp' : 'betDown', { cooldownMs: 500, chance: 0.5 }); }
+  onLowBalance() { this._trigger('lowBalance', { cooldownMs: 30000 }); }
+  onInsufficientFunds() { this._trigger('noFunds', { bypassGlobal: true }); }
+  onMenuReturn() { this._trigger('menuReturn', { cooldownMs: 25000, chance: 0.6 }); }
 
+  /* ════════ idle (contextual) ════════ */
   _resetIdleTimer() {
     if (this._idleTimer) clearTimeout(this._idleTimer);
-    this._idleTimer = setTimeout(() => {
-      if (this.enabled && this._volume > 0) { this.say('idle', 0); this._resetIdleTimer(); }
-    }, 8000 + Math.random() * 7000); // 8-15 seconds idle
+    const schedule = [12000, 28000, 55000];
+    const wait = this._idleCount < schedule.length ? schedule[this._idleCount] : 75000 + Math.random() * 15000;
+    this._idleTimer = setTimeout(() => this._onIdleTick(), wait);
+  }
+  _onIdleTick() {
+    if (!this.enabled || this._volume === 0 || this._inBonus || state.spinning) { this._resetIdleTimer(); return; }
+    this._idleCount++;
+    let cat;
+    if (this._lastOutcome === 'win') cat = Math.random() < 0.6 ? 'idleAfterWin' : 'ambient';
+    else if (this._lastOutcome === 'loss') cat = Math.random() < 0.5 ? 'idleAfterLoss' : 'ambient';
+    else cat = Math.random() < 0.5 ? 'ambient' : 'idle';
+    this._trigger(cat, { bypassGlobal: true });
+    this._resetIdleTimer();
   }
 
   stop() {
     if (this._gapTimer) { clearTimeout(this._gapTimer); this._gapTimer = null; }
     this._queue.length = 0;
-    this._playing = false;
-    this._speaking = false;
+    this._playing = false; this._speaking = false; this._playingPriority = 0;
     try { this.audio.pause(); this.audio.currentTime = 0; } catch (e) {}
   }
 }
 
 const narrator = new Narrator();
+
+// QA handle: window.__wolfVO.onWin(100,1), set window.WOLF_VO_DEBUG=true for logs.
+if (typeof window !== 'undefined') window.__wolfVO = narrator;
 
 Object.assign(exports, { narrator });
 
@@ -566,6 +678,243 @@ const PHRASES = {
     "That's all she wrote — outta coin, partner.",
     "Even a big bad wolf runs outta supper sometime.",
     "Empty-handed, but full of stories! Refill to hunt again!",
+  ],
+
+  /* ═══════════════════════════════════════════════════════════════════════
+     CONTEXTUAL POOLS — selected by the Wolf VO manager based on real game
+     state (visible symbols, win tier, streaks, idle, bonus mode, expansions).
+     Symbol callouts are mapped to what the player actually SEES:
+       shot glass = 'toolbox'   horseshoe = 'pig-suit'/'pig-contractor'
+       wolf wild  = 'wild'       hard hats  = the bonus-building 'hat-*'.
+     Responsible play: no "you're due", no pressure, no guaranteed wins.
+  ═══════════════════════════════════════════════════════════════════════ */
+
+  // Base-game saloon ambience (rare idle flavor)
+  ambient: [
+    "Place yer bet, partner. The wolf's watchin' the door.",
+    "This saloon's got three rules: spin fair, count fast, and don't build with straw.",
+    "I smell coin dust, hoof tracks, and just enough trouble to keep me interested.",
+    "Round here, even the tumbleweeds know when the reels are warm.",
+    "Pull up a stool. Ol' Wolf's got eyes on the whole saloon.",
+    "The bar's open, the reels are restless, and I'm in a generous mood.",
+    "Careful now. This place smiles before it bites.",
+    "Dusty reels, shiny coins, nervous little pigs upstairs. My kind o' evenin'.",
+    "The piano stopped playin'. Usually means somethin' expensive is comin'.",
+    "I've blown down straw, sticks, and bad alibis. Let's see what these reels are made of.",
+    "Quiet saloon, restless reels. Dangerous little combination.",
+    "Somewhere upstairs, a little pig just locked his door.",
+  ],
+  idleAfterWin: [
+    "Admirin' the win? Can't blame ya. I'd frame it over the bar.",
+    "That one had some bite. Take yer second, partner.",
+    "Coins still smell warm from here.",
+    "A haul like that makes the pigs peek through the curtains.",
+    "Not a bad little pile. The saloon noticed.",
+    "Sit with it. Good wins deserve a slow whiskey.",
+  ],
+  idleAfterLoss: [
+    "No rush, partner. The saloon ain't runnin' off.",
+    "Quiet result, loud possibilities.",
+    "Dust it off. Take yer time.",
+    "Even wolves miss a hoofprint now and then.",
+    "Take a breath. The reels'll keep.",
+    "Easy does it. No trail's in a hurry.",
+  ],
+  coldStreak: [
+    "Dry patch. Keep yer head, partner.",
+    "Dusty trail right now. No shame in slowin' down.",
+    "Reels are playin' hard to get. That's their bad habit.",
+    "Cold wind through the saloon. Happens to the best boots.",
+    "No need to chase every tumbleweed.",
+    "Quiet stretch. Stretch yer legs if ya like.",
+  ],
+  twoWinStreak: [
+    "That's two in a row. Somebody bolt the pig pen.",
+    "Back to back? The chimney's startin' to rattle.",
+    "Two wins walkin' side by side.",
+    "The reels are startin' to recognize ya.",
+    "Two knocks at the same door.",
+    "Second win, and the wolf is listenin'.",
+    "That's two. Even the horseshoe blinked.",
+    "A little streak just found its boots.",
+  ],
+  threeWinStreak: [
+    "Three runnin'. Straw, sticks, bricks — don't matter. I'm at the door.",
+    "Three in a row. Now the pigs are holdin' a meetin'.",
+    "That streak's got teeth now.",
+    "That ain't luck knockin'. That's luck kickin'.",
+    "Three bites in a row. Clean work.",
+    "Now we've got a proper trail.",
+    "The reels are warmin' their paws.",
+    "That streak just ordered a drink.",
+  ],
+  hotStreak: [
+    "Win streak's got spurs on it.",
+    "This run's huffin' hotter than a desert forge.",
+    "The saloon's leanin' in now.",
+    "That trail's turnin' into a stampede.",
+    "Keep this up and the pigs'll file a noise complaint.",
+    "Now the reels are dancin' on the bar.",
+    "Hot run, cool head.",
+    "The whole room smells like coin dust.",
+  ],
+  streakEnded: [
+    "Streak took a bow. Even wolves tip their hat.",
+    "Trail cooled off. Happens to the best boots.",
+    "That run had style while it lasted.",
+    "Dust settles after every stampede.",
+    "Streak's done, but the saloon remembers.",
+  ],
+  anticipation: [
+    "Hold up. Last reel's draggin' its boots.",
+    "Easy now. That reel's makin' a meal of it.",
+    "Don't blink. This last reel's got drama in its pockets.",
+    "Somethin's knockin' behind that reel.",
+    "I hear floorboards creakin'.",
+    "Come on now. Show yer teeth.",
+    "The dust just stopped movin'.",
+    "Careful. This is where the saloon holds its breath.",
+    "Last reel's got a secret. Let's see if it talks.",
+    "One more step, little piggy.",
+    "That reel's stallin' like a pig at rent time.",
+    "The saloon went quiet. That's luck or a sneaky pig.",
+  ],
+  expandingReels: [
+    "Walls are stretchin'. Somebody built this place with wolf-sized plans.",
+    "Reels are openin' up. More room for trouble.",
+    "That's an expansion, partner. Bigger floor, bigger dance.",
+    "The saloon just kicked out a wall.",
+    "More reels, more room to huff.",
+    "Look at that — the reels grew teeth.",
+    "That wall came down easier than straw.",
+    "The place is stretchin' like it heard my name.",
+    "Bigger reels, bigger shadow.",
+    "Now we've got elbow room.",
+    "Wolf wild on the floorboards. Respect it.",
+    "When the wolf goes wild, the saloon checks the locks.",
+  ],
+  bonusEnter: [
+    "Bonus round, partner. Bigger chances, bigger teeth.",
+    "Keep yer hat low. The bonus can kick harder than a mule.",
+    "This is the back room, where the real coin smoke curls.",
+    "Don't count the bricks yet. Let the bonus breathe.",
+    "Now we're in bonus country. Pigs lock the windows out here.",
+    "This is where straw houses become cautionary tales.",
+    "Step inside. The floorboards know my name.",
+    "Bonus round. Same wolf, bigger shadow.",
+    "The bonus is open, and I brought lungs.",
+    "Now the saloon gets honest.",
+  ],
+  bonusSpin: [
+    "Bonus reels turnin'. That sound never gets old.",
+    "Every bonus spin's a fresh bootprint.",
+    "Let's see what the back room pays.",
+    "The pigs are countin' bricks. I'm countin' chances.",
+    "This bonus still has dust to kick up.",
+    "Keep one eye on the wilds.",
+    "Let it breathe. Let it bite.",
+    "Bonus country's got sharp teeth.",
+    "More room for the wolf in here.",
+    "That reel's got back-room manners.",
+  ],
+  bonusWin: [
+    "Now that's a bonus with bite.",
+    "Piggy bank just heard hoofbeats.",
+    "That one rattled the rafters.",
+    "Coins on the floor, smoke in the air.",
+    "The back room pays when it's in the mood.",
+    "That hit had spurs.",
+    "I felt that one in my whiskers.",
+    "Now we're cookin' with wolf breath.",
+    "Bonus teeth, right there.",
+    "That win kicked the saloon doors off.",
+  ],
+  bonusBigWin: [
+    "That's the kind o' bonus that makes brick houses nervous.",
+    "The pigs just moved to a safer county.",
+    "That win didn't knock. It kicked the door clean in.",
+    "I'd huff for that one twice.",
+    "Somebody check the roof. I think it lifted.",
+    "Now the saloon's payin' attention.",
+    "A bonus like that leaves claw marks.",
+    "That pile's got its own shadow.",
+  ],
+  bonusEnd: [
+    "Bonus is over. Check yer pockets for scorch marks.",
+    "Back to the bar. I left claw marks on that bonus.",
+    "The back room closes, but the wolf remembers.",
+    "That bonus took a bow.",
+    "Doors shut, dust settles, coins tell the story.",
+    "That was a ride through wolf country.",
+    "Back to base game. Same saloon, fresh trouble.",
+    "The bonus is done. The pigs can stop whisperin'.",
+    "Put that one in the ledger.",
+    "Bonus trail ends here, partner.",
+  ],
+  symShotGlass: [
+    "Shot glass on the rail. Tiny cup, big attitude.",
+    "I see the shot glass. Bartender's pretendin' not to.",
+    "That shot glass looks guilty.",
+    "Glass on the reels. Somebody's buyin' trouble.",
+    "That little glass has seen things.",
+    "Shot glass showin'. Saloon's in session.",
+    "Careful with that glass. It bites back.",
+    "That glass is small, but it walks loud.",
+  ],
+  symShotGlassMulti: [
+    "More than one shot glass? Now the piano's nervous.",
+    "Two glasses showin'. Trouble's pourin'.",
+    "That's a rowdy little shelf o' glass.",
+    "The bartender just looked over.",
+    "Glasses stackin' up. The night got interestin'.",
+  ],
+  symHorseshoe: [
+    "Lucky horseshoe showin'. Let's see if it remembers its job.",
+    "There's that horseshoe, shinin' like it owes ya money.",
+    "Horseshoe on deck. Superstition just put on boots.",
+    "That horseshoe's got a smug little shine.",
+    "Iron luck on the reels.",
+    "A horseshoe in the window. That'll make a wolf curious.",
+    "That horseshoe better not be all hat and no cattle.",
+    "Horseshoe flashin'. The saloon noticed.",
+  ],
+  symHorseshoeMulti: [
+    "Two horseshoes? Now luck's wearin' both boots.",
+    "That's a lot o' lucky iron.",
+    "Horseshoes stackin' up. The floorboards feel fortunate.",
+    "Three horseshoes? Even I'd call that suspicious.",
+    "Luck just walked in wearin' spurs.",
+  ],
+  symHats: [
+    "Hard hats pilin' up. Six of 'em opens the back room.",
+    "Look at them hard hats. The bonus is sniffin' around.",
+    "Hats on the reels. The pigs put on their helmets.",
+    "Construction crew's clockin' in. Hard hats everywhere.",
+    "Them hard hats mean business when they crowd in.",
+    "I count hard hats like I count piggies — hungrily.",
+    "Hats gatherin'. Six opens the bonus doors.",
+    "That's a brave little crew of hard hats.",
+  ],
+  menuReturn: [
+    "Back from the paperwork? Good. The reels missed us.",
+    "Rules read, boots dusted, wolf ready.",
+    "Paytable's got the map. I've got the teeth.",
+    "Settings settled. Saloon's still standin'.",
+    "Welcome back. The pigs got nervous while ya were gone.",
+    "Took yer time in there. The whiskey's still cold.",
+  ],
+  // Friendly teasing of the "other" huff-and-puff act — OFF by default in the manager.
+  roasts: [
+    "I heard some other puff act needed a whole machine to blow a house down. Cute.",
+    "Huff and more puff? Please. Round here, one good breath gets the job done.",
+    "Some wolves need fireworks. I just need a door hinge and bad construction.",
+    "Tell that other puff parlor the bricks still look nervous.",
+    "There's puff, then there's performance. Mine comes with teeth.",
+    "Some games huff. Some games puff. This one bites.",
+    "I don't need a fancy sign. I got lungs and a grudge.",
+    "Other wolves make noise. I make renovations.",
+    "More puff? Partner, I brought plenty.",
+    "I've seen puff acts with less bite than a saloon napkin.",
   ],
 };
 
@@ -1007,6 +1356,7 @@ async function finalizeSpin(targetGrid, bet) {
   if (wildReels.length > 0) {
     synth.wolfHowl();
     setStatus(wildReels.length > 1 ? 'WOLF WILDS!' : 'WOLF WILD!', 'win');
+    narrator.onExpandingWilds(wildReels.length);
     wildReels.forEach(r => expandWildReel(r, shownGrid[r]));
     await sleep(750);
   }
@@ -1075,6 +1425,7 @@ async function finalizeSpin(targetGrid, bet) {
     }
   } else {
     setStatus('GOOD LUCK – PRESS SPIN!');
+    narrator.onReelsSettled();   // symbol-aware flavor (shot glass / horseshoe / hats) on a no-win spin
     narrator.onLoss();
   }
 
@@ -1348,6 +1699,7 @@ async function startBonus(bet, triggerGrid) {
 
   synth.bonusSiren();
   showBonusOverlay('BONUS REEL FEATURE!', 'FREE SPINS STARTING');
+  narrator.onBonusEnter();   // "Bonus round, partner…" once the title is up
   if (bonusHud) bonusHud.classList.remove('hidden');
   shake(600);
   await sleep(2800);
@@ -2107,8 +2459,8 @@ function wirePaytable() {
   const modal   = document.getElementById('paytable-modal');
   const btnClose = document.getElementById('btn-close-paytable');
   if (btnInfo) btnInfo.addEventListener('click', () => modal.classList.remove('hidden'));
-  if (btnClose) btnClose.addEventListener('click', () => modal.classList.add('hidden'));
-  if (modal) modal.addEventListener('click', e => { if (e.target === modal) modal.classList.add('hidden'); });
+  if (btnClose) btnClose.addEventListener('click', () => { modal.classList.add('hidden'); narrator.onMenuReturn(); });
+  if (modal) modal.addEventListener('click', e => { if (e.target === modal) { modal.classList.add('hidden'); narrator.onMenuReturn(); } });
 
   // keep displayed pays in sync with SYMBOLS
   const order = ['hat-yellow', 'hat-green', 'hat-red', 'pig-suit', 'pig-contractor', 'pig-nature', 'toolbox', 'wolf', 'buzzard'];
@@ -3661,24 +4013,24 @@ Object.assign(exports, { runSimulation });
 /* AUTO-GENERATED by tools/build.js — folder-size snapshot. Do not edit. */
 
 const SIZE_MANIFEST = {
-  "totalBytes": 140309981,
-  "fileCount": 463,
+  "totalBytes": 149951191,
+  "fileCount": 648,
   "generatedAt": "2026-06-01",
   "player": {
-    "bytes": 139948026,
-    "files": 410
+    "bytes": 149567863,
+    "files": 595
   },
   "dev": {
-    "bytes": 361955,
+    "bytes": 383328,
     "files": 53
   },
   "firstPlay": {
-    "bytes": 16227036,
-    "files": 61
+    "bytes": 16675646,
+    "files": 65
   },
   "progressive": {
-    "bytes": 123720990,
-    "files": 349
+    "bytes": 132892217,
+    "files": 530
   },
   "categories": [
     {
@@ -3690,8 +4042,8 @@ const SIZE_MANIFEST = {
     {
       "key": "audio",
       "label": "Audio",
-      "bytes": 20371645,
-      "files": 314
+      "bytes": 29973125,
+      "files": 499
     },
     {
       "key": "image",
@@ -3702,7 +4054,7 @@ const SIZE_MANIFEST = {
     {
       "key": "code",
       "label": "Code",
-      "bytes": 757815,
+      "bytes": 797545,
       "files": 48
     },
     {
@@ -4267,7 +4619,7 @@ function animateReel(reelIndex, targetSymIds, onDone, anticipate = false, isExtr
   if (anticipate && reelIndex >= 3) {        // suspense slow-down on later reels
     duration += ANTICIPATION_EXTRA;
     col.classList.add('is-anticipating');
-    if (reelIndex === 3) synth.anticipation();
+    if (reelIndex === 3) { synth.anticipation(); narrator.onAnticipation(); }
   }
   
   if (isExtreme) {
