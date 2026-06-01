@@ -152,9 +152,9 @@ function buildPages() {
       <table class="help-paytable help-bonustable">
         <thead><tr><th>House</th><th>Award (&times; your bet)</th></tr></thead>
         <tbody>
-          <tr><td>🏚️ Straw</td><td>${x2(t1.min)} to ${x2(t1.max)}</td></tr>
-          <tr><td>🏠 Stick</td><td>${x2(t2.min)} to ${x2(t2.max)}${t2.jackpotMult ? ` &nbsp;·&nbsp; rare <b>MINI JACKPOT ${x2(t2.jackpotMult)}</b>` : ''}</td></tr>
-          <tr><td>🏰 Brick</td><td>${x2(t3.min)} to ${x2(t3.max)}${t3.jackpotMult ? ` &nbsp;·&nbsp; rare <b>MINOR JACKPOT ${x2(t3.jackpotMult)}</b>` : ''}</td></tr>
+          <tr><td><img class="help-house" src="assets/bonus_pig_straw.webp" alt=""> Straw</td><td>${x2(t1.min)} to ${x2(t1.max)}</td></tr>
+          <tr><td><img class="help-house" src="assets/bonus_pig_wood.webp" alt=""> Stick</td><td>${x2(t2.min)} to ${x2(t2.max)}${t2.jackpotMult ? ` &nbsp;·&nbsp; rare <b>MINI JACKPOT ${x2(t2.jackpotMult)}</b>` : ''}</td></tr>
+          <tr><td><img class="help-house" src="assets/bonus_pig_brick.webp" alt=""> Brick</td><td>${x2(t3.min)} to ${x2(t3.max)}${t3.jackpotMult ? ` &nbsp;·&nbsp; rare <b>MINOR JACKPOT ${x2(t3.jackpotMult)}</b>` : ''}</td></tr>
         </tbody>
       </table>
       <p>When every house has been blown down, play returns to the base game.</p>` },

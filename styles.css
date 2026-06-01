@@ -4245,6 +4245,8 @@ body.fit-mode #game-root {
 .help-ptname { text-align: left; font-weight: 700; color: #E9F2EA; }
 .help-bonustable td:first-child { text-align: left; font-weight: 700; }
 .help-bonustable td:last-child { text-align: left; color: #FFE49A; }
+/* the real in-game bonus art shown for the Straw/Stick/Brick houses */
+.help-house { width: 30px; height: 30px; object-fit: contain; vertical-align: middle; margin-right: 7px; }
 
 .help-nav {
   flex: 0 0 auto;
