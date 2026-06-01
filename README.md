@@ -148,6 +148,43 @@ backtick (`` ` ``) key toggles the SIM/MATH panel when dev mode is on.
 
 ---
 
+## The wolf's voice (contextual VO)
+
+The Big Bad Wolf reacts to what's actually happening. He plays pre-rendered
+ElevenLabs clips (no live TTS), but **which** line and **when** is chosen from
+real game state.
+
+- **`src/audio/phrases.js`** — every line, grouped into ~50 pools (one source of
+  truth, shared with the generator). Symbol callouts map to what's *visible*:
+  shot glass = `toolbox`, horseshoe = `pig-suit`/`pig-contractor`, hard hats =
+  the bonus symbols, Wolf Wild = `wild`.
+- **`src/audio/narrator.js`** — the `WolfVO` manager. It scans the visible grid,
+  tracks win tier / win+loss streaks / bonus vs base mode / idle time, and picks
+  with per-category cooldowns, spin-gaps, no-repeat, and priority (big moments
+  interrupt idle; he never overlaps himself). Idle lines reference the last
+  outcome ("admirin' the win?"). Reacts to: expanding reels, anticipation,
+  symbol callouts, 2/3/4+ streaks, gentle cold streaks, bonus enter/win/end,
+  and menu return. Responsible-play safe — no "you're due", no pressure.
+
+**Add lines:** drop them into the right array in `phrases.js`, then generate just
+the new ones:
+
+```bash
+node tools/voice.js sync          # incremental — only new/changed clips (recommended)
+```
+
+The voice is fixed (Callum-husky, recorded in `tools/voice.js`); `sync` keeps a
+`.vo-cache.json` text-hash so existing clips are never re-billed. `node
+tools/voice.js all` wipes and regenerates everything.
+
+**Debug / QA:** in the console set `window.WOLF_VO_DEBUG = true` to log every
+decision (event, candidates, pick, why others were filtered). `window.__wolfVO`
+is the live manager — e.g. `__wolfVO.onWin(100, 1)`. The friendly "other
+huff-and-puff act" roast pool is **off by default**; enable with
+`__wolfVO.ENABLE_ROASTS = true`.
+
+---
+
 ## Deploying
 
 Drag the folder to a static host (e.g. Netlify) or connect the repo. `netlify.toml`
