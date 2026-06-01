@@ -37,10 +37,10 @@ const shake = ms => { cabinet.classList.add('screen-shake'); setTimeout(() => ca
    and on-screen durations (ms). One table drives both the live win and the dev
    preview, so they always match. */
 const WIN_BANNERS = [
-  { key: 'colossal', min: WIN_TIERS.colossal, label: 'COLOSSAL WIN!', cls: 'colossal-win', heavy: true,  count: 3600, hold: 5000 },
-  { key: 'epic',     min: WIN_TIERS.epic,     label: 'EPIC WIN!',     cls: 'epic-win',     heavy: true,  count: 3200, hold: 4500 },
-  { key: 'mega',     min: WIN_TIERS.mega,     label: 'MEGA WIN!',     cls: 'mega-win',     heavy: true,  count: 2500, hold: 3800 },
-  { key: 'big',      min: WIN_TIERS.big,      label: 'BIG WIN!',      cls: '',             heavy: false, count: 1800, hold: 3500 },
+  { key: 'colossal', min: WIN_TIERS.colossal, label: 'Wild Wolf Windfall!', cls: 'colossal-win', heavy: true,  count: 3600, hold: 5000 },
+  { key: 'epic',     min: WIN_TIERS.epic,     label: 'Big Bad Wolf Win!',   cls: 'epic-win',     heavy: true,  count: 3200, hold: 4500 },
+  { key: 'mega',     min: WIN_TIERS.mega,     label: 'Big Bad Win!',        cls: 'mega-win',     heavy: true,  count: 2500, hold: 3800 },
+  { key: 'big',      min: WIN_TIERS.big,      label: 'Big Win',             cls: '',             heavy: false, count: 1800, hold: 3500 },
 ];
 const bannerForRatio = r => WIN_BANNERS.find(b => r >= b.min);     // highest tier reached (or undefined)
 

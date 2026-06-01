@@ -18,12 +18,12 @@ const MAX_BET = BET_LEVELS[BET_LEVELS.length - 1];
 
 // The on-screen tiers, smallest → biggest. `mult` is the win ÷ bet threshold.
 const TIERS = [
-  { key: 'small',    cls: '',              name: 'Win',           mult: 0,                  banner: 'Coins + count-up (no banner)' },
-  { key: 'nice',     cls: '',              name: 'Nice Win',      mult: WIN_TIERS.nice,     banner: 'Bigger count-up + coins (no banner)' },
-  { key: 'big',      cls: 'tier-big',      name: 'BIG WIN!',      mult: WIN_TIERS.big,      banner: 'Full-screen banner + coins' },
-  { key: 'mega',     cls: 'tier-mega',     name: 'MEGA WIN!',     mult: WIN_TIERS.mega,     banner: 'Banner (rainbow), louder' },
-  { key: 'epic',     cls: 'tier-epic',     name: 'EPIC WIN!',     mult: WIN_TIERS.epic,     banner: 'Banner (blazing gold)' },
-  { key: 'colossal', cls: 'tier-colossal', name: 'COLOSSAL WIN!', mult: WIN_TIERS.colossal, banner: 'Top banner (rainbow-gold supernova)' },
+  { key: 'small',    cls: '',              name: 'Win',                 mult: 0,                  banner: 'Coins + count-up (no banner)' },
+  { key: 'nice',     cls: '',              name: 'Piggy Payday',        mult: WIN_TIERS.nice,     banner: 'Bigger count-up + coins (no banner)' },
+  { key: 'big',      cls: 'tier-big',      name: 'Big Win',             mult: WIN_TIERS.big,      banner: 'Full-screen banner + coins' },
+  { key: 'mega',     cls: 'tier-mega',     name: 'Big Bad Win!',        mult: WIN_TIERS.mega,     banner: 'Banner (rainbow), louder' },
+  { key: 'epic',     cls: 'tier-epic',     name: 'Big Bad Wolf Win!',   mult: WIN_TIERS.epic,     banner: 'Banner (blazing gold)' },
+  { key: 'colossal', cls: 'tier-colossal', name: 'Wild Wolf Windfall!', mult: WIN_TIERS.colossal, banner: 'Top banner (rainbow-gold supernova)' },
 ];
 
 function buildHTML() {
@@ -50,8 +50,8 @@ function buildHTML() {
       (win &divide; bet). Because the thresholds are multiples of the bet, the dollar trigger scales with how
       much you wager — so the same spin is a “Big Win” at a low bet only if it pays a lot more in dollars at a
       high bet. The default bet is <b>${fmt(DEF_BET)}</b>.
-      <br><b>Tip:</b> click the <b>BIG / MEGA / EPIC / COLOSSAL WIN</b> rows below to preview that celebration
-      in the game (it shows the threshold &times; your current bet, and changes nothing).</p>
+      <br><b>Tip:</b> click any of the four banner tiers below (<b>Big Win</b> and up) to preview that
+      celebration in the game (it shows the threshold &times; your current bet, and changes nothing).</p>
     <table class="wins-table">
       <thead><tr>
         <th>Celebration</th><th>Win&nbsp;&ge;</th>
@@ -60,8 +60,8 @@ function buildHTML() {
       </tr></thead>
       <tbody>${rows}</tbody>
     </table>
-    <p class="wins-note"><b>COLOSSAL WIN!</b> is the top celebration tier (≥ ${WIN_TIERS.colossal}× bet);
-      <b>EPIC WIN!</b> (≥ ${WIN_TIERS.epic}× bet) matches the wolf’s biggest voice reaction. The tiers are
+    <p class="wins-note"><b>Wild Wolf Windfall!</b> is the top celebration tier (≥ ${WIN_TIERS.colossal}× bet);
+      <b>Big Bad Wolf Win!</b> (≥ ${WIN_TIERS.epic}× bet) matches the wolf’s biggest voice reaction. The tiers are
       multiples of the bet, so the dollar trigger scales with the wager (the US land-based convention). The
       bonus round has its own dedicated celebrations on top of these — the Mini &amp; Minor house jackpots,
       the <b>Mansion Jackpot</b>, and the end-of-bonus total. In a 10,000,000-spin simulation the largest single
