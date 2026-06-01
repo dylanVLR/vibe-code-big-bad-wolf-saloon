@@ -213,6 +213,21 @@ export function startAuto() {
 ══════════════════════════════════════════ */
 buttons.spin.addEventListener('click', () => { if (!state.spinning && !isBonusActive()) triggerSpin(); });
 
+// Razz the player if the MOUSE lingers over SPIN 3s+ without clicking (desktop only).
+if (window.matchMedia && window.matchMedia('(pointer: fine)').matches) {
+  let hoverTimer = null;
+  const clearHover = () => { if (hoverTimer) { clearTimeout(hoverTimer); hoverTimer = null; } };
+  buttons.spin.addEventListener('mouseenter', () => {
+    clearHover();
+    if (buttons.spin.disabled || state.spinning || isBonusActive()) return;
+    hoverTimer = setTimeout(() => {
+      if (!buttons.spin.disabled && !state.spinning && !isBonusActive()) narrator.onSpinHover();
+    }, 3000);
+  });
+  buttons.spin.addEventListener('mouseleave', clearHover);
+  buttons.spin.addEventListener('pointerdown', clearHover);   // they're clicking → no taunt
+}
+
 buttons.betUp.addEventListener('click', () => {
   if (state.spinning || isBonusActive()) return;
   state.betIndex = Math.min(BET_LEVELS.length - 1, state.betIndex + 1);

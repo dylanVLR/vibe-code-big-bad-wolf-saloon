@@ -610,4 +610,19 @@ export const PHRASES = {
     "Sheriff's badge, partner. I pinned it on myself. Nobody argued twice.",
     "Easy with that badge. The last fella who wore it... well, the pigs don't ask about him.",
   ],
+  // Mouse hovers over SPIN for 3+ seconds without clicking → the wolf razzes 'em.
+  spinHover: [
+    "You gonna click it? Or just stare at it all day?",
+    "That button ain't gonna press itself, partner.",
+    "Go on, push it. It don't bite — that's my job.",
+    "Starin' contest with the spin button? Bold strategy.",
+    "Push it, partner. The reels are gettin' lonely.",
+    "I've seen molasses move quicker than that trigger finger.",
+    "It's shiny, I know. But it's prettier when it's spinnin'.",
+    "You hoverin' or proposin'? Either way, do somethin'.",
+    "Quit pettin' that button and give it a spin.",
+    "Your hand's right there. The button's right there. You do the math.",
+    "Take yer time. The pigs ain't goin' anywhere... probably.",
+    "Any day now, partner. The whiskey's gettin' warm.",
+  ],
 };

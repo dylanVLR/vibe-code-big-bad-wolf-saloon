@@ -41,7 +41,7 @@ const PRIORITY = {
   mediumWin: 55, twoWinStreak: 52, symShotGlassMulti: 52, symHorseshoeMulti: 52,
   symShotGlass: 48, symHorseshoe: 48, symHats: 46, frameUpgrade: 46, menuReturn: 42,
   bonusSpin: 40, freeSpin: 40, lowBalance: 40, streakEnded: 40, betUp: 36, betDown: 36,
-  saloonHeader: 58, vlrMedallion: 58, sheriffBadge: 58,
+  saloonHeader: 58, vlrMedallion: 58, sheriffBadge: 58, spinHover: 42,
   spin: 35, lossStreak: 34, coldStreak: 34, smallWin: 32, loss: 30, postWin: 28,
   idle: 18, idleAfterWin: 20, idleAfterLoss: 20, ambient: 14,
 };
@@ -137,7 +137,8 @@ class Narrator {
     if (!opts.bypassGlobal && priority < 60 && now - this._lastSpoke < (opts.cooldownMs ?? this._cooldownMs)) {
       this._log('skip(global-cd)', category); return false;
     }
-    if (opts.cooldownMs && now - (this._catLastMs[category] || 0) < opts.cooldownMs) { this._log('skip(cat-cd)', category); return false; }
+    const catCd = opts.catCooldownMs ?? opts.cooldownMs;   // per-category gate (separate from global)
+    if (catCd && now - (this._catLastMs[category] || 0) < catCd) { this._log('skip(cat-cd)', category); return false; }
     if (opts.minSpinGap && this._totalSpins - (this._catLastSpin[category] ?? -999) < opts.minSpinGap) { this._log('skip(spin-gap)', category); return false; }
 
     let idx;
@@ -281,6 +282,8 @@ class Narrator {
   onLowBalance() { this._trigger('lowBalance', { cooldownMs: 30000 }); }
   onInsufficientFunds() { this._trigger('noFunds', { bypassGlobal: true }); }
   onMenuReturn() { this._trigger('menuReturn', { cooldownMs: 25000, chance: 0.6 }); }
+  /** Mouse lingered over SPIN without clicking → a gentle razz (not too often). */
+  onSpinHover() { this._trigger('spinHover', { interrupt: true, catCooldownMs: 14000 }); }
   /** Player clicked the "BIG BAD WOLF SALOON" sign → brag about the joint. */
   onSaloonClick() { this._trigger('saloonHeader', { bypassGlobal: true, interrupt: true, cooldownMs: 700 }); }
   /** Player clicked the "Vegas Low Roller Approved" medallion → tip the hat to VLR.
