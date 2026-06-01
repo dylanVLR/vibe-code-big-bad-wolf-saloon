@@ -195,7 +195,10 @@
   border-radius: 12px;
   padding: 14px 16px;
   z-index: 200;
-  backdrop-filter: blur(12px);
+  @media (pointer: fine) {
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+  }
   box-shadow: 0 -4px 20px rgba(0,0,0,0.5), 0 0 15px rgba(46,232,90,0.2), inset 0 0 20px rgba(0,0,0,0.3);
   display: flex;
   flex-direction: column;
@@ -319,7 +322,10 @@
   border-left: 2px solid var(--frame-border);
   border-radius: 0;
   box-shadow: -10px 0 30px rgba(0,0,0,0.55), inset 0 0 24px rgba(0,0,0,0.3);
-  backdrop-filter: blur(8px);
+  @media (pointer: fine) {
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+  }
   opacity: 0;
   pointer-events: none;
   transition: opacity .25s ease;
@@ -925,7 +931,11 @@ body.pre-reveal #bg-video { opacity: 1; }   /* full, undimmed background during 
   width: 100%;
   display: flex;
   flex-direction: column;
-  will-change: transform;
+  will-change: transform, filter;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
 
 /* ── SYMBOL CELLS ── */
@@ -1215,6 +1225,7 @@ body.pre-reveal #bg-video { opacity: 1; }   /* full, undimmed background during 
 
 /* ── SPINNING BLUR ── */
 .reel-col.is-spinning .reel-strip {
+  -webkit-filter: blur(2px);
   filter: blur(2px);
 }
 
@@ -1302,7 +1313,10 @@ body.pre-reveal #bg-video { opacity: 1; }   /* full, undimmed background during 
   align-items: center;
   justify-content: center;
   background: rgba(0,0,0,0.72);
-  backdrop-filter: blur(6px);
+  @media (pointer: fine) {
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+  }
   z-index: 50;
   animation: overlay-in 0.3s ease-out;
 }
@@ -1768,8 +1782,10 @@ body.pre-reveal #bg-video { opacity: 1; }   /* full, undimmed background during 
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='1'%3E%3Crect width='200' height='1' fill='%23222'/%3E%3Cline x1='0' y1='0.5' x2='200' y2='0.5' stroke='%23333' stroke-width='0.5' opacity='0.3'/%3E%3C/svg%3E"),
     linear-gradient(180deg, rgba(12,30,16,0.95) 0%, rgba(8,18,8,0.98) 100%);
   background-size: 200px 2px, auto;
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  @media (pointer: fine) {
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+  }
   border-top: 2px solid rgba(245,196,0,0.3);
   display: flex;
   justify-content: space-between; /* Space out left, center, right zones */
@@ -2153,7 +2169,10 @@ body.pre-reveal #bg-video { opacity: 1; }   /* full, undimmed background during 
   border-radius: 12px;
   padding: 14px 16px 10px;
   z-index: 200;
-  backdrop-filter: blur(12px);
+  @media (pointer: fine) {
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+  }
   box-shadow:
     0 -4px 20px rgba(0,0,0,0.5),
     0 0 15px rgba(46,232,90,0.2),
@@ -2322,7 +2341,10 @@ body.pre-reveal #bg-video { opacity: 1; }   /* full, undimmed background during 
   position: fixed;
   inset: 0;
   background: rgba(0,0,0,0.75);
-  backdrop-filter: blur(6px);
+  @media (pointer: fine) {
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+  }
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2480,7 +2502,10 @@ body.pre-reveal #bg-video { opacity: 1; }   /* full, undimmed background during 
   align-items: center;
   justify-content: center;
   background: rgba(0, 0, 0, 0.72);
-  backdrop-filter: blur(6px);
+  @media (pointer: fine) {
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+  }
   z-index: 60;
   animation: overlay-in 0.3s ease-out;
 }
@@ -2600,7 +2625,10 @@ body.pre-reveal #bg-video { opacity: 1; }   /* full, undimmed background during 
   align-items: center;
   justify-content: flex-start;
   background: radial-gradient(ellipse at 20% 50%, rgba(40,30,60,0.92) 0%, rgba(10,5,20,0.95) 100%);
-  backdrop-filter: blur(6px);
+  @media (pointer: fine) {
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+  }
   z-index: 60;
   overflow: hidden;
 }
@@ -2706,7 +2734,10 @@ body.pre-reveal #bg-video { opacity: 1; }   /* full, undimmed background during 
   align-items: center;
   justify-content: center;
   background: radial-gradient(ellipse at center, rgba(80,20,0,0.85) 0%, rgba(20,5,0,0.95) 100%);
-  backdrop-filter: blur(8px);
+  @media (pointer: fine) {
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+  }
   z-index: 65;
   animation: mansion-backdrop-in 0.4s ease-out;
 }
@@ -3800,6 +3831,30 @@ body {
 button, .drawer-btn, .rtp-option, .modal-overlay, #spin-video, .sym-cell {
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
+}
+
+/* ── Mobile (touch) performance ──────────────────────────────────────────────
+   Desktop GPUs shrug these off, but on mobile Safari a stack of always-on
+   animations that drive `filter: drop-shadow` / `box-shadow`, plus a per-frame
+   shadow on the looping wolf video, keep the compositor re-rasterising every
+   frame → the whole game feels sluggish. Switch the *idle ambience* off on touch
+   devices. All the meaningful, transient feedback (spins, win pulses, big-win,
+   anticipation, bonus) is untouched, so it still feels alive when it matters. */
+@media (pointer: coarse) {
+  #cabinet,                /* cabinet-breathe */
+  #cabinet::before,        /* led-chase border */
+  .corner-filigree,        /* corner-shimmer (animated drop-shadow) */
+  .logo-content,           /* logo-breathe */
+  .reel-ways-pill,         /* pill-glow */
+  .reel-sep { animation: none !important; }   /* sep-pulse */
+
+  /* a drop-shadow on a video re-rasterises the shadow every video frame */
+  #side-wolf,
+  .side-wolf-layer { filter: none; }
+
+  /* motion-blur on the spinning strip re-rasterises blurred, moving content every
+     frame — the single biggest spin-time stutter on mobile. Crisper + smoother. */
+  .reel-col.is-spinning .reel-strip { -webkit-filter: none !important; filter: none !important; }
 }
 
 /* ── Fit-to-screen mode (set by fit-screen.js when the game can't fit natural size) ── */
