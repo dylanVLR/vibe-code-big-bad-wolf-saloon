@@ -46,6 +46,17 @@ const TRACKS = {
       'goosebump-inducing, starting strong and building relentlessly to a huge climactic, victorious finale. ' +
       'Edge-of-your-seat blockbuster spectacle.',
   },
+  // One-shot cue for the High-Noon easter egg outro (played once, not looped).
+  showdown: {
+    file: 'showdown_theme.mp3',
+    lengthMs: 15000,    // ~15s climax that ends leaving room for a final gunshot
+    prompt:
+      'A tense, suspenseful Western frontier theme, fully instrumental with NO vocals. A lone haunting whistle ' +
+      'melody and a distant lonely trumpet over sparse tremolo twangy electric guitar, with ominous low strings, ' +
+      'a slow ticking and a faint heartbeat. Dusty, dramatic, gritty cinematic tension, starting sparse and ' +
+      'slowly building suspense to a taut, swelling climax that hangs right on the edge, then cuts off sharply ' +
+      'into silence. Atmospheric, cinematic, classic Wild West frontier mood.',
+  },
 };
 
 async function generate(key, attempt = 1) {

@@ -102,6 +102,7 @@ class Narrator {
   }
 
   setVolume(v) { this._volume = Math.max(0, Math.min(1, v)); this.audio.volume = this._volume; }
+  getVolume() { return this._volume; }
 
   /**
    * Speak a single narrator line right now for a cutscene — bypasses the queue,

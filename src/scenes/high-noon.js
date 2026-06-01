@@ -1,14 +1,18 @@
 /**
  * @module high-noon
  * @description Hidden "High Noon" easter egg. At exactly 12:00 PM by the
- * browser's local clock the showdown plays out in two beats:
- *   1. A cowboy gunfight (showdown_shootout SFX) under a Western "a stranger
- *      rides into town" title card.
+ * browser's local clock the showdown plays out in three beats:
+ *   1. A Western "a stranger rides into town" title card; the wolf reads it
+ *      aloud in his own voice (no other narrator lines, no SFX — they'd overlap).
  *   2. The High_noon_standoff.webm clip (with its own audio).
- * Both beats are contained inside the reel window (the side wolf and outer
- * borders stay visible). The background music ducks out and returns afterward.
- * Dismisses on end, on click (skip), on error, or via a safety timeout — and
- * fires at most once per day.
+ *   3. An outro: the Western showdown theme music swells over the clip's frozen
+ *      last frame, then a single gunshot cracks — and we cut back to gameplay.
+ * All beats are contained inside the reel window (the side wolf and outer
+ * borders stay visible). The game's own SFX + narrator are muted for the whole
+ * sequence (so nothing bleeds in); every cutscene sound is played directly and
+ * respects the SFX / MUSIC / VOICE sliders. The background music ducks out and
+ * returns afterward. Dismisses on end, on click (skip), on error, or via a
+ * safety timeout — and fires at most once per day.
  */
 'use strict';
 
@@ -19,7 +23,10 @@ const overlay = document.getElementById('noon-overlay');
 const video   = document.getElementById('noon-video');
 const card    = document.getElementById('noon-card');
 
-const CARD_HOLD_MS = 4200;         // how long the "stranger" card lingers before the clip
+const CARD_HOLD_MS  = 4200;        // how long the card lingers if VOICE is off
+const SHOWDOWN_MUSIC = 'assets/audio/music/showdown_theme.mp3';
+const GUNSHOT_SFX    = 'assets/audio/sfx/showdown_shootout.mp3';
+const WOLF_LINE      = 'assets/audio/narrator/highNoon_0.mp3';
 
 let playing  = false;
 let firedKey = null;     // e.g. "Sat May 30 2026" — so noon only triggers once per day
@@ -28,35 +35,49 @@ let wasSynthEnabled = true;
 let wasNarratorEnabled = true;
 
 /**
- * Take over the full screen: gunfight + title card, then the standoff clip, then
- * clean up. Exported so the time panel can trigger it on demand (regardless of
- * the real clock).
+ * Run the High-Noon cutscene (card + voice → clip → theme + gunshot → gameplay).
+ * Exported so the time panel can trigger it on demand (regardless of the clock).
  */
 export function playNoonStandoff() {
   if (!overlay || !video || playing) return;
   playing = true;
 
-  // Remember the channels' state so we can restore it; SFX + VO stay ON for beat
-  // 1 (gunfire + the wolf reading the card) and get muted in beat 2 (the clip).
+  // Capture the channels, then mute the game's own SFX + narrator for the WHOLE
+  // sequence so no ambient barks or idle lines overlap. Every cutscene sound is
+  // played directly below (bypassing the channels) and respects the sliders.
   wasSynthEnabled = synth.enabled;
   wasNarratorEnabled = narrator.enabled;
+  const voiceVol = narrator.getVolume();
+  const musicVol = bgm.getVolume();
+  const sfxVol   = synth.getVolume();
+  const voiceOn  = wasNarratorEnabled && voiceVol > 0;
+  const sfxOn    = wasSynthEnabled && sfxVol > 0;
 
-  bgm.pauseForCutscene();          // silence the game music under the cutscene
-  synth.stopAll();                 // (clears any lingering one-shots first…)
+  bgm.pauseForCutscene();          // silence the looping game music under the cutscene
+  synth.stopAll();
   narrator.stop();
+  synth.enabled = false;
+  narrator.enabled = false;
 
-  let done = false;
-  let rolled = false;
-  let cardTimer = null;
-  let speakTimer = null;
-  let voAudio = null;
+  let done = false, rolled = false, outroStarted = false;
+  let cardTimer = null, speakTimer = null;
+  let voAudio = null, musicAudio = null, gunAudio = null;
+
+  const playClip = (src, vol) => {
+    const a = new Audio(src);
+    a.volume = Math.max(0, Math.min(1, vol));
+    a.play().catch(() => {});
+    return a;
+  };
+  const stopClip = (a) => { if (a) { try { a.pause(); } catch (e) {} } };
 
   const finish = () => {
     if (done) return;
     done = true;
     if (cardTimer)  { clearTimeout(cardTimer);  cardTimer = null; }
     if (speakTimer) { clearTimeout(speakTimer); speakTimer = null; }
-    if (voAudio) { try { voAudio.pause(); } catch (e) {} voAudio = null; }
+    stopClip(voAudio); stopClip(musicAudio); stopClip(gunAudio);
+    voAudio = musicAudio = gunAudio = null;
     if (card) card.classList.remove('show', 'leaving');
     overlay.classList.add('fade-out');
     try { video.pause(); } catch (e) {}
@@ -66,60 +87,81 @@ export function playNoonStandoff() {
       if (card) card.classList.add('hidden');
       synth.enabled = wasSynthEnabled;
       narrator.enabled = wasNarratorEnabled;
-      bgm.resumeFromCutscene();    // bring the music back
+      bgm.resumeFromCutscene();    // bring the looping music back
       playing = false;
     }, 600);
   };
 
-  // Beat 2 — roll the standoff clip once the wolf has had his say (idempotent).
+  // Beat 3 — over the clip's frozen last frame, the showdown theme swells, then a
+  // single gunshot rings out, then we cut back to gameplay.
+  const startOutro = () => {
+    if (done || outroStarted) return;
+    outroStarted = true;
+
+    const fireGunThenEnd = () => {
+      if (done) return;
+      if (sfxOn) {
+        gunAudio = playClip(GUNSHOT_SFX, Math.min(1, sfxVol * 0.9));
+        gunAudio.addEventListener('ended', finish, { once: true });
+        gunAudio.addEventListener('error', finish, { once: true });
+        setTimeout(() => { if (!done) finish(); }, 7000);   // gunshot ~5s
+      } else {
+        finish();
+      }
+    };
+
+    if (musicVol > 0) {
+      musicAudio = playClip(SHOWDOWN_MUSIC, Math.min(1, musicVol * 0.9));
+      musicAudio.addEventListener('ended', fireGunThenEnd, { once: true });
+      musicAudio.addEventListener('error', fireGunThenEnd, { once: true });
+      setTimeout(() => { if (!done && !gunAudio) fireGunThenEnd(); }, 18000); // music ~15s
+    } else {
+      fireGunThenEnd();              // MUSIC muted → straight to the closing gunshot
+    }
+  };
+
+  // Beat 2 — roll the standoff clip; when it ends, start the outro.
   const rollClip = () => {
     if (done || rolled) return;
     rolled = true;
     if (cardTimer)  { clearTimeout(cardTimer);  cardTimer = null; }
     if (speakTimer) { clearTimeout(speakTimer); speakTimer = null; }
-    if (voAudio) { try { voAudio.pause(); } catch (e) {} voAudio = null; }
-    // Now that the clip (with its own audio) is taking over, mute game SFX + VO
-    // so nothing bleeds over it (restored in finish()).
-    synth.enabled = false;
-    narrator.enabled = false;
+    stopClip(voAudio); voAudio = null;
     // Fade the whole card (text + opaque background) out so the clip is visible.
     if (card) { card.classList.remove('show'); card.classList.add('leaving'); }
-    video.addEventListener('ended', finish, { once: true });
-    video.addEventListener('error', finish, { once: true });
+    video.addEventListener('ended', startOutro, { once: true });
+    video.addEventListener('error', startOutro, { once: true });
     try { video.currentTime = 0; } catch (e) {}
     // Try with sound (the player has interacted by mid-day); fall back to muted.
     video.muted = false;
     video.play().catch(() => {
       video.muted = true;
-      video.play().catch(finish);
+      video.play().catch(startOutro);
     });
-    setTimeout(finish, 20000);     // hard safety cap (clip is ~10s)
+    setTimeout(() => { if (!outroStarted) startOutro(); }, 20000);  // clip safety cap
   };
 
-  // A click anywhere skips straight to the end, in either beat.
+  // A click anywhere skips straight back to gameplay, in any beat.
   overlay.addEventListener('click', finish, { once: true });
 
-  // Beat 1 — show the overlay, fire the gunfight, reveal the "stranger" card.
+  // Beat 1 — reveal the card; the wolf reads it aloud (no gunfire, no other VO).
   overlay.classList.remove('hidden');
-  synth.shootout();                // cowboy high-noon gunfire
   if (card) {
     card.classList.remove('hidden', 'leaving');
     void card.offsetWidth;         // reflow so the entrance transition runs
     card.classList.add('show');
   }
-
-  // Once the gunfire has rung out, the wolf reads the card aloud (his own voice).
-  // When he finishes, roll the standoff clip; if VO is off, fall back to a timer.
+  // Let the card settle, then the wolf speaks; roll the clip when he finishes.
   speakTimer = setTimeout(() => {
-    voAudio = narrator.sayCutscene('highNoon_0.mp3');
-    if (voAudio) {
+    if (voiceOn) {
+      voAudio = playClip(WOLF_LINE, voiceVol);
       voAudio.addEventListener('ended', rollClip, { once: true });
       voAudio.addEventListener('error', rollClip, { once: true });
-      setTimeout(() => { if (!rolled) rollClip(); }, 16000);  // hard cap if VO stalls (clip ~12.5s)
+      setTimeout(() => { if (!rolled) rollClip(); }, 16000);  // hard cap (line ~12.5s)
     } else {
-      cardTimer = setTimeout(rollClip, CARD_HOLD_MS);          // VO off → time the card
+      cardTimer = setTimeout(rollClip, CARD_HOLD_MS);          // VOICE off → time the card
     }
-  }, 1200);
+  }, 900);
 }
 
 /* ── Watch the real clock. Polling every 250ms reliably catches the 12:00:00
