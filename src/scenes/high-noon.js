@@ -24,6 +24,9 @@ const CARD_HOLD_MS = 4200;         // how long the "stranger" card lingers befor
 let playing  = false;
 let firedKey = null;     // e.g. "Sat May 30 2026" — so noon only triggers once per day
 
+let wasSynthEnabled = true;
+let wasNarratorEnabled = true;
+
 /**
  * Take over the full screen: gunfight + title card, then the standoff clip, then
  * clean up. Exported so the time panel can trigger it on demand (regardless of
@@ -32,6 +35,11 @@ let firedKey = null;     // e.g. "Sat May 30 2026" — so noon only triggers onc
 export function playNoonStandoff() {
   if (!overlay || !video || playing) return;
   playing = true;
+
+  // Remember the channels' state so we can restore it; SFX + VO stay ON for beat
+  // 1 (gunfire + the wolf reading the card) and get muted in beat 2 (the clip).
+  wasSynthEnabled = synth.enabled;
+  wasNarratorEnabled = narrator.enabled;
 
   bgm.pauseForCutscene();          // silence the game music under the cutscene
   synth.stopAll();                 // (clears any lingering one-shots first…)
@@ -56,6 +64,8 @@ export function playNoonStandoff() {
       overlay.classList.add('hidden');
       overlay.classList.remove('fade-out');
       if (card) card.classList.add('hidden');
+      synth.enabled = wasSynthEnabled;
+      narrator.enabled = wasNarratorEnabled;
       bgm.resumeFromCutscene();    // bring the music back
       playing = false;
     }, 600);
@@ -68,6 +78,10 @@ export function playNoonStandoff() {
     if (cardTimer)  { clearTimeout(cardTimer);  cardTimer = null; }
     if (speakTimer) { clearTimeout(speakTimer); speakTimer = null; }
     if (voAudio) { try { voAudio.pause(); } catch (e) {} voAudio = null; }
+    // Now that the clip (with its own audio) is taking over, mute game SFX + VO
+    // so nothing bleeds over it (restored in finish()).
+    synth.enabled = false;
+    narrator.enabled = false;
     // Fade the whole card (text + opaque background) out so the clip is visible.
     if (card) { card.classList.remove('show'); card.classList.add('leaving'); }
     video.addEventListener('ended', finish, { once: true });
