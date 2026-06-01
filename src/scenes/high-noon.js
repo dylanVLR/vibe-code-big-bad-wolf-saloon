@@ -85,6 +85,7 @@ export function playNoonStandoff() {
       overlay.classList.add('hidden');
       overlay.classList.remove('fade-out');
       if (card) card.classList.add('hidden');
+      video.style.visibility = '';
       synth.enabled = wasSynthEnabled;
       narrator.enabled = wasNarratorEnabled;
       bgm.resumeFromCutscene();    // bring the looping music back
@@ -92,14 +93,22 @@ export function playNoonStandoff() {
     }, 600);
   };
 
-  // Beat 3 — over the clip's frozen last frame, the showdown theme swells, then a
-  // single gunshot rings out, then we cut back to gameplay.
+  // Beat 3 — end the clip and fade the card (the wolf's words) back in; the
+  // showdown theme plays over it; when the gunshot fires we cut hard to black,
+  // then back to gameplay.
   const startOutro = () => {
     if (done || outroStarted) return;
     outroStarted = true;
 
+    try { video.pause(); } catch (e) {}
+    if (card) { card.classList.remove('leaving'); card.classList.add('show'); }   // fade card back in
+
     const fireGunThenEnd = () => {
       if (done) return;
+      // Cut to all black: drop the card and the clip's frame instantly, leaving
+      // the overlay's black background, then the gunshot cracks over it.
+      if (card) card.classList.add('hidden');
+      video.style.visibility = 'hidden';
       if (sfxOn) {
         gunAudio = playClip(GUNSHOT_SFX, Math.min(1, sfxVol * 0.9));
         gunAudio.addEventListener('ended', finish, { once: true });
@@ -146,6 +155,7 @@ export function playNoonStandoff() {
 
   // Beat 1 — reveal the card; the wolf reads it aloud (no gunfire, no other VO).
   overlay.classList.remove('hidden');
+  video.style.visibility = '';       // reset (the outro hides it for the black cut)
   if (card) {
     card.classList.remove('hidden', 'leaving');
     void card.offsetWidth;         // reflow so the entrance transition runs
