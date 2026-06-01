@@ -37,12 +37,17 @@ export function playNoonStandoff() {
   narrator.stop();
 
   let done = false;
+  let rolled = false;
   let cardTimer = null;
+  let speakTimer = null;
+  let voAudio = null;
 
   const finish = () => {
     if (done) return;
     done = true;
-    if (cardTimer) { clearTimeout(cardTimer); cardTimer = null; }
+    if (cardTimer)  { clearTimeout(cardTimer);  cardTimer = null; }
+    if (speakTimer) { clearTimeout(speakTimer); speakTimer = null; }
+    if (voAudio) { try { voAudio.pause(); } catch (e) {} voAudio = null; }
     if (card) card.classList.remove('show');
     overlay.classList.add('fade-out');
     try { video.pause(); } catch (e) {}
@@ -55,9 +60,13 @@ export function playNoonStandoff() {
     }, 600);
   };
 
-  // Beat 2 — roll the standoff clip once the card has had its moment.
+  // Beat 2 — roll the standoff clip once the wolf has had his say (idempotent).
   const rollClip = () => {
-    if (done) return;
+    if (done || rolled) return;
+    rolled = true;
+    if (cardTimer)  { clearTimeout(cardTimer);  cardTimer = null; }
+    if (speakTimer) { clearTimeout(speakTimer); speakTimer = null; }
+    if (voAudio) { try { voAudio.pause(); } catch (e) {} voAudio = null; }
     if (card) card.classList.remove('show');
     video.addEventListener('ended', finish, { once: true });
     video.addEventListener('error', finish, { once: true });
@@ -83,7 +92,18 @@ export function playNoonStandoff() {
     card.classList.add('show');
   }
 
-  cardTimer = setTimeout(rollClip, card ? CARD_HOLD_MS : 0);
+  // Once the gunfire has rung out, the wolf reads the card aloud (his own voice).
+  // When he finishes, roll the standoff clip; if VO is off, fall back to a timer.
+  speakTimer = setTimeout(() => {
+    voAudio = narrator.sayCutscene('highNoon_0.mp3');
+    if (voAudio) {
+      voAudio.addEventListener('ended', rollClip, { once: true });
+      voAudio.addEventListener('error', rollClip, { once: true });
+      setTimeout(() => { if (!rolled) rollClip(); }, 16000);  // hard cap if VO stalls (clip ~12.5s)
+    } else {
+      cardTimer = setTimeout(rollClip, CARD_HOLD_MS);          // VO off → time the card
+    }
+  }, 1200);
 }
 
 /* ── Watch the real clock. Polling every 250ms reliably catches the 12:00:00

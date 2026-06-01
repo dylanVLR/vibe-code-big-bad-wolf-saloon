@@ -42,7 +42,8 @@ const { state } = require("state");
 // What the player VISUALLY sees ↔ internal symbol ids (see par-sheet.js).
 const SYM = {
   shotGlass: ['toolbox'],
-  horseshoe: ['pig-suit', 'pig-contractor'],
+  horseshoe: ['pig-contractor'],
+  badge:     ['pig-suit'],
   wild:      ['wild'],
   hats:      ['hat-yellow', 'hat-green', 'hat-red'],
 };
@@ -51,7 +52,7 @@ const SYM = {
 // id to its joke pool (by what the player sees on the reels).
 const SYM_JOKE = {
   'hat-yellow': 'clickHat', 'hat-green': 'clickHat', 'hat-red': 'clickHat',
-  'pig-suit': 'clickHorseshoe', 'pig-contractor': 'clickHorseshoe',
+  'pig-suit': 'sheriffBadge', 'pig-contractor': 'clickHorseshoe',
   'pig-nature': 'clickTornado', 'toolbox': 'clickShotGlass',
   'wolf': 'clickWolf', 'buzzard': 'clickBuzzard', 'wild': 'clickWild',
   'royal-a': 'clickRoyals', 'royal-k': 'clickRoyals', 'royal-q': 'clickRoyals',
@@ -119,6 +120,21 @@ class Narrator {
   }
 
   setVolume(v) { this._volume = Math.max(0, Math.min(1, v)); this.audio.volume = this._volume; }
+
+  /**
+   * Speak a single narrator line right now for a cutscene — bypasses the queue,
+   * cooldowns and idle logic, but still honors the VOICE on/off + volume. Plays
+   * on its own Audio element so it can be awaited/stopped by the caller.
+   * @returns {HTMLAudioElement|null} the playing audio, or null if VO is off.
+   */
+  sayCutscene(file, vol = 1) {
+    if (!this.enabled || this._volume === 0) return null;
+    this.stop();                       // clear anything queued/playing + idle timer
+    const a = new Audio(`assets/audio/narrator/${file}`);
+    a.volume = this._volume * vol;
+    a.play().catch(() => {});
+    return a;
+  }
   _log(...a) { if (typeof window !== 'undefined' && window.WOLF_VO_DEBUG) console.log('%c[WolfVO]', 'color:#F5C400', ...a); }
 
   /* ════════ context helpers ════════ */
@@ -1106,6 +1122,12 @@ const PHRASES = {
     "The wild's all me, partner. When it lands, the saloon checks the locks.",
     "Click the wild all ya like. It's basically a portrait of yours truly.",
     "That snarl in the middle? Pure wolf. Accept no substitutes — 'cept that one.",
+  ],
+
+  // High-noon easter egg — the wolf narrates the standoff title card aloud.
+  // Keep this line in sync with the #noon-card text in index.html.
+  highNoon: [
+    "Well, well... a stranger just moseyed into town on the stroke of twelve. But these here parts ain't big enough for the both of us — there's only one Big Bad Wolf in this saloon.",
   ],
 };
 
@@ -3182,7 +3204,7 @@ const SYMBOLS = {
   'hat-yellow':     { id: 'hat-yellow',     src: 'assets/hat_yellow.webp',     label: 'Yellow Hat',    pays: { 3: 1.78, 4: 7.14, 5: 35.70 }, isHat: true },
   'hat-green':      { id: 'hat-green',      src: 'assets/hat_white.webp',      label: 'White Hat',     pays: { 3: 0.89, 4: 3.57, 5: 17.85 }, isHat: true },
   'hat-red':        { id: 'hat-red',        src: 'assets/hat_red.webp',        label: 'Red Hat',       pays: { 3: 0.71, 4: 2.86, 5: 14.28 }, isHat: true },
-  'pig-suit':       { id: 'pig-suit',       src: 'assets/horseshoe.webp',       label: 'Straw Pig',      pays: { 3: 1.43, 4: 5.36, 5: 26.52 } },
+  'pig-suit':       { id: 'pig-suit',       src: 'assets/sheriff_badge.webp',   label: 'Sheriff Badge',  pays: { 3: 1.43, 4: 5.36, 5: 26.52 } },
   'pig-contractor': { id: 'pig-contractor', src: 'assets/horseshoe.webp',    label: 'Horseshoe',   pays: { 3: 1.07, 4: 4.28, 5: 21.42 } },
   'pig-nature':     { id: 'pig-nature',     src: 'assets/tornado.webp',  label: 'Tornado', pays: { 3: 0.71, 4: 2.86, 5: 14.28 } },
   'toolbox':        { id: 'toolbox',        src: 'assets/shotglass.webp',        label: 'Wood Pig',       pays: { 3: 0.61, 4: 2.50, 5: 12.24 } },
@@ -3573,8 +3595,6 @@ if (btnSize && modal) {
  * KNOWN ART TODOs (flagged for the team, do NOT affect this screen's accuracy):
  *   1. The Wolf Wild is placed only on the CENTRE reel in REEL_COUNTS, although
  *      some comments/README say "reels 2-4". This screen states the truth (centre).
- *   2. 'pig-suit' and 'pig-contractor' use the SAME horseshoe art but pay
- *      differently — they must be given distinct art before certification.
  */
 
 const {
@@ -3593,7 +3613,7 @@ const pct = n => `${(n * 100).toFixed(2)}%`;
 // Names that match the ART the player actually sees on the reels (not internal ids).
 const SYM_NAME = {
   'hat-yellow': 'Yellow Hard Hat', 'hat-green': 'White Hard Hat', 'hat-red': 'Red Hard Hat',
-  'pig-suit': 'Horseshoe', 'pig-contractor': 'Horseshoe', 'pig-nature': 'Tornado', 'toolbox': 'Shot Glass',
+  'pig-suit': 'Sheriff Badge', 'pig-contractor': 'Horseshoe', 'pig-nature': 'Tornado', 'toolbox': 'Shot Glass',
   'wolf': 'Wolf', 'buzzard': 'Buzzard', 'wild': 'Wolf Wild',
   'royal-a': 'Ace', 'royal-k': 'King', 'royal-q': 'Queen', 'royal-j': 'Jack', 'royal-10': 'Ten',
 };
@@ -3671,8 +3691,7 @@ function buildPages() {
       <table class="help-paytable">
         <thead><tr><th colspan="2">Symbol</th><th>5&times;</th><th>4&times;</th><th>3&times;</th></tr></thead>
         <tbody>${paytableRows()}</tbody>
-      </table>
-      <p class="help-note">Heads up: the two horseshoe symbols above are separate paytable symbols with different awards. (Art TODO: give them distinct artwork before certification.)</p>` },
+      </table>` },
 
     { nav: 'Wolf Wild', title: 'The Wolf Wild', html: `
       <div class="help-feature">${symArt('wild', 'help-sym-lg')}
@@ -4617,24 +4636,24 @@ Object.assign(exports, { runSimulation });
 /* AUTO-GENERATED by tools/build.js — folder-size snapshot. Do not edit. */
 
 const SIZE_MANIFEST = {
-  "totalBytes": 158237446,
-  "fileCount": 764,
+  "totalBytes": 158444240,
+  "fileCount": 765,
   "generatedAt": "2026-06-01",
   "player": {
-    "bytes": 157778046,
-    "files": 705
+    "bytes": 157983129,
+    "files": 706
   },
   "dev": {
-    "bytes": 459400,
+    "bytes": 461111,
     "files": 59
   },
   "firstPlay": {
-    "bytes": 17181060,
+    "bytes": 17185061,
     "files": 67
   },
   "progressive": {
-    "bytes": 140596986,
-    "files": 638
+    "bytes": 140798068,
+    "files": 639
   },
   "categories": [
     {
@@ -4646,8 +4665,8 @@ const SIZE_MANIFEST = {
     {
       "key": "audio",
       "label": "Audio",
-      "bytes": 37759022,
-      "files": 608
+      "bytes": 37960104,
+      "files": 609
     },
     {
       "key": "image",
@@ -4658,7 +4677,7 @@ const SIZE_MANIFEST = {
     {
       "key": "code",
       "label": "Code",
-      "bytes": 879626,
+      "bytes": 885338,
       "files": 51
     },
     {
@@ -5607,12 +5626,17 @@ function playNoonStandoff() {
   narrator.stop();
 
   let done = false;
+  let rolled = false;
   let cardTimer = null;
+  let speakTimer = null;
+  let voAudio = null;
 
   const finish = () => {
     if (done) return;
     done = true;
-    if (cardTimer) { clearTimeout(cardTimer); cardTimer = null; }
+    if (cardTimer)  { clearTimeout(cardTimer);  cardTimer = null; }
+    if (speakTimer) { clearTimeout(speakTimer); speakTimer = null; }
+    if (voAudio) { try { voAudio.pause(); } catch (e) {} voAudio = null; }
     if (card) card.classList.remove('show');
     overlay.classList.add('fade-out');
     try { video.pause(); } catch (e) {}
@@ -5625,9 +5649,13 @@ function playNoonStandoff() {
     }, 600);
   };
 
-  // Beat 2 — roll the standoff clip once the card has had its moment.
+  // Beat 2 — roll the standoff clip once the wolf has had his say (idempotent).
   const rollClip = () => {
-    if (done) return;
+    if (done || rolled) return;
+    rolled = true;
+    if (cardTimer)  { clearTimeout(cardTimer);  cardTimer = null; }
+    if (speakTimer) { clearTimeout(speakTimer); speakTimer = null; }
+    if (voAudio) { try { voAudio.pause(); } catch (e) {} voAudio = null; }
     if (card) card.classList.remove('show');
     video.addEventListener('ended', finish, { once: true });
     video.addEventListener('error', finish, { once: true });
@@ -5653,7 +5681,18 @@ function playNoonStandoff() {
     card.classList.add('show');
   }
 
-  cardTimer = setTimeout(rollClip, card ? CARD_HOLD_MS : 0);
+  // Once the gunfire has rung out, the wolf reads the card aloud (his own voice).
+  // When he finishes, roll the standoff clip; if VO is off, fall back to a timer.
+  speakTimer = setTimeout(() => {
+    voAudio = narrator.sayCutscene('highNoon_0.mp3');
+    if (voAudio) {
+      voAudio.addEventListener('ended', rollClip, { once: true });
+      voAudio.addEventListener('error', rollClip, { once: true });
+      setTimeout(() => { if (!rolled) rollClip(); }, 16000);  // hard cap if VO stalls (clip ~12.5s)
+    } else {
+      cardTimer = setTimeout(rollClip, CARD_HOLD_MS);          // VO off → time the card
+    }
+  }, 1200);
 }
 
 /* ── Watch the real clock. Polling every 250ms reliably catches the 12:00:00

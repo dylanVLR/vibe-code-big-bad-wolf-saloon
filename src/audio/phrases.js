@@ -729,4 +729,10 @@ export const PHRASES = {
     "Click the wild all ya like. It's basically a portrait of yours truly.",
     "That snarl in the middle? Pure wolf. Accept no substitutes — 'cept that one.",
   ],
+
+  // High-noon easter egg — the wolf narrates the standoff title card aloud.
+  // Keep this line in sync with the #noon-card text in index.html.
+  highNoon: [
+    "Well, well... a stranger just moseyed into town on the stroke of twelve. But these here parts ain't big enough for the both of us — there's only one Big Bad Wolf in this saloon.",
+  ],
 };
