@@ -5,8 +5,9 @@
  *   1. A Western "a stranger rides into town" title card; the wolf reads it
  *      aloud in his own voice (no other narrator lines, no SFX — they'd overlap).
  *   2. The High_noon_standoff.webm clip (with its own audio).
- *   3. An outro: the Western showdown theme music swells over the clip's frozen
- *      last frame, then a single gunshot cracks — and we cut back to gameplay.
+ *   3. A STORYBOOK finale: the Western showdown theme loops while the wolf reads
+ *      the rest of the tale a page at a time (highNoonStory), and on the last
+ *      page the gunshots crack and we cut to black, back to gameplay.
  * All beats are contained inside the reel window (the side wolf and outer
  * borders stay visible). The game's own SFX + narrator are muted for the whole
  * sequence (so nothing bleeds in); every cutscene sound is played directly and
@@ -18,15 +19,20 @@
 
 import { bgm, synth } from '../audio/sound.js';
 import { narrator } from '../audio/narrator.js';
+import { PHRASES } from '../audio/phrases.js';   // highNoonStory pages (shown + spoken)
 
-const overlay = document.getElementById('noon-overlay');
-const video   = document.getElementById('noon-video');
-const card    = document.getElementById('noon-card');
+const overlay   = document.getElementById('noon-overlay');
+const video     = document.getElementById('noon-video');
+const card      = document.getElementById('noon-card');
+const story     = document.getElementById('noon-story');
+const storyText = document.getElementById('noon-story-text');
+const storyDots = document.getElementById('noon-story-dots');
 
 const CARD_HOLD_MS  = 4200;        // how long the card lingers if VOICE is off
 const SHOWDOWN_MUSIC = 'assets/audio/music/showdown_theme.mp3';
 const GUNSHOT_SFX    = 'assets/audio/sfx/showdown_shootout.mp3';
 const WOLF_LINE      = 'assets/audio/narrator/highNoon_0.mp3';
+const STORY_CLIP     = i => `assets/audio/narrator/highNoonStory_${i}.mp3`;
 
 let playing  = false;
 let firedKey = null;     // e.g. "Sat May 30 2026" — so noon only triggers once per day
@@ -59,8 +65,8 @@ export function playNoonStandoff() {
   synth.enabled = false;
   narrator.enabled = false;
 
-  let done = false, rolled = false, outroStarted = false;
-  let cardTimer = null, speakTimer = null;
+  let done = false, rolled = false, outroStarted = false, gunFired = false;
+  let cardTimer = null, speakTimer = null, storyTimer = null;
   let voAudio = null, musicAudio = null, gunAudio = null;
 
   const playClip = (src, vol) => {
@@ -76,15 +82,18 @@ export function playNoonStandoff() {
     done = true;
     if (cardTimer)  { clearTimeout(cardTimer);  cardTimer = null; }
     if (speakTimer) { clearTimeout(speakTimer); speakTimer = null; }
+    if (storyTimer) { clearTimeout(storyTimer); storyTimer = null; }
     stopClip(voAudio); stopClip(musicAudio); stopClip(gunAudio);
     voAudio = musicAudio = gunAudio = null;
-    if (card) card.classList.remove('show', 'leaving');
+    if (card)  card.classList.remove('show', 'leaving');
+    if (story) story.classList.remove('show');
     overlay.classList.add('fade-out');
     try { video.pause(); } catch (e) {}
     setTimeout(() => {
       overlay.classList.add('hidden');
       overlay.classList.remove('fade-out');
-      if (card) card.classList.add('hidden');
+      if (card)  card.classList.add('hidden');
+      if (story) story.classList.add('hidden');
       video.style.visibility = '';
       synth.enabled = wasSynthEnabled;
       narrator.enabled = wasNarratorEnabled;
@@ -93,40 +102,79 @@ export function playNoonStandoff() {
     }, 600);
   };
 
-  // Beat 3 — end the clip and fade the card (the wolf's words) back in; the
-  // showdown theme plays over it; when the gunshot fires we cut hard to black,
-  // then back to gameplay.
+  // Beat 3 — the STORYBOOK finale. The clip ends, the showdown theme loops under
+  // a few pages of story (each read aloud by the wolf), and when the tale reaches
+  // "He huffed. He puffed. And…" the gunshots crack, we cut hard to black, and
+  // return to gameplay.
+
+  // Stop the story, cut to black, fire the closing gunshot, then end.
+  const fireGunThenEnd = () => {
+    if (done || gunFired) return;
+    gunFired = true;
+    if (storyTimer) { clearTimeout(storyTimer); storyTimer = null; }
+    stopClip(voAudio);   voAudio = null;
+    stopClip(musicAudio); musicAudio = null;            // theme stops for the shot
+    if (story) story.classList.remove('show');
+    setTimeout(() => { if (story) story.classList.add('hidden'); }, 220);
+    video.style.visibility = 'hidden';                  // cut to all black
+    if (sfxOn) {
+      gunAudio = playClip(GUNSHOT_SFX, Math.min(1, sfxVol * 0.9));
+      gunAudio.addEventListener('ended', finish, { once: true });
+      gunAudio.addEventListener('error', finish, { once: true });
+      setTimeout(() => { if (!done) finish(); }, 7000);   // gunshot ~5s
+    } else {
+      finish();
+    }
+  };
+
+  // Show the story pages one at a time (each spoken by the wolf), then onDone().
+  const runStorybook = (onDone) => {
+    const pages = (PHRASES && PHRASES.highNoonStory) || [];
+    if (!story || !storyText || !pages.length) { onDone(); return; }
+    storyDots.innerHTML = pages.map(() => '<span></span>').join('');
+    const dots = [...storyDots.children];
+    let i = 0;
+
+    const advance = () => {
+      if (done || gunFired) return;
+      if (storyTimer) { clearTimeout(storyTimer); storyTimer = null; }
+      stopClip(voAudio); voAudio = null;
+      story.classList.remove('show');                   // fade the page out
+      i += 1;
+      storyTimer = setTimeout(showPage, 430);           // short beat between pages
+    };
+
+    const showPage = () => {
+      if (done || gunFired) return;
+      if (i >= pages.length) { onDone(); return; }
+      storyText.textContent = pages[i];
+      dots.forEach((d, k) => d.classList.toggle('on', k === i));
+      story.classList.remove('hidden');
+      void story.offsetWidth;                           // reflow → fade-in transition runs
+      story.classList.add('show');
+      if (voiceOn) {
+        voAudio = playClip(STORY_CLIP(i), voiceVol);
+        voAudio.addEventListener('ended', advance, { once: true });
+        voAudio.addEventListener('error', advance, { once: true });
+        storyTimer = setTimeout(advance, 15000);        // per-page hard cap
+      } else {
+        storyTimer = setTimeout(advance, 2600 + pages[i].length * 45);  // ~reading time
+      }
+    };
+    showPage();
+  };
+
   const startOutro = () => {
     if (done || outroStarted) return;
     outroStarted = true;
-
     try { video.pause(); } catch (e) {}
-    if (card) { card.classList.remove('leaving'); card.classList.add('show'); }   // fade card back in
+    if (card) card.classList.add('hidden');             // intro card is replaced by the storybook
 
-    const fireGunThenEnd = () => {
-      if (done) return;
-      // Cut to all black: drop the card and the clip's frame instantly, leaving
-      // the overlay's black background, then the gunshot cracks over it.
-      if (card) card.classList.add('hidden');
-      video.style.visibility = 'hidden';
-      if (sfxOn) {
-        gunAudio = playClip(GUNSHOT_SFX, Math.min(1, sfxVol * 0.9));
-        gunAudio.addEventListener('ended', finish, { once: true });
-        gunAudio.addEventListener('error', finish, { once: true });
-        setTimeout(() => { if (!done) finish(); }, 7000);   // gunshot ~5s
-      } else {
-        finish();
-      }
-    };
-
-    if (musicVol > 0) {
-      musicAudio = playClip(SHOWDOWN_MUSIC, Math.min(1, musicVol * 0.9));
-      musicAudio.addEventListener('ended', fireGunThenEnd, { once: true });
-      musicAudio.addEventListener('error', fireGunThenEnd, { once: true });
-      setTimeout(() => { if (!done && !gunAudio) fireGunThenEnd(); }, 18000); // music ~15s
-    } else {
-      fireGunThenEnd();              // MUSIC muted → straight to the closing gunshot
+    if (musicVol > 0) {                                 // theme loops quietly under the story
+      musicAudio = playClip(SHOWDOWN_MUSIC, Math.min(1, musicVol * 0.8));
+      if (musicAudio) musicAudio.loop = true;
     }
+    runStorybook(fireGunThenEnd);
   };
 
   // Beat 2 — roll the standoff clip; when it ends, start the outro.

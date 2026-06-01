@@ -115,6 +115,7 @@ const GROUPS = [
   ]],
   ['High-Noon easter egg', [
     ['highNoon', 'The hidden “High Noon” standoff (fires at exactly 12:00 PM local time, or from the dev Time panel) — the wolf reads the on-screen title card aloud'],
+    ['highNoonStory', 'The storybook finale after the standoff clip — the wolf reads the tale one page at a time over the showdown music, before the closing gunshots'],
   ]],
   ['Friendly roasts — DISABLED by default', [
     ['roasts', 'Tongue-in-cheek nods to the “other” huff-and-puff game. OFF by default; enable only if you want them.'],

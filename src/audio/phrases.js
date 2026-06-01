@@ -735,4 +735,20 @@ export const PHRASES = {
   highNoon: [
     "Well, well... a stranger just moseyed into town on the stroke of twelve. But these here parts ain't big enough for the both of us — there's only one Big Bad Wolf in this saloon.",
   ],
+
+  // High-noon STORYBOOK — read aloud after the standoff clip, one page at a time,
+  // over the showdown music, then the gunshots. Each entry is ONE page: it is both
+  // shown on screen (src/scenes/high-noon.js) and the text of its voiceover clip
+  // (assets/audio/narrator/highNoonStory_<i>.mp3). Keep the two in sync.
+  highNoonStory: [
+    `For one very long moment, nobody moved. The sheriff wolf sniffed. The outlaw wolf sniffed harder.`,
+    `The sheriff narrowed his eyes. "You call that a huff? A house of cards could withstand that."`,
+    `The outlaw spat in the dust. "Careful, badge-boy. I'm one puff away from turning this whole street into brunch."`,
+    `A pig poked his head out from behind a rain barrel. "Can we maybe not do the huffing and puffing today? We just rebuilt the bakery."`,
+    `The outlaw wolf spun toward the pig. "Relax. He's already at Huff N' Even More Puff. There's nowhere left to go."`,
+    `The pig blinked. "Partner," said the outlaw, pointing at the sheriff, "this little online game of yours might as well be called Huff N' We've Had Enuff."`,
+    `The town gasped. The pigs ducked. The saloon doors flapped. A tumbleweed stopped rolling just to watch.`,
+    `The sheriff took a deep breath. The outlaw took an even deeper one. The whole town braced itself.`,
+    `He huffed. He puffed. And...`,
+  ],
 };

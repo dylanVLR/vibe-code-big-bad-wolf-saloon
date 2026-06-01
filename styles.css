@@ -157,6 +157,42 @@ input, textarea {
 }
 .noon-card-text b { color: var(--gold-light); white-space: nowrap; }
 
+/* ── HIGH-NOON STORYBOOK ── pages of story text shown after the standoff clip,
+      one at a time, over the showdown music, before the gunshots. ── */
+#noon-story {
+  position: absolute;
+  inset: 0;
+  z-index: 3;                 /* above the clip and the title card */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 18px 22px;
+  background: radial-gradient(ellipse at center, #2a1c0c 0%, #160d05 58%, #000 100%);
+  opacity: 0;
+  transition: opacity .45s ease;
+}
+#noon-story.hidden { display: none; }
+#noon-story.show { opacity: 1; }
+.noon-story-mark {
+  font-size: 1.5rem; line-height: 1; color: var(--gold);
+  opacity: .85; margin-bottom: 14px; text-shadow: 0 0 14px rgba(245,196,0,.5);
+}
+#noon-story-text {
+  margin: 0; max-width: 30ch;
+  font-family: Georgia, 'Times New Roman', serif;   /* readable storybook serif */
+  font-size: clamp(1.05rem, 3.2vw, 1.75rem);
+  line-height: 1.55; color: #FFF1D4;
+  text-shadow: 0 1px 6px rgba(0,0,0,.9), 0 0 22px rgba(245,196,0,.16);
+}
+#noon-story-dots { display: flex; gap: 7px; margin-top: 20px; }
+#noon-story-dots span {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: rgba(245,196,0,.28); transition: all .2s ease;
+}
+#noon-story-dots span.on { background: var(--gold); box-shadow: 0 0 8px rgba(245,196,0,.7); }
+
 /* ── REEL-WINDOW VIDEOS ── full-bleed clips contained inside the reel window:
       the bonus intro (Three Pigs), the wolf-blow (tornado) reveal, and the
       High-Noon standoff easter egg. Contained here so the side wolf & outer
