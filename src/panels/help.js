@@ -20,8 +20,6 @@
  * KNOWN ART TODOs (flagged for the team, do NOT affect this screen's accuracy):
  *   1. The Wolf Wild is placed only on the CENTRE reel in REEL_COUNTS, although
  *      some comments/README say "reels 2-4". This screen states the truth (centre).
- *   2. 'pig-suit' and 'pig-contractor' use the SAME horseshoe art but pay
- *      differently — they must be given distinct art before certification.
  */
 'use strict';
 
@@ -41,7 +39,7 @@ const pct = n => `${(n * 100).toFixed(2)}%`;
 // Names that match the ART the player actually sees on the reels (not internal ids).
 const SYM_NAME = {
   'hat-yellow': 'Yellow Hard Hat', 'hat-green': 'White Hard Hat', 'hat-red': 'Red Hard Hat',
-  'pig-suit': 'Horseshoe', 'pig-contractor': 'Horseshoe', 'pig-nature': 'Tornado', 'toolbox': 'Shot Glass',
+  'pig-suit': 'Sheriff Badge', 'pig-contractor': 'Horseshoe', 'pig-nature': 'Tornado', 'toolbox': 'Shot Glass',
   'wolf': 'Wolf', 'buzzard': 'Buzzard', 'wild': 'Wolf Wild',
   'royal-a': 'Ace', 'royal-k': 'King', 'royal-q': 'Queen', 'royal-j': 'Jack', 'royal-10': 'Ten',
 };
@@ -119,8 +117,7 @@ function buildPages() {
       <table class="help-paytable">
         <thead><tr><th colspan="2">Symbol</th><th>5&times;</th><th>4&times;</th><th>3&times;</th></tr></thead>
         <tbody>${paytableRows()}</tbody>
-      </table>
-      <p class="help-note">Heads up: the two horseshoe symbols above are separate paytable symbols with different awards. (Art TODO: give them distinct artwork before certification.)</p>` },
+      </table>` },
 
     { nav: 'Wolf Wild', title: 'The Wolf Wild', html: `
       <div class="help-feature">${symArt('wild', 'help-sym-lg')}

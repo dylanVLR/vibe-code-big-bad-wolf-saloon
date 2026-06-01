@@ -4,11 +4,21 @@
 ═══════════════════════════════════════════════════════════════ */
 
 /* ── RESET & BASE ── */
+html {
+  overscroll-behavior: none;
+}
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
   -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+input, textarea {
+  -webkit-user-select: auto;
+  user-select: auto;
 }
 
 /* ── CSS VARIABLES ── */
@@ -471,12 +481,14 @@ body {
   /* Wild-West scene behind the whole game, scaled to fill the window */
   background: #2a1d10;
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
   font-family: var(--font-main);
   overflow-x: hidden;
+  overscroll-behavior: none;
   padding: 50px 8px 20px;
   box-sizing: border-box;
   position: relative;
@@ -488,6 +500,7 @@ body {
   left: 0;
   width: 100vw;
   height: 100vh;
+  height: 100dvh;
   object-fit: cover;
   z-index: -1;
   opacity: 0.6; /* Slight dimming so it doesn't distract too much */
