@@ -101,6 +101,33 @@ function wireSoundControls() {
     if (v === 0) { narrator.enabled = false; narrator.stop(); }
     else narrator.enabled = true;
   });
+
+  const btnVolMute = document.getElementById('btn-vol-mute');
+  const btnVolReset = document.getElementById('btn-vol-reset');
+
+  if (btnVolMute) {
+    btnVolMute.addEventListener('click', (e) => {
+      e.stopPropagation();
+      sliderSfx.value = 0;
+      sliderMusic.value = 0;
+      sliderNarr.value = 0;
+      sliderSfx.dispatchEvent(new Event('input'));
+      sliderMusic.dispatchEvent(new Event('input'));
+      sliderNarr.dispatchEvent(new Event('input'));
+    });
+  }
+
+  if (btnVolReset) {
+    btnVolReset.addEventListener('click', (e) => {
+      e.stopPropagation();
+      sliderSfx.value = 100;
+      sliderMusic.value = 50;
+      sliderNarr.value = 80;
+      sliderSfx.dispatchEvent(new Event('input'));
+      sliderMusic.dispatchEvent(new Event('input'));
+      sliderNarr.dispatchEvent(new Event('input'));
+    });
+  }
 }
 
 /* ══════════════════════════════════════════
