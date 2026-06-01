@@ -68,6 +68,9 @@ class Synth {
   wildExpand()  { this._oneShot('wild_expand.mp3', 0.85); }
   boltLock()    { this._oneShot('bolt_lock.mp3', 0.7); }
 
+  // ── high-noon easter egg ──
+  shootout()    { return this._oneShot('showdown_shootout.mp3', 0.85); }
+
   // ── wolf & houses ──
   wolfHuff()    { this._oneShot('wolf_huff.mp3', 0.8); }
   wolfHowl()    { this._oneShot('wolf_howl.mp3', 0.6); }

@@ -34,6 +34,9 @@ const SFX = {
   win_big:      { d: 2.2, p: 'A big triumphant slot win fanfare: a bright brass and banjo flourish with sparkling bells, cascading gold coins and a celebratory hoedown energy, exciting Western, punchy.' },
   bonus_siren:  { d: 2.0, p: 'An exciting bonus-triggered alert: a whimsical rising siren-whistle with sparkling bells, a galloping snare drum roll and a banjo flourish, building anticipation, fairy-tale Western, energetic.' },
 
+  // ── high-noon easter egg ──
+  showdown_shootout: { d: 5, p: 'A Wild West high-noon showdown: a lone church bell tolling twelve over tense dusty desert wind and a jingling spur, a creaking saloon door, then a sudden rapid exchange of revolver gunshots cracking and echoing across the empty frontier street with whizzing ricochets, ending on one final decisive pistol shot. Cinematic, dramatic, cowboy western, no music, no voices.' },
+
   // ── wolf & houses ──
   wolf_huff:    { d: 1.6, p: 'A cartoon Big Bad Wolf taking a giant deep breath then blowing a huge gust: an exaggerated inhale and a powerful huffing-and-puffing wind whoosh, fairy tale, comedic and forceful.' },
   wolf_howl:    { d: 1.6, p: 'A lone wolf howling at the moon at night: a clear cinematic rising "awooo", a touch menacing and a touch playful, Western prairie night with faint wind.' },

@@ -1782,9 +1782,9 @@
         <div class="vol-row"><span class="vol-label">SFX</span><input type="range" id="slider-sfx" class="vol-slider" min="0" max="100" value="100" step="1"><span class="vol-pct" id="sfx-pct">100%</span></div>
         <div class="vol-row"><span class="vol-label">MUSIC</span><input type="range" id="slider-music" class="vol-slider" min="0" max="100" value="50" step="1"><span class="vol-pct" id="music-pct">50%</span></div>
         <div class="vol-row"><span class="vol-label">VOICE</span><input type="range" id="slider-narrator" class="vol-slider narrator-slider" min="0" max="100" value="80" step="1"><span class="vol-pct" id="narrator-pct">80%</span></div>
-        <div class="vol-actions" style="display:flex; justify-content:space-between; margin-top:10px; padding:0 4px;">
-          <button id="btn-vol-mute" class="drawer-btn" style="flex:1; margin-right:4px; font-size:0.75rem; padding:6px 0;">MUTE ALL</button>
-          <button id="btn-vol-reset" class="drawer-btn" style="flex:1; margin-left:4px; font-size:0.75rem; padding:6px 0;">RESET</button>
+        <div class="vol-actions">
+          <button id="btn-vol-mute" class="drawer-btn vol-action-btn">MUTE ALL</button>
+          <button id="btn-vol-reset" class="drawer-btn vol-action-btn">RESET</button>
         </div>
       </div>
     </div>
@@ -1851,6 +1851,15 @@
 
 <!-- HIGH NOON easter egg — full-screen takeover at exactly 12:00 PM local time -->
 <div id="noon-overlay" class="hidden">
+  <!-- Western "stranger in town" title card, shown over a gunfight before the standoff clip -->
+  <div id="noon-card" class="hidden">
+    <div class="noon-card-star">★</div>
+    <div class="noon-card-kicker">— HIGH&nbsp;NOON —</div>
+    <div class="noon-card-title">A Stranger Rides In</div>
+    <p class="noon-card-text">A stranger just moseyed into town on the stroke of twelve&hellip;<br>
+      but these here parts ain&rsquo;t big enough for the both of &rsquo;em.<br>
+      There&rsquo;s only one <b>Big&nbsp;Bad&nbsp;Wolf</b> in this saloon.</p>
+  </div>
   <video id="noon-video" src="assets/webm/High_noon_standoff.webm" playsinline preload="none"></video>
   <div id="noon-skip">CLICK TO SKIP</div>
 </div>

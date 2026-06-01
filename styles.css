@@ -84,6 +84,65 @@
   user-select: none;
 }
 
+/* ── HIGH-NOON "stranger in town" title card (shown over the gunfight before
+      the standoff clip rolls). A weathered Wanted-poster look on a dusty vignette. ── */
+#noon-card {
+  position: absolute;
+  inset: 0;
+  z-index: 2;                 /* above the (still-black) video, below the skip hint */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 24px;
+  background: radial-gradient(ellipse at center, #2a1c0c 0%, #160d05 55%, #000 100%);
+}
+#noon-card.hidden { display: none; }
+#noon-card > * {
+  opacity: 0;
+  transform: translateY(14px);
+  transition: opacity .6s ease, transform .6s cubic-bezier(.2,.9,.3,1);
+}
+#noon-card.show > * { opacity: 1; transform: translateY(0); }
+#noon-card.show .noon-card-kicker { transition-delay: .15s; }
+#noon-card.show .noon-card-title  { transition-delay: .30s; }
+#noon-card.show .noon-card-text   { transition-delay: .55s; }
+.noon-card-star {
+  font-size: 2.6rem;
+  line-height: 1;
+  color: var(--gold);
+  text-shadow: 0 0 18px rgba(245,196,0,.55), 0 2px 4px rgba(0,0,0,.7);
+  transition-delay: 0s;
+}
+.noon-card-kicker {
+  margin-top: 10px;
+  font-family: var(--font-main);
+  font-weight: 800;
+  font-size: 0.9rem;
+  letter-spacing: 6px;
+  color: var(--gold-light);
+  text-shadow: 0 1px 4px rgba(0,0,0,.8);
+}
+.noon-card-title {
+  margin-top: 6px;
+  font-family: var(--font-title);
+  font-size: clamp(2rem, 6vw, 3.6rem);
+  color: #fff5dc;
+  text-shadow: 0 0 22px rgba(245,196,0,.45), 0 3px 0 var(--gold-dark), 0 5px 10px rgba(0,0,0,.8);
+}
+.noon-card-text {
+  margin: 18px 0 0;
+  max-width: 40ch;
+  font-family: var(--font-main);
+  font-weight: 700;
+  font-size: clamp(0.95rem, 2.4vw, 1.25rem);
+  line-height: 1.6;
+  color: #e8d6b0;
+  text-shadow: 0 1px 4px rgba(0,0,0,.85);
+}
+.noon-card-text b { color: var(--gold-light); white-space: nowrap; }
+
 /* ── REEL-WINDOW VIDEOS ── full-bleed clips contained inside the reel window:
       the bonus intro (Three Pigs) and the wolf-blow (tornado) reveal.        ── */
 #bonus-intro-overlay,
@@ -168,8 +227,10 @@
   border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-/* On windows too narrow to show a useful slice of him, hide him entirely. */
-@media (max-width: 1040px) { #wolf-container { display: none; } }
+/* On windows too narrow to show a useful slice of him, hide him entirely.
+   We exempt wide landscape screens (aspect-ratio > 16/10) because fit-screen.js
+   scales by height, leaving ample left margin for the wolf to fit. */
+@media (max-width: 1040px) and (max-aspect-ratio: 16/10) { #wolf-container { display: none; } }
 
 /* ── DAY / NIGHT OVERLAY ── darkens the background image by time of day ── */
 #day-night-overlay {
@@ -2244,6 +2305,35 @@ body.pre-reveal #bg-video { opacity: 1; }   /* full, undimmed background during 
   text-align: right;
   flex-shrink: 0;
   text-shadow: 0 0 4px var(--neon-green-glow);
+}
+
+.vol-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 0 4px;
+}
+
+.vol-action-btn {
+  flex: 1;
+  justify-content: center;
+  font-size: 0.72rem;
+  padding: 8px 0;
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgba(46,232,90,0.1), rgba(8,30,14,0.3));
+  border: 1px solid rgba(46,232,90,0.4);
+  color: #CFE8D6;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  transition: all 0.15s ease;
+}
+.vol-action-btn:hover:not(:disabled) {
+  background: linear-gradient(180deg, rgba(46,232,90,0.22), rgba(8,30,14,0.5));
+  border-color: var(--neon-green);
+  color: #FFF;
+  box-shadow: 0 4px 12px rgba(46,232,90,0.25);
+  transform: translateY(-1px);
 }
 
 /* Custom range slider */
