@@ -770,6 +770,10 @@ body.pre-reveal #bg-video { opacity: 1; }   /* full, undimmed background during 
   min-width: 0;
 }
 
+/* the saloon sign is clickable — the wolf brags when you tap it */
+#logo-text.clickable-sign { cursor: pointer; transition: transform .1s ease; }
+#logo-text.clickable-sign:active { transform: scale(0.97); }
+
 #logo-text span {
   font-family: var(--font-title);
   font-size: clamp(1.35rem, 5vw, 2.7rem);   /* scales down smoothly as the frame narrows */

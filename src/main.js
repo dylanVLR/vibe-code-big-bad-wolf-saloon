@@ -164,6 +164,13 @@ function init() {
   const bigWin = document.getElementById('big-win-overlay');
   if (bigWin) bigWin.addEventListener('click', () => bigWin.classList.add('hidden'));
 
+  // click the saloon sign → the wolf brags about his joint
+  const logoText = document.getElementById('logo-text');
+  if (logoText) {
+    logoText.classList.add('clickable-sign');
+    logoText.addEventListener('click', () => narrator.onSaloonClick());
+  }
+
   startAmbientParticles();
   initFitScreen();            // fit the cabinet to short / mobile (iPhone landscape) viewports
   initLazyAssets();           // stream in decorative/bonus assets after first play

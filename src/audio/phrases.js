@@ -582,4 +582,18 @@ export const PHRASES = {
     "More puff? Partner, I brought plenty.",
     "I've seen puff acts with less bite than a saloon napkin.",
   ],
+  // Click the "BIG BAD WOLF SALOON" sign → the wolf brags about his joint.
+  saloonHeader: [
+    "Big Bad Wolf Saloon. My name's on the door 'cause I huffed down the last three.",
+    "Welcome to my saloon, partner. Finest whiskey, worst-built houses in the territory.",
+    "This here's the Big Bad Wolf Saloon. Pigs drink free — if they can outrun the tab.",
+    "Every board in this place, I blew in from somewhere else.",
+    "Big Bad Wolf Saloon, where the piano's honest and the pigs ain't.",
+    "Built it myself. Well — I huffed, the pigs built, then I moved in.",
+    "My saloon, my rules, my reels. Pull up a stool.",
+    "They named it after me. Only fair — I'm the one with the lungs.",
+    "No straw, no sticks in this saloon. Just good solid trouble.",
+    "Finest saloon west of the brick house. Only one, too. Funny how that works.",
+    "Step careful, partner. This saloon bites back, and so do I.",
+  ],
 };
