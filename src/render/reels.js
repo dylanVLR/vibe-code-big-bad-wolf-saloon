@@ -20,6 +20,17 @@ const elWin = document.getElementById('display-win');
 
 export function getReelStrips() { return reelStrips; }
 
+// Tap any reel symbol → the wolf jokes about it (delegated; cells carry data-sym).
+// Ignored while the reels are spinning; the narrator also skips it during the bonus.
+const reelWindow = document.getElementById('reel-window');
+if (reelWindow) {
+  reelWindow.addEventListener('click', e => {
+    if (state.spinning) return;
+    const cell = e.target.closest('.sym-cell[data-sym]');
+    if (cell && reelWindow.contains(cell)) narrator.onSymbolClick(cell.dataset.sym);
+  });
+}
+
 /** A random symbol id, used only to fill the blurry scroll buffer. */
 function randomSymbol() { return SYMBOL_IDS[Math.floor(Math.random() * SYMBOL_IDS.length)]; }
 

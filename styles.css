@@ -952,7 +952,9 @@ body.pre-reveal #bg-video { opacity: 1; }   /* full, undimmed background during 
   padding: 4px;
   position: relative;
   flex-shrink: 0;
+  cursor: pointer;            /* tap a symbol → the wolf jokes about it */
 }
+.reel-col.is-spinning .sym-cell { cursor: default; }   /* not while spinning */
 
 /* ── EXPANDING WOLF WILD ── glowing brass cells + a flash when a reel fills ── */
 /* ── EXPANDING WOLF WILD ──

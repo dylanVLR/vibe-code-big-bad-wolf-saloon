@@ -29,6 +29,17 @@ const SYM = {
   hats:      ['hat-yellow', 'hat-green', 'hat-red'],
 };
 
+// Tap a reel symbol → the wolf cracks a joke about that object. Maps each symbol
+// id to its joke pool (by what the player sees on the reels).
+const SYM_JOKE = {
+  'hat-yellow': 'clickHat', 'hat-green': 'clickHat', 'hat-red': 'clickHat',
+  'pig-suit': 'clickHorseshoe', 'pig-contractor': 'clickHorseshoe',
+  'pig-nature': 'clickTornado', 'toolbox': 'clickShotGlass',
+  'wolf': 'clickWolf', 'buzzard': 'clickBuzzard', 'wild': 'clickWild',
+  'royal-a': 'clickRoyals', 'royal-k': 'clickRoyals', 'royal-q': 'clickRoyals',
+  'royal-j': 'clickRoyals', 'royal-10': 'clickRoyals',
+};
+
 // Priority floor per category — higher beats lower; a high one can cut off idle.
 const PRIORITY = {
   mansionJackpot: 100, noFunds: 100,
@@ -43,6 +54,8 @@ const PRIORITY = {
   bonusSpin: 40, freeSpin: 40, lowBalance: 40, streakEnded: 40, betUp: 36, betDown: 36,
   saloonHeader: 58, vlrMedallion: 58, sheriffBadge: 58, spinHover: 42,
   buyBonus: 56, maxBet: 44, richIdle: 22,
+  clickWolf: 50, clickBuzzard: 50, clickHat: 50, clickHorseshoe: 50,
+  clickTornado: 50, clickShotGlass: 50, clickRoyals: 50, clickWild: 50,
   spin: 35, lossStreak: 34, coldStreak: 34, smallWin: 32, loss: 30, postWin: 28,
   idle: 18, idleAfterWin: 20, idleAfterLoss: 20, ambient: 14,
 };
@@ -285,6 +298,12 @@ class Narrator {
   onLowBalance() { this._trigger('lowBalance', { cooldownMs: 30000 }); }
   onInsufficientFunds() { this._trigger('noFunds', { bypassGlobal: true }); }
   onMenuReturn() { this._trigger('menuReturn', { cooldownMs: 25000, chance: 0.6 }); }
+  /** Player tapped a reel symbol → joke about that object (not during the bonus). */
+  onSymbolClick(symId) {
+    if (this._inBonus) return;
+    const cat = SYM_JOKE[symId];
+    if (cat) this._trigger(cat, { bypassGlobal: true, interrupt: true, catCooldownMs: 6000 });
+  }
   /** Mouse lingered over SPIN without clicking → a gentle razz (not too often). */
   onSpinHover() { this._trigger('spinHover', { interrupt: true, catCooldownMs: 14000 }); }
   /** Player clicked the "BIG BAD WOLF SALOON" sign → brag about the joint. */

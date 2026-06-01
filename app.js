@@ -47,6 +47,17 @@ const SYM = {
   hats:      ['hat-yellow', 'hat-green', 'hat-red'],
 };
 
+// Tap a reel symbol → the wolf cracks a joke about that object. Maps each symbol
+// id to its joke pool (by what the player sees on the reels).
+const SYM_JOKE = {
+  'hat-yellow': 'clickHat', 'hat-green': 'clickHat', 'hat-red': 'clickHat',
+  'pig-suit': 'clickHorseshoe', 'pig-contractor': 'clickHorseshoe',
+  'pig-nature': 'clickTornado', 'toolbox': 'clickShotGlass',
+  'wolf': 'clickWolf', 'buzzard': 'clickBuzzard', 'wild': 'clickWild',
+  'royal-a': 'clickRoyals', 'royal-k': 'clickRoyals', 'royal-q': 'clickRoyals',
+  'royal-j': 'clickRoyals', 'royal-10': 'clickRoyals',
+};
+
 // Priority floor per category — higher beats lower; a high one can cut off idle.
 const PRIORITY = {
   mansionJackpot: 100, noFunds: 100,
@@ -61,6 +72,8 @@ const PRIORITY = {
   bonusSpin: 40, freeSpin: 40, lowBalance: 40, streakEnded: 40, betUp: 36, betDown: 36,
   saloonHeader: 58, vlrMedallion: 58, sheriffBadge: 58, spinHover: 42,
   buyBonus: 56, maxBet: 44, richIdle: 22,
+  clickWolf: 50, clickBuzzard: 50, clickHat: 50, clickHorseshoe: 50,
+  clickTornado: 50, clickShotGlass: 50, clickRoyals: 50, clickWild: 50,
   spin: 35, lossStreak: 34, coldStreak: 34, smallWin: 32, loss: 30, postWin: 28,
   idle: 18, idleAfterWin: 20, idleAfterLoss: 20, ambient: 14,
 };
@@ -303,6 +316,12 @@ class Narrator {
   onLowBalance() { this._trigger('lowBalance', { cooldownMs: 30000 }); }
   onInsufficientFunds() { this._trigger('noFunds', { bypassGlobal: true }); }
   onMenuReturn() { this._trigger('menuReturn', { cooldownMs: 25000, chance: 0.6 }); }
+  /** Player tapped a reel symbol → joke about that object (not during the bonus). */
+  onSymbolClick(symId) {
+    if (this._inBonus) return;
+    const cat = SYM_JOKE[symId];
+    if (cat) this._trigger(cat, { bypassGlobal: true, interrupt: true, catCooldownMs: 6000 });
+  }
   /** Mouse lingered over SPIN without clicking → a gentle razz (not too often). */
   onSpinHover() { this._trigger('spinHover', { interrupt: true, catCooldownMs: 14000 }); }
   /** Player clicked the "BIG BAD WOLF SALOON" sign → brag about the joint. */
@@ -1016,6 +1035,77 @@ const PHRASES = {
     "Coin like that, ya could buy yer own saloon. Oh wait — I already did.",
     "Restin' on a mountain of money. Can't say I blame ya.",
     "That's a stack worth guardin'. Good thing ya got a wolf for that.",
+  ],
+
+  /* ═══════ CLICK-A-SYMBOL JOKES — tap a reel symbol, the wolf riffs on it ═══════ */
+  clickWolf: [
+    "That handsome devil on the reel? Yeah, he gets it from me.",
+    "Two wolves in one saloon? The pigs are officially doomed.",
+    "Click me all ya want, partner. I don't break character.",
+    "I'd recognize that snarl anywhere. It's my good side.",
+    "That's my reel cousin. Still owes me twenty bucks.",
+    "Careful pokin' the wolf. I bite back... affectionately.",
+    "A wolf symbol. Finally, some good-lookin' competition.",
+  ],
+  clickBuzzard: [
+    "That buzzard shows up when somethin's about to die. Usually a straw house.",
+    "Ol' buzzard's just waitin' for the pigs to slip up. Patient fella.",
+    "That bird's got worse manners than me, and that's sayin' somethin'.",
+    "Buzzard pays the least 'cause he eats the leftovers. Even the reels know it.",
+    "A buzzard. Circlin', circlin'... cheap date, though.",
+    "That buzzard once tried to outwait a wolf. Lost. Badly.",
+    "Don't mind the buzzard. He's just here for the scraps.",
+  ],
+  clickHat: [
+    "Hard hat! Six of them little helmets and we kick the bonus doors open.",
+    "Pigs wear hard hats thinkin' they'll save the house. Adorable.",
+    "A hard hat. Safety first... right before I huff the whole thing down.",
+    "Them pigs unionized. Now they got hard hats AND a mortgage.",
+    "Collect six hard hats and the back room opens. I'll bring the lungs.",
+    "A hard hat won't stop a wolf. But it's cute that they try.",
+    "Construction crew's clockin' in. Six hats and the real fun starts.",
+  ],
+  clickHorseshoe: [
+    "Lucky horseshoe! Stole it off a nervous pony. Don't tell.",
+    "That horseshoe's upside down. All the luck's pourin' out. Tragic.",
+    "Hang a horseshoe over the saloon door, they say. I just hang the pigs.",
+    "Found a horseshoe once. The horse weren't usin' it... anymore.",
+    "Iron luck on the reels. Shinier than the sheriff's badge — which is mine.",
+    "That horseshoe's seen more miles than my boots, and that's a lot.",
+    "A horseshoe. Good luck for you, bad luck for the pigs.",
+  ],
+  clickTornado: [
+    "A tornado! That's just me sneezin', partner. Allergies.",
+    "Twister on the reels. I huffed a little too hard last Tuesday.",
+    "That tornado took a straw house clean to the next county. Saved me the trip.",
+    "Don't worry 'bout the tornado. It's on my payroll.",
+    "Nature's way of doin' my job for me. I respect the hustle.",
+    "Pigs see a tornado. I see a coworker.",
+    "That's a lot of wind, partner. And I'm the windiest thing in this saloon.",
+  ],
+  clickShotGlass: [
+    "Shot glass! Bartender, leave the bottle. The wolf's thirsty.",
+    "A little glass with a big attitude. Reminds me of the smallest pig.",
+    "One shot for courage, partner. Two for a bad decision.",
+    "That glass is empty. Somebody fix that immediately.",
+    "Whiskey in a glass that small? That's just a tease.",
+    "A shot glass on the reels. The night's officially gettin' interesting.",
+    "Careful — one glass leads to ten, and ten leads to singin'.",
+  ],
+  clickRoyals: [
+    "Playin' cards? In a saloon? Now somebody's definitely cheatin'.",
+    "Ace, King, Queen... fancy letters for the low-payin' folks.",
+    "Them royals don't pay much. Even the buzzard looks down on 'em.",
+    "Last fella who played cards with me left in a real hurry.",
+    "A face card. At least it's got a face — unlike that buzzard's personality.",
+    "Them letters pay the least, partner. But they sure crowd in.",
+    "Queen of hearts? In this town she runs the place. Don't cross her.",
+  ],
+  clickWild: [
+    "That's the Wolf Wild — my finest work. Fills the whole reel, like my ego.",
+    "The wild's all me, partner. When it lands, the saloon checks the locks.",
+    "Click the wild all ya like. It's basically a portrait of yours truly.",
+    "That snarl in the middle? Pure wolf. Accept no substitutes — 'cept that one.",
   ],
 };
 
@@ -4472,24 +4562,24 @@ Object.assign(exports, { runSimulation });
 /* AUTO-GENERATED by tools/build.js — folder-size snapshot. Do not edit. */
 
 const SIZE_MANIFEST = {
-  "totalBytes": 154270282,
-  "fileCount": 710,
+  "totalBytes": 158139359,
+  "fileCount": 763,
   "generatedAt": "2026-06-01",
   "player": {
-    "bytes": 153822586,
-    "files": 651
+    "bytes": 157686179,
+    "files": 704
   },
   "dev": {
-    "bytes": 447696,
+    "bytes": 453180,
     "files": 59
   },
   "firstPlay": {
-    "bytes": 17089017,
+    "bytes": 17089193,
     "files": 66
   },
   "progressive": {
-    "bytes": 136733569,
-    "files": 585
+    "bytes": 140596986,
+    "files": 638
   },
   "categories": [
     {
@@ -4501,8 +4591,8 @@ const SIZE_MANIFEST = {
     {
       "key": "audio",
       "label": "Audio",
-      "bytes": 33814477,
-      "files": 554
+      "bytes": 37677894,
+      "files": 607
     },
     {
       "key": "image",
@@ -4513,7 +4603,7 @@ const SIZE_MANIFEST = {
     {
       "key": "code",
       "label": "Code",
-      "bytes": 859553,
+      "bytes": 865213,
       "files": 51
     },
     {
@@ -5019,6 +5109,17 @@ const particleContainer = document.getElementById('particle-container');
 const elWin = document.getElementById('display-win');
 
 function getReelStrips() { return reelStrips; }
+
+// Tap any reel symbol → the wolf jokes about it (delegated; cells carry data-sym).
+// Ignored while the reels are spinning; the narrator also skips it during the bonus.
+const reelWindow = document.getElementById('reel-window');
+if (reelWindow) {
+  reelWindow.addEventListener('click', e => {
+    if (state.spinning) return;
+    const cell = e.target.closest('.sym-cell[data-sym]');
+    if (cell && reelWindow.contains(cell)) narrator.onSymbolClick(cell.dataset.sym);
+  });
+}
 
 /** A random symbol id, used only to fill the blurry scroll buffer. */
 function randomSymbol() { return SYMBOL_IDS[Math.floor(Math.random() * SYMBOL_IDS.length)]; }
