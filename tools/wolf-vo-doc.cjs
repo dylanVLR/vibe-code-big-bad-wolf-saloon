@@ -103,6 +103,16 @@ const GROUPS = [
     ['buyBonus', 'Opening the Buy Bonus window'],
     ['menuReturn', 'Returning from the paytable'],
   ]],
+  ['Tap a reel symbol — object jokes', [
+    ['clickWolf', 'Tapping the Wolf symbol on the reels'],
+    ['clickBuzzard', 'Tapping the Buzzard symbol'],
+    ['clickHat', 'Tapping a Hard Hat symbol'],
+    ['clickHorseshoe', 'Tapping the Horseshoe symbol'],
+    ['clickTornado', 'Tapping the Tornado symbol'],
+    ['clickShotGlass', 'Tapping the Shot Glass symbol'],
+    ['clickRoyals', 'Tapping a royal card symbol (A / K / Q / J / 10)'],
+    ['clickWild', 'Tapping the Wolf Wild symbol'],
+  ]],
   ['Friendly roasts — DISABLED by default', [
     ['roasts', 'Tongue-in-cheek nods to the “other” huff-and-puff game. OFF by default; enable only if you want them.'],
   ]],
