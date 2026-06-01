@@ -1449,7 +1449,7 @@ Object.assign(exports, { sleep, fmt, scheduleRemove });
  * Wins are computed by mathcore; this file is presentation + flow.
  */
 
-const { BET_LEVELS, WILD_ID } = require("par-sheet");
+const { BET_LEVELS, WILD_ID, WIN_TIERS } = require("par-sheet");
 const { DEV_MODE } = require("dev-mode");
 const { state } = require("state");
 const { sleep, fmt } = require("utils");
@@ -1590,22 +1590,25 @@ async function finalizeSpin(targetGrid, bet) {
     spawnWinPopText(totalWin);
 
     const ratio = totalWin / bet;
-    if (ratio >= 8) {
-      const isMega = ratio >= 15;
-      bigWinLabel.textContent = isMega ? 'MEGA WIN!' : 'BIG WIN!';
+    if (ratio >= WIN_TIERS.big) {
+      // Pick the top celebration the win qualifies for: MAX > MEGA > BIG.
+      const isMax  = ratio >= WIN_TIERS.max;
+      const isMega = !isMax && ratio >= WIN_TIERS.mega;
+      bigWinLabel.textContent = isMax ? 'MAX WIN!' : isMega ? 'MEGA WIN!' : 'BIG WIN!';
       bigWinLabel.classList.toggle('mega-win', isMega);
-      shake(600);
-      playWinPresentation(ratio, isMega);
+      bigWinLabel.classList.toggle('max-win', isMax);
+      shake(isMax ? 900 : 600);
+      playWinPresentation(ratio, isMega || isMax);
       synth.bigWinAlarm();
       narrator.onWin(totalWin, bet);
-      await animateWinCount(totalWin, isMega ? 2500 : 1800);
+      await animateWinCount(totalWin, isMax ? 3200 : isMega ? 2500 : 1800);
       bigWinAmt.textContent = fmt(totalWin);
       bigWinOver.classList.remove('hidden');
       state.balance += totalWin;
       updateDisplays();
       setStatus(`YOU WON ${fmt(totalWin)}!`, 'win');
-      setTimeout(() => bigWinOver.classList.add('hidden'), 3500);
-    } else if (ratio >= 2) {
+      setTimeout(() => bigWinOver.classList.add('hidden'), isMax ? 4500 : 3500);
+    } else if (ratio >= WIN_TIERS.medium) {
       playWinPresentation(ratio);
       synth.win(totalWin, bet);
       narrator.onWin(totalWin, bet);
@@ -2113,7 +2116,7 @@ async function triggerMansionsJackpot(brickCount) {
   bonusTotalWin += award;
   setStatus(`🏰 MANSION JACKPOT: ${fmt(award)}! 🏰`, 'win');
   bigWinLabel.textContent = '🏰 MANSION JACKPOT!';
-  bigWinLabel.classList.remove('mega-win');
+  bigWinLabel.classList.remove('mega-win', 'max-win');
   bigWinAmt.textContent = fmt(award);
   bigWinOver.classList.remove('hidden');
   shake(600);
@@ -2593,6 +2596,7 @@ require("simulator");
 require("math-breakdown");
 require("help");        // 📖 HELP / RULES / PAYTABLE (built from the par sheet)
 require("seo-info");    // 🔍 SEO report (dev-only)
+require("wins-info");   // 🎉 WINS — win-tier breakdown (dev-only)
 const { initFitScreen } = require("fit-screen");   // scale-to-fit for mobile / iPhone landscape
 const { initLazyAssets } = require("lazy-assets");  // defer heavy/rare assets for instant first play
 const { initBackgroundLoop } = require("background-loop");  // keep the bg video looping (iOS-safe)
@@ -3136,6 +3140,20 @@ const BET_LEVELS = [0.20, 0.50, 1.00, 2.00, 5.00, 10.00, 20.00, 50.00];
 /** Default bet index (into BET_LEVELS) */
 const DEFAULT_BET_INDEX = 2;
 
+/**
+ * Win-celebration tiers, expressed as a multiple of the total bet. A spin's win
+ * ÷ bet decides which on-screen celebration plays. These are the single source
+ * of truth for the win presentation (base-game.js) AND the dev "WINS" panel, so
+ * the two can never disagree. Wins below `big` get only light effects (a "nice"
+ * win is `medium`–`big`, anything smaller is a plain win).
+ */
+const WIN_TIERS = {
+  medium: 2,    // 2×–8× bet — a "nice" win (count-up + coins, no full-screen banner)
+  big:    8,    // ≥ 8× bet  — BIG WIN! banner
+  mega:   15,   // ≥ 15× bet — MEGA WIN! banner
+  max:    50,   // ≥ 50× bet — MAX WIN! banner (the top celebration)
+};
+
 /** Starting player balance */
 const DEFAULT_BALANCE = 1000.00;
 
@@ -3377,7 +3395,7 @@ const INITIAL_GRID = [
   ['royal-a',    'royal-k',    'toolbox' ],
 ];
 
-Object.assign(exports, { REEL_COUNT, ROWS_PER_REEL, MIN_WIN_SPAN, BONUS_TRIGGER_HATS, FREE_SPINS_INITIAL, RETRIGGER_HATS, MAX_FRAME_TIER, TIER_NAMES, TIER_EMOJIS, SCROLL_SYMBOLS, TURBO_SCROLL, SPIN_DURATIONS, TURBO_DURATIONS, ANTICIPATION_EXTRA, BET_LEVELS, DEFAULT_BET_INDEX, DEFAULT_BALANCE, RTP_MODELS, DEFAULT_RTP_MODEL, RTP_MODEL_KEY, SYMBOLS, HAT_IDS, WILD_ID, SYMBOL_IDS, BONUS_CONFIG, ACTIVE_MODEL_ID, ACTIVE_MODEL, REEL_COUNTS, buildStrip, REEL_STRIPS, INITIAL_GRID });
+Object.assign(exports, { REEL_COUNT, ROWS_PER_REEL, MIN_WIN_SPAN, BONUS_TRIGGER_HATS, FREE_SPINS_INITIAL, RETRIGGER_HATS, MAX_FRAME_TIER, TIER_NAMES, TIER_EMOJIS, SCROLL_SYMBOLS, TURBO_SCROLL, SPIN_DURATIONS, TURBO_DURATIONS, ANTICIPATION_EXTRA, BET_LEVELS, DEFAULT_BET_INDEX, WIN_TIERS, DEFAULT_BALANCE, RTP_MODELS, DEFAULT_RTP_MODEL, RTP_MODEL_KEY, SYMBOLS, HAT_IDS, WILD_ID, SYMBOL_IDS, BONUS_CONFIG, ACTIVE_MODEL_ID, ACTIVE_MODEL, REEL_COUNTS, buildStrip, REEL_STRIPS, INITIAL_GRID });
 
   };
 
@@ -4627,19 +4645,19 @@ Object.assign(exports, { runSimulation });
 /* AUTO-GENERATED by tools/build.js — folder-size snapshot. Do not edit. */
 
 const SIZE_MANIFEST = {
-  "totalBytes": 159246419,
-  "fileCount": 767,
+  "totalBytes": 161604946,
+  "fileCount": 773,
   "generatedAt": "2026-06-01",
   "player": {
-    "bytes": 158348169,
+    "bytes": 158350695,
     "files": 707
   },
   "dev": {
-    "bytes": 898250,
-    "files": 60
+    "bytes": 3254251,
+    "files": 66
   },
   "firstPlay": {
-    "bytes": 17550101,
+    "bytes": 17552627,
     "files": 68
   },
   "progressive": {
@@ -4666,21 +4684,97 @@ const SIZE_MANIFEST = {
       "files": 40
     },
     {
-      "key": "code",
-      "label": "Code",
-      "bytes": 893505,
-      "files": 51
-    },
-    {
       "key": "other",
       "label": "Other",
-      "bytes": 547406,
-      "files": 12
+      "bytes": 2898565,
+      "files": 17
+    },
+    {
+      "key": "code",
+      "label": "Code",
+      "bytes": 900873,
+      "files": 52
     }
   ]
 };
 
 Object.assign(exports, { SIZE_MANIFEST });
+
+  };
+
+  __mods["wins-info"] = function (exports, require) {
+/**
+ * @module wins-info
+ * @description Dev-only "🎉 WINS" popup. Breaks down the win-celebration tiers —
+ * what each on-screen banner is, the win size (as a multiple of the bet) that
+ * triggers it, and example dollar amounts at the lowest, default and highest
+ * bets. Everything is read from WIN_TIERS / BET_LEVELS, so the table can never
+ * drift from what the game actually does (the same WIN_TIERS drive base-game.js).
+ */
+
+const { WIN_TIERS, BET_LEVELS, DEFAULT_BET_INDEX } = require("par-sheet");
+const { fmt } = require("utils");
+
+const MIN_BET = BET_LEVELS[0];
+const DEF_BET = BET_LEVELS[DEFAULT_BET_INDEX];
+const MAX_BET = BET_LEVELS[BET_LEVELS.length - 1];
+
+// The on-screen tiers, smallest → biggest. `mult` is the win ÷ bet threshold.
+const TIERS = [
+  { key: 'small',  cls: '',          name: 'Win',        mult: 0,               banner: 'Coins + count-up (no banner)' },
+  { key: 'medium', cls: '',          name: 'Nice Win',   mult: WIN_TIERS.medium, banner: 'Bigger count-up + coins' },
+  { key: 'big',    cls: 'tier-big',  name: 'BIG WIN!',   mult: WIN_TIERS.big,    banner: 'Full-screen banner' },
+  { key: 'mega',   cls: 'tier-mega', name: 'MEGA WIN!',  mult: WIN_TIERS.mega,   banner: 'Full-screen banner (rainbow)' },
+  { key: 'max',    cls: 'tier-max',  name: 'MAX WIN!',   mult: WIN_TIERS.max,    banner: 'Top banner (blazing gold)' },
+];
+
+function buildHTML() {
+  const rows = TIERS.map(t => {
+    const at = (bet) => t.mult === 0 ? '—' : fmt(t.mult * bet);
+    const trig = t.mult === 0 ? 'any win' : `≥ ${t.mult}×`;
+    return `<tr class="${t.cls}">
+      <td class="win-tier">${t.name}</td>
+      <td class="win-mult">${trig}</td>
+      <td>${at(MIN_BET)}</td>
+      <td>${at(DEF_BET)}</td>
+      <td>${at(MAX_BET)}</td>
+      <td style="text-align:left;font-size:.74rem;color:#9CC4A8;">${t.banner}</td>
+    </tr>`;
+  }).join('');
+
+  return `
+    <p class="wins-intro">Wins are celebrated in tiers based on how big the win is <b>relative to your bet</b>
+      (win &divide; bet). Because the thresholds are multiples of the bet, the dollar trigger scales with how
+      much you wager — so the same spin is a “Big Win” at a low bet only if it pays a lot more in dollars at a
+      high bet. The default bet is <b>${fmt(DEF_BET)}</b>.</p>
+    <table class="wins-table">
+      <thead><tr>
+        <th>Celebration</th><th>Win&nbsp;&ge;</th>
+        <th>@ ${fmt(MIN_BET)}</th><th>@ ${fmt(DEF_BET)}</th><th>@ ${fmt(MAX_BET)}</th>
+        <th style="text-align:left;">On screen</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <p class="wins-note"><b>MAX WIN!</b> is the top tier (≥ ${WIN_TIERS.max}× bet) and matches the wolf’s
+      biggest voice reaction. The bonus round has its own celebrations on top of these — the Mini &amp; Minor
+      house jackpots, the <b>Mansion Jackpot</b>, and the end-of-bonus total. In a 10,000,000-spin simulation the
+      largest single win seen was about <b>1,239× bet</b>; the game does not impose a fixed maximum-win cap.</p>`;
+}
+
+const modal = document.getElementById('wins-modal');
+const btn = document.getElementById('btn-wins');
+const btnClose = document.getElementById('btn-close-wins');
+const contentEl = document.getElementById('wins-content');
+
+if (modal && contentEl) {
+  let built = false;
+  const open = () => { if (!built) { contentEl.innerHTML = buildHTML(); built = true; } modal.classList.remove('hidden'); };
+  const close = () => modal.classList.add('hidden');
+  if (btn) btn.addEventListener('click', open);
+  if (btnClose) btnClose.addEventListener('click', close);
+  modal.addEventListener('click', e => { if (e.target === modal) close(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !modal.classList.contains('hidden')) close(); });
+}
 
   };
 

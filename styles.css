@@ -1516,6 +1516,23 @@ body.pre-reveal #bg-video { opacity: 1; }   /* full, undimmed background during 
   100% { color: #FF4060; text-shadow: 0 0 30px rgba(255,64,96,0.8), 0 4px 0 #7A0020; }
 }
 
+/* MAX WIN — the top tier (≥ 50× bet). Bigger, blazing gold-white, hard pulse. */
+#big-win-label.max-win {
+  font-size: 3.8rem;
+  letter-spacing: 4px;
+  color: #FFE680;
+  -webkit-text-stroke: 1px rgba(122,68,0,0.55);
+  animation: maxwin-blaze 0.7s ease-in-out infinite alternate;
+}
+@keyframes maxwin-blaze {
+  from { transform: scale(1);
+    color: #FFE680;
+    text-shadow: 0 0 26px rgba(255,215,0,0.9), 0 0 60px rgba(255,170,0,0.55), 0 4px 0 #7A4400; }
+  to   { transform: scale(1.09);
+    color: #FFFFFF;
+    text-shadow: 0 0 40px rgba(255,235,150,1), 0 0 90px rgba(255,200,0,0.85), 0 0 130px rgba(255,160,0,0.5), 0 4px 0 #7A4400; }
+}
+
 #big-win-amount {
   font-family: var(--font-title);
   font-size: 3.5rem;
@@ -4044,6 +4061,25 @@ body.fit-mode #game-root {
   background: rgba(0,0,0,.35); color: #9FE3B2; padding: 1px 5px; border-radius: 4px;
 }
 .seo-next h4 { color: #7CF09A; }
+
+/* ── WINS breakdown panel (dev) ── */
+.wins-body { text-align: left; max-height: 72vh; overflow-y: auto; }
+.wins-intro { font-size: .86rem; color: #CFE8D6; line-height: 1.5; margin: 0 0 12px; }
+.wins-intro b { color: #FFE49A; }
+.wins-table { width: 100%; border-collapse: collapse; font-size: .82rem; margin-bottom: 12px; }
+.wins-table th, .wins-table td { padding: 7px 9px; border-bottom: 1px solid rgba(46,232,90,.12); text-align: right; }
+.wins-table th { color: #70A880; font-size: .68rem; letter-spacing: .6px; text-transform: uppercase;
+  border-bottom: 1px solid rgba(46,232,90,.28); white-space: nowrap; }
+.wins-table th:first-child, .wins-table td:first-child { text-align: left; }
+.wins-table td.win-tier { font-family: var(--font-title); letter-spacing: .5px; white-space: nowrap; }
+.wins-table td.win-mult { font-variant-numeric: tabular-nums; color: #fff; font-weight: 700; }
+.wins-table td { font-variant-numeric: tabular-nums; color: #CFE8D6; }
+.wins-table tr.tier-big   td.win-tier { color: #FFD040; }
+.wins-table tr.tier-mega  td.win-tier { color: #FF6A86; }
+.wins-table tr.tier-max   td.win-tier { color: #FFE680; text-shadow: 0 0 10px rgba(255,200,0,.55); }
+.wins-table tr.tier-max { background: rgba(245,196,0,.07); }
+.wins-note { font-size: .78rem; color: #9CC4A8; line-height: 1.5; }
+.wins-note b { color: #FFD040; }
 
 /* Visually-hidden but present for search engines & screen readers (SEO/a11y).
    Uses the clip technique, NOT display:none, so crawlers still index it. */

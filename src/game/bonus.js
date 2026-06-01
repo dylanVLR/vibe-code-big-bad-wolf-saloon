@@ -366,7 +366,7 @@ async function triggerMansionsJackpot(brickCount) {
   bonusTotalWin += award;
   setStatus(`🏰 MANSION JACKPOT: ${fmt(award)}! 🏰`, 'win');
   bigWinLabel.textContent = '🏰 MANSION JACKPOT!';
-  bigWinLabel.classList.remove('mega-win');
+  bigWinLabel.classList.remove('mega-win', 'max-win');
   bigWinAmt.textContent = fmt(award);
   bigWinOver.classList.remove('hidden');
   shake(600);

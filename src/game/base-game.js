@@ -7,7 +7,7 @@
  */
 'use strict';
 
-import { BET_LEVELS, WILD_ID } from '../math/par-sheet.js';
+import { BET_LEVELS, WILD_ID, WIN_TIERS } from '../math/par-sheet.js';
 import { DEV_MODE } from '../system/dev-mode.js';
 import { state } from '../core/state.js';
 import { sleep, fmt } from '../core/utils.js';
@@ -148,22 +148,25 @@ async function finalizeSpin(targetGrid, bet) {
     spawnWinPopText(totalWin);
 
     const ratio = totalWin / bet;
-    if (ratio >= 8) {
-      const isMega = ratio >= 15;
-      bigWinLabel.textContent = isMega ? 'MEGA WIN!' : 'BIG WIN!';
+    if (ratio >= WIN_TIERS.big) {
+      // Pick the top celebration the win qualifies for: MAX > MEGA > BIG.
+      const isMax  = ratio >= WIN_TIERS.max;
+      const isMega = !isMax && ratio >= WIN_TIERS.mega;
+      bigWinLabel.textContent = isMax ? 'MAX WIN!' : isMega ? 'MEGA WIN!' : 'BIG WIN!';
       bigWinLabel.classList.toggle('mega-win', isMega);
-      shake(600);
-      playWinPresentation(ratio, isMega);
+      bigWinLabel.classList.toggle('max-win', isMax);
+      shake(isMax ? 900 : 600);
+      playWinPresentation(ratio, isMega || isMax);
       synth.bigWinAlarm();
       narrator.onWin(totalWin, bet);
-      await animateWinCount(totalWin, isMega ? 2500 : 1800);
+      await animateWinCount(totalWin, isMax ? 3200 : isMega ? 2500 : 1800);
       bigWinAmt.textContent = fmt(totalWin);
       bigWinOver.classList.remove('hidden');
       state.balance += totalWin;
       updateDisplays();
       setStatus(`YOU WON ${fmt(totalWin)}!`, 'win');
-      setTimeout(() => bigWinOver.classList.add('hidden'), 3500);
-    } else if (ratio >= 2) {
+      setTimeout(() => bigWinOver.classList.add('hidden'), isMax ? 4500 : 3500);
+    } else if (ratio >= WIN_TIERS.medium) {
       playWinPresentation(ratio);
       synth.win(totalWin, bet);
       narrator.onWin(totalWin, bet);

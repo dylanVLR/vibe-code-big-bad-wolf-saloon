@@ -73,6 +73,20 @@ export const BET_LEVELS = [0.20, 0.50, 1.00, 2.00, 5.00, 10.00, 20.00, 50.00];
 /** Default bet index (into BET_LEVELS) */
 export const DEFAULT_BET_INDEX = 2;
 
+/**
+ * Win-celebration tiers, expressed as a multiple of the total bet. A spin's win
+ * ÷ bet decides which on-screen celebration plays. These are the single source
+ * of truth for the win presentation (base-game.js) AND the dev "WINS" panel, so
+ * the two can never disagree. Wins below `big` get only light effects (a "nice"
+ * win is `medium`–`big`, anything smaller is a plain win).
+ */
+export const WIN_TIERS = {
+  medium: 2,    // 2×–8× bet — a "nice" win (count-up + coins, no full-screen banner)
+  big:    8,    // ≥ 8× bet  — BIG WIN! banner
+  mega:   15,   // ≥ 15× bet — MEGA WIN! banner
+  max:    50,   // ≥ 50× bet — MAX WIN! banner (the top celebration)
+};
+
 /** Starting player balance */
 export const DEFAULT_BALANCE = 1000.00;
 
