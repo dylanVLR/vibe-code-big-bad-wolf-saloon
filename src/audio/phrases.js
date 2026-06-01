@@ -625,4 +625,37 @@ export const PHRASES = {
     "Take yer time. The pigs ain't goin' anywhere... probably.",
     "Any day now, partner. The whiskey's gettin' warm.",
   ],
+  // Opening the BUY BONUS confirmation
+  buyBonus: [
+    "Buyin' yer way into the back room? Bold. I respect bold.",
+    "Skippin' the line straight to the bonus, eh? Big spender.",
+    "Payin' to kick the doors open? That's the spirit, partner.",
+    "Why wait for the bonus when ya can drag it in by the collar?",
+    "Cash on the bar for a shortcut to trouble. I like yer style.",
+    "Buyin' the back room. Now that's a wolf-sized decision.",
+    "Straight to the bonus, no dilly-dallyin'. My kind of partner.",
+    "The pigs hate this option. That's how I know it's a good one.",
+  ],
+  // Bet raised to the maximum level
+  maxBet: [
+    "Max bet! Now yer huntin' like a real wolf.",
+    "All the chips on the table — I LIKE it, partner.",
+    "Bettin' the whole henhouse, are we? Bold.",
+    "Max stakes. The pigs just got a lot more nervous.",
+    "Now THAT'S an appetite. Top of the bettin' line.",
+    "Goin' for the whole hog. Respect.",
+    "Maxed 'er out. No straw houses for big spenders.",
+    "Top dollar, partner. The saloon's payin' attention now.",
+  ],
+  // Idling while sitting on a big balance
+  richIdle: [
+    "Sittin' on a fat stack and starin' at the wall? Livin' the dream, partner.",
+    "That's a healthy pile o' coin. Whiskey's on you tonight.",
+    "Look at all that loot. Even the pigs are impressed.",
+    "Big balance, calm hands. That's how a wolf does it.",
+    "That pile's got its own gravity, partner.",
+    "Coin like that, ya could buy yer own saloon. Oh wait — I already did.",
+    "Restin' on a mountain of money. Can't say I blame ya.",
+    "That's a stack worth guardin'. Good thing ya got a wolf for that.",
+  ],
 };

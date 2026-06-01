@@ -82,6 +82,7 @@ function openBuyConfirm() {
   if (buyCostEl) buyCostEl.textContent = fmt(bonusBuyCost());
   if (buyBetEl) buyBetEl.textContent = fmt(BET_LEVELS[state.betIndex]);
   if (buyModal) buyModal.classList.remove('hidden');
+  narrator.onBuyBonusOpen();
 }
 function closeBuyConfirm() { if (buyModal) buyModal.classList.add('hidden'); }
 

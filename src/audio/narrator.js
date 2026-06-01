@@ -42,6 +42,7 @@ const PRIORITY = {
   symShotGlass: 48, symHorseshoe: 48, symHats: 46, frameUpgrade: 46, menuReturn: 42,
   bonusSpin: 40, freeSpin: 40, lowBalance: 40, streakEnded: 40, betUp: 36, betDown: 36,
   saloonHeader: 58, vlrMedallion: 58, sheriffBadge: 58, spinHover: 42,
+  buyBonus: 56, maxBet: 44, richIdle: 22,
   spin: 35, lossStreak: 34, coldStreak: 34, smallWin: 32, loss: 30, postWin: 28,
   idle: 18, idleAfterWin: 20, idleAfterLoss: 20, ambient: 14,
 };
@@ -279,6 +280,8 @@ class Narrator {
   onRetrigger() { this._trigger('retrigger', { bypassGlobal: true, interrupt: true }); }
   onBonusComplete() { this._inBonus = false; this._trigger('bonusEnd', { bypassGlobal: true, interrupt: true }); }
   onBetChange(direction) { this._trigger(direction === 'up' ? 'betUp' : 'betDown', { cooldownMs: 500, chance: 0.5 }); }
+  onMaxBet() { this._trigger('maxBet', { bypassGlobal: true, interrupt: true, catCooldownMs: 8000 }); }
+  onBuyBonusOpen() { this._trigger('buyBonus', { bypassGlobal: true, interrupt: true, catCooldownMs: 6000 }); }
   onLowBalance() { this._trigger('lowBalance', { cooldownMs: 30000 }); }
   onInsufficientFunds() { this._trigger('noFunds', { bypassGlobal: true }); }
   onMenuReturn() { this._trigger('menuReturn', { cooldownMs: 25000, chance: 0.6 }); }
@@ -311,7 +314,8 @@ class Narrator {
     if (!this.enabled || this._volume === 0 || this._inBonus || state.spinning) { this._resetIdleTimer(); return; }
     this._idleCount++;
     let cat;
-    if (this._lastOutcome === 'win') cat = Math.random() < 0.6 ? 'idleAfterWin' : 'ambient';
+    if ((state.balance || 0) >= 2500 && Math.random() < 0.4) cat = 'richIdle';   // sitting on a big stack
+    else if (this._lastOutcome === 'win') cat = Math.random() < 0.6 ? 'idleAfterWin' : 'ambient';
     else if (this._lastOutcome === 'loss') cat = Math.random() < 0.5 ? 'idleAfterLoss' : 'ambient';
     else cat = Math.random() < 0.5 ? 'ambient' : 'idle';
     this._trigger(cat, { bypassGlobal: true });

@@ -233,7 +233,8 @@ buttons.betUp.addEventListener('click', () => {
   state.betIndex = Math.min(BET_LEVELS.length - 1, state.betIndex + 1);
   updateDisplays();
   synth.betChange();
-  narrator.onBetChange('up');
+  if (state.betIndex === BET_LEVELS.length - 1) narrator.onMaxBet();   // hit the ceiling → special line
+  else narrator.onBetChange('up');
 });
 
 buttons.betDown.addEventListener('click', () => {
