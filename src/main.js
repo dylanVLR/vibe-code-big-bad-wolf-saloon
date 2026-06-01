@@ -102,32 +102,57 @@ function wireSoundControls() {
     else narrator.enabled = true;
   });
 
-  const btnVolMute = document.getElementById('btn-vol-mute');
+  const btnVolMute  = document.getElementById('btn-vol-mute');
   const btnVolReset = document.getElementById('btn-vol-reset');
+  const ALL_SLIDERS = [sliderSfx, sliderMusic, sliderNarr];
+
+  // Push a value into a slider AND run its input handler so audio + the % label
+  // + the speaker icon all update exactly as if the user dragged it.
+  const applySlider = (slider, value) => {
+    slider.value = value;
+    slider.dispatchEvent(new Event('input', { bubbles: true }));
+  };
+
+  // MUTE ALL is a toggle: first press silences all three and remembers the
+  // levels; pressing again (now "UNMUTE") restores them. Defaults are used if a
+  // saved level was itself 0, so unmuting always brings sound back.
+  let mutedLevels = null;
+  const refreshMuteLabel = () => {
+    if (!btnVolMute) return;
+    const muted = mutedLevels !== null;
+    btnVolMute.textContent = muted ? 'UNMUTE' : 'MUTE ALL';
+    btnVolMute.classList.toggle('is-active', muted);
+  };
 
   if (btnVolMute) {
     btnVolMute.addEventListener('click', (e) => {
       e.stopPropagation();
-      sliderSfx.value = 0;
-      sliderMusic.value = 0;
-      sliderNarr.value = 0;
-      sliderSfx.dispatchEvent(new Event('input'));
-      sliderMusic.dispatchEvent(new Event('input'));
-      sliderNarr.dispatchEvent(new Event('input'));
+      if (mutedLevels === null) {
+        // mute: stash current levels, then zero everything
+        mutedLevels = ALL_SLIDERS.map(s => parseInt(s.value, 10) || 0);
+        ALL_SLIDERS.forEach(s => applySlider(s, 0));
+      } else {
+        // unmute: restore stashed levels (fall back to defaults if they were 0)
+        const fallback = [100, 50, 80];
+        ALL_SLIDERS.forEach((s, i) => applySlider(s, mutedLevels[i] || fallback[i]));
+        mutedLevels = null;
+      }
+      refreshMuteLabel();
     });
   }
 
   if (btnVolReset) {
     btnVolReset.addEventListener('click', (e) => {
       e.stopPropagation();
-      sliderSfx.value = 100;
-      sliderMusic.value = 50;
-      sliderNarr.value = 80;
-      sliderSfx.dispatchEvent(new Event('input'));
-      sliderMusic.dispatchEvent(new Event('input'));
-      sliderNarr.dispatchEvent(new Event('input'));
+      applySlider(sliderSfx, 100);
+      applySlider(sliderMusic, 50);
+      applySlider(sliderNarr, 80);
+      mutedLevels = null;        // clear any mute state so the label is correct
+      refreshMuteLabel();
     });
   }
+
+  refreshMuteLabel();
 }
 
 /* ══════════════════════════════════════════
