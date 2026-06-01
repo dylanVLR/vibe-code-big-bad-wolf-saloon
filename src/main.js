@@ -170,6 +170,12 @@ function init() {
     logoText.classList.add('clickable-sign');
     logoText.addEventListener('click', () => narrator.onSaloonClick());
   }
+  // click the Vegas Low Roller medallion → friendly shout-out
+  const vlr = document.getElementById('vlr-medallion');
+  if (vlr) {
+    vlr.classList.add('clickable-sign');
+    vlr.addEventListener('click', () => narrator.onVlrClick());
+  }
 
   startAmbientParticles();
   initFitScreen();            // fit the cabinet to short / mobile (iPhone landscape) viewports

@@ -596,4 +596,11 @@ export const PHRASES = {
     "Finest saloon west of the brick house. Only one, too. Funny how that works.",
     "Step careful, partner. This saloon bites back, and so do I.",
   ],
+  // Click the "Vegas Low Roller Approved" medallion → a friendly nod to VLR.
+  vlrMedallion: [
+    "Ah, Vegas Low Roller... I know him. Mighty fine YouTube channel.",
+    "Vegas Low Roller approved, partner. That fella knows his slots.",
+    "That's the Vegas Low Roller seal. Tell him the wolf says howdy.",
+    "Vegas Low Roller — a low roller with a big heart. Good company to keep.",
+  ],
 };

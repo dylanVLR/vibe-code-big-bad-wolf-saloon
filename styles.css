@@ -770,9 +770,9 @@ body.pre-reveal #bg-video { opacity: 1; }   /* full, undimmed background during 
   min-width: 0;
 }
 
-/* the saloon sign is clickable — the wolf brags when you tap it */
-#logo-text.clickable-sign { cursor: pointer; transition: transform .1s ease; }
-#logo-text.clickable-sign:active { transform: scale(0.97); }
+/* clickable hotspots — the wolf reacts when you tap them */
+.clickable-sign { cursor: pointer; transition: transform .1s ease; }
+.clickable-sign:active { transform: scale(0.94); }
 
 #logo-text span {
   font-family: var(--font-title);
