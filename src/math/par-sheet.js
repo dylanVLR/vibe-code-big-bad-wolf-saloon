@@ -49,9 +49,6 @@ export const MAX_FRAME_TIER = 3;
 /** Frame tier labels for display */
 export const TIER_NAMES = ['', 'STRAW', 'STICK', 'BRICK'];
 
-/** House emoji per tier for UI rendering */
-export const TIER_EMOJIS = ['', '🏚️', '🏠', '🏰'];
-
 /** Scroll symbols during normal spin animation */
 export const SCROLL_SYMBOLS = 22;
 
