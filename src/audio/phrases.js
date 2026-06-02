@@ -743,7 +743,7 @@ export const PHRASES = {
   highNoonStory: [
     `For one very long moment, nobody moved.`,
     `A pig poked his head out from behind a rain barrel. "Can we maybe not do the huffing and puffing today?"`,
-    `The outlaw wolf spun toward the pig and said, "Relax. He's already at Huff N' Even More Puff. There's nowhere left to go."`,
+    `As the Sheriff in these parts, I gestured towards the pig and said, "Relax. He's already at Huff N' Even More Puff. There's nowhere left for him to go, end of line, partner, unless you really want more."`,
     `The town gasped. The sheriff wolf's ears twitched. A tumbleweed stopped rolling just to watch.`,
   ],
 };
