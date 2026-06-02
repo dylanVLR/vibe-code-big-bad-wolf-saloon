@@ -11,7 +11,7 @@
 
 export function initBackgroundLoop() {
   const v = document.getElementById('bg-video');
-  if (!v) return;
+  if (!v || v.tagName !== 'VIDEO') return;   // on mobile it's a static <img> — nothing to loop
   v.loop = true;
   v.muted = true;            // required for autoplay on iOS
 
