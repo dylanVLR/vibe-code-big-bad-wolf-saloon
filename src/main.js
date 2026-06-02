@@ -28,6 +28,7 @@ import { updateDisplays, setStatus } from './render/readouts.js';
 
 // Side-effect imports: these wire up their own controls on load.
 import './system/mobile-media.js'; // mobile: swap the base-game videos for static images (must run first)
+import './system/shortcuts.js';   // central keyboard map (Space=spin, ↑/↓=bet, O=panel, arrows navigate…)
 import './system/dev-mode.js';    // hide dev/admin tools on the public build (?dev=1 to show)
 import './system/web-push.js';    // dev "Web Push" button → opens the live deployed site
 import './scenes/intro.js';      // full-screen intro splash

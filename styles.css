@@ -502,6 +502,14 @@ body.dev-mode #options-panel > .drawer-gaff-header { grid-column: 1 / -1; margin
 .drawer-btn:hover:not(:disabled) { background: rgba(46,232,90,0.16); border-color: var(--neon-green); color: #fff; }
 .drawer-btn:disabled { opacity: .4; cursor: not-allowed; }
 .drawer-btn.is-active { background: var(--neon-green); color: #08210c; border-color: var(--neon-green); }
+/* Keyboard navigation: clearly show which drawer control the arrow keys have landed
+   on (only for keyboard focus — mouse clicks don't get the ring). See shortcuts.js. */
+#options-panel button:focus-visible,
+#options-panel input:focus-visible {
+  outline: 2px solid var(--neon-green);
+  outline-offset: 2px;
+  box-shadow: 0 0 10px rgba(46,232,90,0.55);
+}
 .drawer-buy { border-color: rgba(245,196,0,0.5); color: #FFD86A; background: rgba(245,196,0,0.09); }
 .drawer-buy:hover:not(:disabled) { background: rgba(245,196,0,0.22); border-color: #FFD040; color: #fff; }
 .drawer-deposit { border-color: rgba(46,232,90,0.5); color: #8FF0A8; background: rgba(46,232,90,0.10); }

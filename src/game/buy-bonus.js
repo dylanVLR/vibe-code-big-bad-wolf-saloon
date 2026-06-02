@@ -93,6 +93,4 @@ if (btnCancelBuy) btnCancelBuy.addEventListener('click', closeBuyConfirm);
 if (buyModal) buyModal.addEventListener('click', e => { if (e.target === buyModal) closeBuyConfirm(); });
 if (btnConfirmBuy) btnConfirmBuy.addEventListener('click', () => { closeBuyConfirm(); executeBonusBuy(); });
 
-document.addEventListener('keydown', (e) => {
-  if (e.code === 'KeyB' && !state.spinning && !isBonusActive()) openBuyConfirm();
-});
+// The "B" shortcut lives in src/system/shortcuts.js (it clicks #btn-buy-bonus).

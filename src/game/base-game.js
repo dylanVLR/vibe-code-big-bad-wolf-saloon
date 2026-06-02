@@ -291,11 +291,8 @@ buttons.auto.addEventListener('click', () => {
 const chkTurbo = document.getElementById('chk-turbo');
 if (chkTurbo) chkTurbo.addEventListener('change', () => { state.turbo = chkTurbo.checked; });
 
-document.addEventListener('keydown', (e) => {
-  if (e.code === 'Space' && !state.spinning && !isBonusActive()) { e.preventDefault(); triggerSpin(); }
-  if (e.code === 'KeyA' && !isBonusActive()) { state.autoActive ? stopAuto() : startAuto(); }
-
-});
+// Keyboard shortcuts are centralised in src/system/shortcuts.js (they drive these
+// same buttons), so there's no per-key handler here anymore.
 
 const btnForceExtreme = document.getElementById('btn-force-extreme');
 if (btnForceExtreme) {
