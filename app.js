@@ -2212,7 +2212,7 @@ async function triggerMansionsJackpot(brickCount) {
   const award = Math.round(rollMansionAward(brickCount, bonusBet) * 100) / 100;
   bonusTotalWin += award;
   setStatus(`⭐ WANTED REWARD: ${fmt(award)}! ⭐`, 'win');
-  bigWinLabel.textContent = '⭐ WANTED REWARD!';
+  bigWinLabel.textContent = 'WANTED ⭐ REWARD!';
   bigWinLabel.className = '';   // clear any base-game tier class (mega/epic/colossal)
   bigWinAmt.textContent = fmt(award);
   bigWinOver.classList.remove('hidden');
@@ -2252,7 +2252,7 @@ async function demoMansion() {
 
   // Beat 2 — the reward big-win count-up
   setStatus(`⭐ WANTED REWARD: ${fmt(award)}! ⭐`, 'win');
-  bigWinLabel.textContent = '⭐ WANTED REWARD!';
+  bigWinLabel.textContent = 'WANTED ⭐ REWARD!';
   bigWinLabel.className = '';
   bigWinAmt.textContent = fmt(award);
   bigWinOver.classList.remove('hidden');
