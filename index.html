@@ -1240,17 +1240,14 @@
           <div id="mansion-overlay-content">
             <!-- Light rays background -->
             <div id="mansion-rays"></div>
-            <!-- Wanted-poster reveal video (falls back to the static poster image
-                 on iOS / mobile, which can't decode WebM). Src is set lazily in
-                 bonus.js so the 5.5 MB clip never eager-downloads. -->
+            <!-- Wanted-poster reveal video, full-frame. Falls back to the static
+                 poster image on iOS / mobile (can't decode WebM). Src is set lazily
+                 in bonus.js so the 5.5 MB clip never eager-downloads. No on-screen
+                 text — the wolf narrates the win instead. -->
             <div id="mansion-graphic">
               <video id="mansion-poster" muted loop playsinline preload="none"
                      poster="assets/mobile/wanted_poster.webp"></video>
             </div>
-            <!-- Title text -->
-            <div id="mansion-title">WANTED ⭐ REWARD</div>
-            <div id="mansion-subtitle">6 FREE GAMES REMAINING</div>
-            <div id="mansion-press">PRESS PLAY!</div>
           </div>
         </div>
 

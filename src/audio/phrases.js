@@ -239,12 +239,9 @@ export const PHRASES = {
     "Couldn't blow it down, but I'll take the treasure!",
     "Solid bricks, solid GOLD, partner!",
   ],
+  // The "Wanted Reward" reveal speaks ONE fixed line over the full-frame poster.
   mansionJackpot: [
-    "WANTED REWARD! WELL I'LL BE A HORNSWOGGLED WOLF!",
-    "BOUNTY'S MINE! THE WHOLE PIG EMPIRE IS OURS!",
-    "JACKPOT! JACKPOT! AWOOOO! THE BIG ONE, PARTNER!",
-    "I COULDN'T BLOW 'EM DOWN, SO I'M CASHIN' 'EM IN!",
-    "THE GRANDEST HAUL IN ALL THE FOREST! YEEHAW!",
+    "Congratulations, partner! You just won the Wanted Reward!",
   ],
   miniJackpot: [
     "JACKPOT, partner! Treasure in the chimney!",

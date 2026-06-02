@@ -37,9 +37,6 @@ const bonusPhaseLabel = document.getElementById('bonus-phase-label');
 const bonusSpinsLeft  = document.getElementById('bonus-spins-left');
 const bonusWinDisplay = document.getElementById('bonus-win-display');
 const mansionOverlay  = document.getElementById('mansion-overlay');
-const mansionTitle    = document.getElementById('mansion-title');
-const mansionSubtitle = document.getElementById('mansion-subtitle');
-const mansionPress    = document.getElementById('mansion-press');
 const mansionPoster   = document.getElementById('mansion-poster');   // Wanted-poster reveal video
 const wolfTornadoOverlay = document.getElementById('wolf-tornado-overlay');
 const wolfTornadoVideo   = document.getElementById('wolf-tornado-video');
@@ -357,10 +354,9 @@ async function triggerMansionsJackpot(brickCount) {
   setStatus('⭐ WANTED REWARD! ⭐', 'win');
   shake(600);
   synth.trainWhistle();         // the reward train rolls in…
-  synth.mansionFanfare();
   synth.coinShower();
-  narrator.onMansionJackpot();
-  showMansionOverlay(bonusFreeSpins, true);
+  narrator.onMansionJackpot();  // "Congratulations, partner! You just won the Wanted Reward!"
+  showMansionOverlay();
   spawnCoinShower(40, 3000);
   await sleep(3000);
   hideMansionOverlay();
@@ -398,10 +394,9 @@ export async function demoMansion() {
   setStatus('⭐ WANTED REWARD! ⭐', 'win');
   shake(600);
   synth.trainWhistle();
-  synth.mansionFanfare();
   synth.coinShower();
-  narrator.onMansionJackpot();
-  showMansionOverlay(0, true);
+  narrator.onMansionJackpot();  // "Congratulations, partner! You just won the Wanted Reward!"
+  showMansionOverlay();
   spawnCoinShower(40, 3000);
   await sleep(3000);
   hideMansionOverlay();
@@ -691,12 +686,10 @@ function showBonusOverlay(title, phase) {
 }
 function hideBonusOverlay() { if (bonusOverlay) bonusOverlay.classList.add('hidden'); }
 
-function showMansionOverlay(spinsRemaining, isJackpot = false) {
+function showMansionOverlay() {
   if (!mansionOverlay) return;
-  if (mansionSubtitle) mansionSubtitle.textContent = isJackpot ? 'REWARD CLAIMED!' : `${spinsRemaining} FREE GAMES REMAINING`;
-  if (mansionTitle) mansionTitle.textContent = isJackpot ? '⭐ WANTED REWARD!' : 'WANTED ⭐ REWARD';
-  if (mansionPress) mansionPress.textContent = isJackpot ? 'CONGRATULATIONS!' : 'PRESS PLAY!';
-  // Play the Wanted-poster clip on capable browsers; iOS shows the still poster.
+  // Image-only reveal — the poster fills the frame and the wolf narrates the win.
+  // Play the clip on capable browsers; iOS shows the still poster image instead.
   if (mansionPoster && !IS_MOBILE) {
     if (!mansionPoster.getAttribute('src')) mansionPoster.src = 'assets/webm/Wanted_poster.webm';
     try { mansionPoster.currentTime = 0; mansionPoster.play().catch(() => {}); } catch (e) {}
