@@ -56,6 +56,9 @@ const SFX = {
   coin_clink_3: { d: 0.5, p: 'A small handful of gold coins clinking and settling: bright clean metallic, short.' },
   coin_shower:  { d: 2.0, p: 'A big shower of gold coins pouring and cascading into a pile: lots of bright metallic clinking, jingling and tumbling, rich and satisfying.' },
 
+  // ── train (the "Wanted Reward" reveal) ──
+  train_whistle:{ d: 2.6, p: 'A classic Old-West steam locomotive whistle: a long, bright two-tone steam whistle blast with a hiss of escaping steam and a faint distant chuffing of the engine, triumphant and nostalgic American frontier railroad, no music, no voices.' },
+
   // ── ui ──
   button_click: { d: 0.5, p: 'A chunky satisfying button or lever click: a wooden-and-brass mechanical click with a tiny spring, short, tactile, Western.' },
   bet_change:   { d: 0.5, p: 'A quick light UI tick for changing a bet value: a small bright mechanical click with a tiny coin ting, very short and clean.' },

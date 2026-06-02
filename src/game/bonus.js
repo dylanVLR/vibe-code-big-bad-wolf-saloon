@@ -13,7 +13,7 @@
 
 import { HAT_IDS, MAX_FRAME_TIER, BONUS_CONFIG, BET_LEVELS } from '../math/par-sheet.js';
 import { DEV_MODE } from '../system/dev-mode.js';
-import { alphaSrc } from '../system/video-format.js';   // WebM → HEVC-alpha .mp4 on Safari
+import { alphaSrc, IS_MOBILE } from '../system/video-format.js';   // WebM → HEVC-alpha .mp4 on Safari
 import { state } from '../core/state.js';
 import { sleep, fmt } from '../core/utils.js';
 import { synth, bgm } from '../audio/sound.js';
@@ -40,6 +40,7 @@ const mansionOverlay  = document.getElementById('mansion-overlay');
 const mansionTitle    = document.getElementById('mansion-title');
 const mansionSubtitle = document.getElementById('mansion-subtitle');
 const mansionPress    = document.getElementById('mansion-press');
+const mansionPoster   = document.getElementById('mansion-poster');   // Wanted-poster reveal video
 const wolfTornadoOverlay = document.getElementById('wolf-tornado-overlay');
 const wolfTornadoVideo   = document.getElementById('wolf-tornado-video');
 const bigWinOver      = document.getElementById('big-win-overlay');
@@ -353,9 +354,11 @@ async function wolfEndGameReveal() {
    MANSION JACKPOT
 ══════════════════════════════════════════ */
 async function triggerMansionsJackpot(brickCount) {
-  setStatus('🏰 MANSIONS FEATURE! 🏰', 'win');
+  setStatus('⭐ WANTED REWARD! ⭐', 'win');
   shake(600);
+  synth.trainWhistle();         // the reward train rolls in…
   synth.mansionFanfare();
+  synth.coinShower();
   narrator.onMansionJackpot();
   showMansionOverlay(bonusFreeSpins, true);
   spawnCoinShower(40, 3000);
@@ -364,8 +367,8 @@ async function triggerMansionsJackpot(brickCount) {
 
   const award = Math.round(rollMansionAward(brickCount, bonusBet) * 100) / 100;
   bonusTotalWin += award;
-  setStatus(`🏰 MANSION JACKPOT: ${fmt(award)}! 🏰`, 'win');
-  bigWinLabel.textContent = '🏰 MANSION JACKPOT!';
+  setStatus(`⭐ WANTED REWARD: ${fmt(award)}! ⭐`, 'win');
+  bigWinLabel.textContent = '⭐ WANTED REWARD!';
   bigWinLabel.className = '';   // clear any base-game tier class (mega/epic/colossal)
   bigWinAmt.textContent = fmt(award);
   bigWinOver.classList.remove('hidden');
@@ -391,19 +394,21 @@ export async function demoMansion() {
   state.spinning = true;                               // lock the controls during the show
   setControlsEnabled(false);
 
-  // Beat 1 — the MANSIONS FEATURE overlay
-  setStatus('🏰 MANSIONS FEATURE! 🏰', 'win');
+  // Beat 1 — the WANTED REWARD overlay
+  setStatus('⭐ WANTED REWARD! ⭐', 'win');
   shake(600);
+  synth.trainWhistle();
   synth.mansionFanfare();
+  synth.coinShower();
   narrator.onMansionJackpot();
   showMansionOverlay(0, true);
   spawnCoinShower(40, 3000);
   await sleep(3000);
   hideMansionOverlay();
 
-  // Beat 2 — the jackpot big-win count-up
-  setStatus(`🏰 MANSION JACKPOT: ${fmt(award)}! 🏰`, 'win');
-  bigWinLabel.textContent = '🏰 MANSION JACKPOT!';
+  // Beat 2 — the reward big-win count-up
+  setStatus(`⭐ WANTED REWARD: ${fmt(award)}! ⭐`, 'win');
+  bigWinLabel.textContent = '⭐ WANTED REWARD!';
   bigWinLabel.className = '';
   bigWinAmt.textContent = fmt(award);
   bigWinOver.classList.remove('hidden');
@@ -688,12 +693,20 @@ function hideBonusOverlay() { if (bonusOverlay) bonusOverlay.classList.add('hidd
 
 function showMansionOverlay(spinsRemaining, isJackpot = false) {
   if (!mansionOverlay) return;
-  if (mansionSubtitle) mansionSubtitle.textContent = isJackpot ? 'MANSION JACKPOT AWARDED!' : `${spinsRemaining} FREE GAMES REMAINING`;
-  if (mansionTitle) mansionTitle.textContent = isJackpot ? '🏰 MANSION JACKPOT!' : 'MANSIONS FEATURE';
+  if (mansionSubtitle) mansionSubtitle.textContent = isJackpot ? 'REWARD CLAIMED!' : `${spinsRemaining} FREE GAMES REMAINING`;
+  if (mansionTitle) mansionTitle.textContent = isJackpot ? '⭐ WANTED REWARD!' : 'WANTED ⭐ REWARD';
   if (mansionPress) mansionPress.textContent = isJackpot ? 'CONGRATULATIONS!' : 'PRESS PLAY!';
+  // Play the Wanted-poster clip on capable browsers; iOS shows the still poster.
+  if (mansionPoster && !IS_MOBILE) {
+    if (!mansionPoster.getAttribute('src')) mansionPoster.src = 'assets/webm/Wanted_poster.webm';
+    try { mansionPoster.currentTime = 0; mansionPoster.play().catch(() => {}); } catch (e) {}
+  }
   mansionOverlay.classList.remove('hidden');
 }
-function hideMansionOverlay() { if (mansionOverlay) mansionOverlay.classList.add('hidden'); }
+function hideMansionOverlay() {
+  if (mansionOverlay) mansionOverlay.classList.add('hidden');
+  if (mansionPoster && !IS_MOBILE) { try { mansionPoster.pause(); } catch (e) {} }   // free the decoder
+}
 
 function updateBonusHUD() {
   if (bonusSpinsLeft) bonusSpinsLeft.textContent = bonusFreeSpins;

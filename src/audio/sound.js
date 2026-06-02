@@ -141,6 +141,7 @@ class Synth {
   }
   retriggerChime() { this._oneShot('retrigger_chime.mp3', 0.6); }
   mansionFanfare() { this._oneShot('mansion_fanfare.mp3', 0.8); }
+  trainWhistle()   { this._oneShot('train_whistle.mp3', 0.7); }
 
   // ── coins ──
   coinTick() {

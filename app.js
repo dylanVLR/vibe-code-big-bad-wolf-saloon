@@ -621,8 +621,8 @@ const PHRASES = {
     "Solid bricks, solid GOLD, partner!",
   ],
   mansionJackpot: [
-    "MANSION JACKPOT! WELL I'LL BE A HORNSWOGGLED WOLF!",
-    "THREE MANSIONS! THE WHOLE PIG EMPIRE IS OURS!",
+    "WANTED REWARD! WELL I'LL BE A HORNSWOGGLED WOLF!",
+    "BOUNTY'S MINE! THE WHOLE PIG EMPIRE IS OURS!",
     "JACKPOT! JACKPOT! AWOOOO! THE BIG ONE, PARTNER!",
     "I COULDN'T BLOW 'EM DOWN, SO I'M CASHIN' 'EM IN!",
     "THE GRANDEST HAUL IN ALL THE FOREST! YEEHAW!",
@@ -1276,6 +1276,7 @@ class Synth {
   }
   retriggerChime() { this._oneShot('retrigger_chime.mp3', 0.6); }
   mansionFanfare() { this._oneShot('mansion_fanfare.mp3', 0.8); }
+  trainWhistle()   { this._oneShot('train_whistle.mp3', 0.7); }
 
   // ── coins ──
   coinTick() {
@@ -1856,7 +1857,7 @@ Object.assign(exports, { triggerSpin, previewWin, startAuto });
 
 const { HAT_IDS, MAX_FRAME_TIER, BONUS_CONFIG, BET_LEVELS } = require("par-sheet");
 const { DEV_MODE } = require("dev-mode");
-const { alphaSrc } = require("video-format");   // WebM → HEVC-alpha .mp4 on Safari
+const { alphaSrc, IS_MOBILE } = require("video-format");   // WebM → HEVC-alpha .mp4 on Safari
 const { state } = require("state");
 const { sleep, fmt } = require("utils");
 const { synth, bgm } = require("sound");
@@ -1883,6 +1884,7 @@ const mansionOverlay  = document.getElementById('mansion-overlay');
 const mansionTitle    = document.getElementById('mansion-title');
 const mansionSubtitle = document.getElementById('mansion-subtitle');
 const mansionPress    = document.getElementById('mansion-press');
+const mansionPoster   = document.getElementById('mansion-poster');   // Wanted-poster reveal video
 const wolfTornadoOverlay = document.getElementById('wolf-tornado-overlay');
 const wolfTornadoVideo   = document.getElementById('wolf-tornado-video');
 const bigWinOver      = document.getElementById('big-win-overlay');
@@ -2196,9 +2198,11 @@ async function wolfEndGameReveal() {
    MANSION JACKPOT
 ══════════════════════════════════════════ */
 async function triggerMansionsJackpot(brickCount) {
-  setStatus('🏰 MANSIONS FEATURE! 🏰', 'win');
+  setStatus('⭐ WANTED REWARD! ⭐', 'win');
   shake(600);
+  synth.trainWhistle();         // the reward train rolls in…
   synth.mansionFanfare();
+  synth.coinShower();
   narrator.onMansionJackpot();
   showMansionOverlay(bonusFreeSpins, true);
   spawnCoinShower(40, 3000);
@@ -2207,8 +2211,8 @@ async function triggerMansionsJackpot(brickCount) {
 
   const award = Math.round(rollMansionAward(brickCount, bonusBet) * 100) / 100;
   bonusTotalWin += award;
-  setStatus(`🏰 MANSION JACKPOT: ${fmt(award)}! 🏰`, 'win');
-  bigWinLabel.textContent = '🏰 MANSION JACKPOT!';
+  setStatus(`⭐ WANTED REWARD: ${fmt(award)}! ⭐`, 'win');
+  bigWinLabel.textContent = '⭐ WANTED REWARD!';
   bigWinLabel.className = '';   // clear any base-game tier class (mega/epic/colossal)
   bigWinAmt.textContent = fmt(award);
   bigWinOver.classList.remove('hidden');
@@ -2234,19 +2238,21 @@ async function demoMansion() {
   state.spinning = true;                               // lock the controls during the show
   setControlsEnabled(false);
 
-  // Beat 1 — the MANSIONS FEATURE overlay
-  setStatus('🏰 MANSIONS FEATURE! 🏰', 'win');
+  // Beat 1 — the WANTED REWARD overlay
+  setStatus('⭐ WANTED REWARD! ⭐', 'win');
   shake(600);
+  synth.trainWhistle();
   synth.mansionFanfare();
+  synth.coinShower();
   narrator.onMansionJackpot();
   showMansionOverlay(0, true);
   spawnCoinShower(40, 3000);
   await sleep(3000);
   hideMansionOverlay();
 
-  // Beat 2 — the jackpot big-win count-up
-  setStatus(`🏰 MANSION JACKPOT: ${fmt(award)}! 🏰`, 'win');
-  bigWinLabel.textContent = '🏰 MANSION JACKPOT!';
+  // Beat 2 — the reward big-win count-up
+  setStatus(`⭐ WANTED REWARD: ${fmt(award)}! ⭐`, 'win');
+  bigWinLabel.textContent = '⭐ WANTED REWARD!';
   bigWinLabel.className = '';
   bigWinAmt.textContent = fmt(award);
   bigWinOver.classList.remove('hidden');
@@ -2531,12 +2537,20 @@ function hideBonusOverlay() { if (bonusOverlay) bonusOverlay.classList.add('hidd
 
 function showMansionOverlay(spinsRemaining, isJackpot = false) {
   if (!mansionOverlay) return;
-  if (mansionSubtitle) mansionSubtitle.textContent = isJackpot ? 'MANSION JACKPOT AWARDED!' : `${spinsRemaining} FREE GAMES REMAINING`;
-  if (mansionTitle) mansionTitle.textContent = isJackpot ? '🏰 MANSION JACKPOT!' : 'MANSIONS FEATURE';
+  if (mansionSubtitle) mansionSubtitle.textContent = isJackpot ? 'REWARD CLAIMED!' : `${spinsRemaining} FREE GAMES REMAINING`;
+  if (mansionTitle) mansionTitle.textContent = isJackpot ? '⭐ WANTED REWARD!' : 'WANTED ⭐ REWARD';
   if (mansionPress) mansionPress.textContent = isJackpot ? 'CONGRATULATIONS!' : 'PRESS PLAY!';
+  // Play the Wanted-poster clip on capable browsers; iOS shows the still poster.
+  if (mansionPoster && !IS_MOBILE) {
+    if (!mansionPoster.getAttribute('src')) mansionPoster.src = 'assets/webm/Wanted_poster.webm';
+    try { mansionPoster.currentTime = 0; mansionPoster.play().catch(() => {}); } catch (e) {}
+  }
   mansionOverlay.classList.remove('hidden');
 }
-function hideMansionOverlay() { if (mansionOverlay) mansionOverlay.classList.add('hidden'); }
+function hideMansionOverlay() {
+  if (mansionOverlay) mansionOverlay.classList.add('hidden');
+  if (mansionPoster && !IS_MOBILE) { try { mansionPoster.pause(); } catch (e) {} }   // free the decoder
+}
 
 function updateBonusHUD() {
   if (bonusSpinsLeft) bonusSpinsLeft.textContent = bonusFreeSpins;
@@ -4788,23 +4802,23 @@ Object.assign(exports, { runSimulation });
 /* AUTO-GENERATED by tools/build.js — folder-size snapshot. Do not edit. */
 
 const SIZE_MANIFEST = {
-  "totalBytes": 163412270,
-  "fileCount": 791,
+  "totalBytes": 163471842,
+  "fileCount": 792,
   "generatedAt": "2026-06-02",
   "player": {
-    "bytes": 159201983,
-    "files": 714
+    "bytes": 159260543,
+    "files": 715
   },
   "dev": {
-    "bytes": 4210287,
+    "bytes": 4211299,
     "files": 77
   },
   "firstPlay": {
-    "bytes": 17928103,
-    "files": 71
+    "bytes": 17971198,
+    "files": 72
   },
   "progressive": {
-    "bytes": 141273880,
+    "bytes": 141289345,
     "files": 643
   },
   "categories": [
@@ -4817,8 +4831,8 @@ const SIZE_MANIFEST = {
     {
       "key": "audio",
       "label": "Audio",
-      "bytes": 38797077,
-      "files": 614
+      "bytes": 38854381,
+      "files": 615
     },
     {
       "key": "image",
@@ -4835,7 +4849,7 @@ const SIZE_MANIFEST = {
     {
       "key": "code",
       "label": "Code",
-      "bytes": 950717,
+      "bytes": 952985,
       "files": 54
     }
   ]
