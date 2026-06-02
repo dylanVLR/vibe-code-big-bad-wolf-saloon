@@ -11,7 +11,7 @@
  */
 'use strict';
 
-import { HAT_IDS, MAX_FRAME_TIER, BONUS_CONFIG } from '../math/par-sheet.js';
+import { HAT_IDS, MAX_FRAME_TIER, BONUS_CONFIG, BET_LEVELS } from '../math/par-sheet.js';
 import { DEV_MODE } from '../system/dev-mode.js';
 import { alphaSrc } from '../system/video-format.js';   // WebM → HEVC-alpha .mp4 on Safari
 import { state } from '../core/state.js';
@@ -376,6 +376,53 @@ async function triggerMansionsJackpot(brickCount) {
   await sleep(3500);
   bigWinOver.classList.add('hidden');
 }
+
+/* ── Dev-only: preview the Mansion feature without playing a whole bonus ──
+   Runs the exact MANSIONS overlay → jackpot big-win presentation with a sample
+   award (scaled to the current bet), then cleans up. Does NOT touch the player's
+   balance or any real bonus state. Wired to the dev "🏰 Mansion Feature" button. */
+export async function demoMansion() {
+  if (bonusActive || state.spinning) return;          // never collide with live play
+
+  const bet = BET_LEVELS[state.betIndex] || 1;
+  const brickCount = BONUS_CONFIG.mansion.minBricks + 2;   // a healthy 5-brick board
+  const award = Math.round(rollMansionAward(brickCount, bet) * 100) / 100;
+
+  state.spinning = true;                               // lock the controls during the show
+  setControlsEnabled(false);
+
+  // Beat 1 — the MANSIONS FEATURE overlay
+  setStatus('🏰 MANSIONS FEATURE! 🏰', 'win');
+  shake(600);
+  synth.mansionFanfare();
+  narrator.onMansionJackpot();
+  showMansionOverlay(0, true);
+  spawnCoinShower(40, 3000);
+  await sleep(3000);
+  hideMansionOverlay();
+
+  // Beat 2 — the jackpot big-win count-up
+  setStatus(`🏰 MANSION JACKPOT: ${fmt(award)}! 🏰`, 'win');
+  bigWinLabel.textContent = '🏰 MANSION JACKPOT!';
+  bigWinLabel.className = '';
+  bigWinAmt.textContent = fmt(award);
+  bigWinOver.classList.remove('hidden');
+  shake(600);
+  spawnCoinShower(60, 4000);
+  await animateWinCount(award, 2000);
+  await sleep(3000);
+  bigWinOver.classList.add('hidden');
+
+  // Clean up — it was only a preview, so leave balance/win untouched.
+  elWin.textContent = fmt(0);
+  setStatus('GOOD LUCK – PRESS SPIN!');
+  state.spinning = false;
+  setControlsEnabled(true);
+}
+
+// Dev "🏰 Mansion Feature" button → play the preview on demand.
+const btnDemoMansion = document.getElementById('btn-demo-mansion');
+if (btnDemoMansion) btnDemoMansion.addEventListener('click', () => demoMansion());
 
 /* ══════════════════════════════════════════
    FINISH
