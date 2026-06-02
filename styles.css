@@ -3061,56 +3061,9 @@ body.pre-reveal #bg-video { opacity: 1; }   /* full, undimmed background during 
   border-radius: 0;
 }
 
-@keyframes mansion-float {
-  0%   { transform: translateY(0); }
-  100% { transform: translateY(-6px); }
-}
-
-/* Mansion title text */
-#mansion-title {
-  font-family: var(--font-title);
-  font-size: 1.8rem;
-  color: #FF6030;
-  text-shadow:
-    0 1px 0 #CC3010,
-    0 2px 0 #AA2008,
-    0 3px 0 #881000,
-    0 4px 8px rgba(0,0,0,0.6),
-    0 0 20px rgba(255,100,30,0.7),
-    0 0 40px rgba(255,60,10,0.4);
-  letter-spacing: 3px;
-  animation: mansion-title-glow 1s ease-in-out infinite alternate;
-}
-
-@keyframes mansion-title-glow {
-  from { text-shadow: 0 1px 0 #CC3010, 0 2px 0 #AA2008, 0 3px 0 #881000, 0 4px 8px rgba(0,0,0,0.6), 0 0 15px rgba(255,100,30,0.6); }
-  to   { text-shadow: 0 1px 0 #CC3010, 0 2px 0 #AA2008, 0 3px 0 #881000, 0 4px 8px rgba(0,0,0,0.6), 0 0 30px rgba(255,100,30,0.9), 0 0 60px rgba(255,60,10,0.4); color: #FF8050; }
-}
-
-#mansion-subtitle {
-  font-family: var(--font-main);
-  font-size: 0.85rem;
-  font-weight: 800;
-  color: var(--gold);
-  letter-spacing: 3px;
-  margin-top: 6px;
-  text-shadow: 0 0 10px rgba(245,196,0,0.6);
-}
-
-#mansion-press {
-  font-family: var(--font-title);
-  font-size: 0.9rem;
-  color: #FFFFFF;
-  letter-spacing: 4px;
-  margin-top: 10px;
-  animation: mansion-press-blink 1.2s ease-in-out infinite;
-  text-shadow: 0 0 8px rgba(255,255,255,0.5);
-}
-
-@keyframes mansion-press-blink {
-  0%, 100% { opacity: 1; }
-  50%      { opacity: 0.3; }
-}
+/* (The old #mansion-title / #mansion-subtitle / #mansion-press text styles and
+   their float/glow/blink keyframes were removed when the Wanted-Reward reveal
+   became a full-frame, text-free poster — see index.html #mansion-overlay.) */
 
 /* ════════════════════════════════════════
    BRICK-LAYING FRAME BUILD ANIMATION

@@ -71,11 +71,14 @@ build works* below.
 │   ├── alpha-mp4.js         Make HEVC-alpha .mp4 twins of transparent clips (Safari support).
 │   └── process_images.py    Helper: knock out white image backgrounds.
 │
-├── docs/                  ── DELIVERABLE MATH DOCS (one set per RTP model) ──
+├── docs/                  ── DELIVERABLE DOCS (math + QA + reference, all PDF) ──
 │   ├── Math_Model_97%_RTP.xlsx     full par sheet as a workbook
-│   ├── Math_Overview_97%_RTP.docx  verification summary + overview
+│   ├── Math_Overview_97%_RTP.pdf   verification summary + overview
 │   ├── Math_Model_85%_RTP.xlsx     the 85% "Lean" model
-│   └── Math_Overview_85%_RTP.docx
+│   ├── Math_Overview_85%_RTP.pdf
+│   ├── QA_Report.pdf · Would_This_Game_Pass_GLI_Certification.pdf
+│   ├── Wolf_Voiceover_Script.pdf · Keyboard_Shortcuts.pdf
+│   └── API_*.pdf                   integration references (Relax, Slack, GitHub …)
 │
 └── assets/                Media (images, video, audio) — gitignored, not in version control.
     ├── audio/ {music, sfx, narrator}
