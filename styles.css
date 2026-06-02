@@ -462,6 +462,7 @@ body:not(.dev-mode) #options-panel {
   --drawer-btn-h: 34px;
   gap: 6px;
   padding: 12px;
+  justify-content: center;   /* even space above & below the button stack */
 }
 /* The dev build has ~17 tools — far too many for one column on a short landscape
    phone (they'd squish illegibly AND still overflow). Lay them out in two columns
