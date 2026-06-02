@@ -208,6 +208,10 @@ export function spawnWinPopText(amount) {
 /** Continuous background gold-dust motes. Call once at startup. */
 export function startAmbientParticles() {
   if (!ambientContainer) return;
+  // Mobile: skip the floating gold-dust entirely. Each glowing mote repaints
+  // every frame, and it was the ONLY thing animating at idle on phones — the main
+  // remaining cause of mobile sluggishness. Decorative-only; nothing depends on it.
+  if (TOUCH) return;
   const types = ['gold', 'gold', 'gold', 'green', 'white'];
   function spawnMote() {
     const mote = document.createElement('div');
