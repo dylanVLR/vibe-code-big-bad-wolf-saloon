@@ -4071,6 +4071,17 @@ button, .drawer-btn, .rtp-option, .modal-overlay, #spin-video, .sym-cell {
   /* the floating gold-dust motes glow + repaint every frame; the only always-on
      animation left on mobile. Drop them (also skipped in JS — see particles.js). */
   #ambient-particles { display: none !important; }
+
+  /* ── Paint budget: flatten shadows/glows that re-rasterise mid-spin ──
+     The win counter rewrites its text every frame while counting up; a glowing
+     text-shadow forces a full re-raster of that glow on each frame, and the
+     throb/flash animations compound it. The reel grid + symbols sit directly over
+     the moving strip. Flatten these. Static brand glows (logo, sign, poster) are
+     intentionally left intact — they never repaint during a spin. */
+  #display-win, #display-balance, #display-bet, #status-msg { text-shadow: none !important; }
+  .win-glow { text-shadow: none !important; animation: none !important; }
+  .counting { animation: none !important; }
+  .sym-cell, .sym-cell svg, .sym-cell .sym-img, .reel-col { box-shadow: none !important; }
 }
 
 /* ── Fit-to-screen mode (set by fit-screen.js when the game can't fit natural size) ── */

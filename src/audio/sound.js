@@ -7,6 +7,14 @@
  */
 'use strict';
 
+// Touch devices (iPhone/Android) hitch when many `new Audio()` elements decode
+// the same clip at once — e.g. the rapid coin-ticks during a win count-up, or the
+// reel-stop cascade. On touch we reuse a tiny pool of pre-decoded elements per
+// file instead of allocating a fresh one each call, and rate-limit the fastest
+// ticks. Desktop keeps the simple per-call path (plenty of headroom there).
+const IS_TOUCH = typeof window !== 'undefined' && window.matchMedia &&
+                 window.matchMedia('(pointer: coarse)').matches;
+
 /* ── Sound effects ── */
 class Synth {
   constructor() {
@@ -15,6 +23,8 @@ class Synth {
     this._spinAudio = null;   // the looping reel-spin sound
     this._windAudio = null;   // the looping tornado-wind sound
     this._active = new Set();
+    this._pool = new Map();   // filename → { els:[Audio…], idx } (touch only)
+    this._lastTick = 0;       // throttle clock for the rapid coin-tick
   }
 
   /** Play an MP3 from assets/audio/sfx/. Returns the Audio element. */
@@ -29,18 +39,49 @@ class Synth {
     return audio;
   }
 
+  /** Lazily build (once) and round-robin a small pool of decoded elements for a
+      file, so repeated one-shots reuse buffers instead of re-decoding. */
+  _poolGet(filename) {
+    let p = this._pool.get(filename);
+    if (!p) {
+      const els = [];
+      for (let i = 0; i < 3; i++) {       // 3 ⇒ a few may overlap without cutting out
+        const a = new Audio(`assets/audio/sfx/${filename}`);
+        a.preload = 'auto';
+        els.push(a);
+      }
+      p = { els, idx: 0 };
+      this._pool.set(filename, p);
+    }
+    const a = p.els[p.idx];
+    p.idx = (p.idx + 1) % p.els.length;
+    return a;
+  }
+
   /** Stop all currently playing one-shot sounds. */
   stopAll() {
     for (const a of this._active) {
       try { a.pause(); a.currentTime = 0; } catch (e) {}
     }
     this._active.clear();
+    for (const p of this._pool.values()) {
+      for (const a of p.els) { try { a.pause(); a.currentTime = 0; } catch (e) {} }
+    }
     this.stopSpin();
     this.windStop();
   }
 
-  /** Play a one-shot SFX that may overlap others. */
-  _oneShot(filename, vol = 1.0) { return this._play(filename, vol, false); }
+  /** Play a one-shot SFX that may overlap others. On touch this reuses a pooled,
+      pre-decoded element to avoid the iOS multi-decode hitch. */
+  _oneShot(filename, vol = 1.0) {
+    if (!IS_TOUCH) return this._play(filename, vol, false);
+    if (!this.enabled) return null;
+    const a = this._poolGet(filename);
+    a.volume = this._volume * vol;
+    try { a.currentTime = 0; } catch (e) {}
+    a.play().catch(() => {});
+    return a;
+  }
 
   // ── reels ──
   spinLever() { this._oneShot('spin_lever.mp3', 0.45); }
@@ -104,6 +145,14 @@ class Synth {
   // ── coins ──
   coinTick() {
     if (!this.enabled) return;
+    // The win count-up fires this every animation frame (~30% of frames). On touch
+    // that's a burst of decodes; cap it to ~1 every 90ms so it stays a pleasant
+    // patter without flooding the audio pipeline.
+    if (IS_TOUCH) {
+      const now = Date.now();
+      if (now - this._lastTick < 90) return;
+      this._lastTick = now;
+    }
     const files = ['coin_clink_1.mp3', 'coin_clink_2.mp3'];
     this._oneShot(files[Math.floor(Math.random() * files.length)], 0.25);
   }

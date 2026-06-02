@@ -14,6 +14,14 @@
 
 const PAD = 6;   // breathing room around the scaled game (px)
 
+// Touch devices: render the cabinet into a slightly smaller backing store. iOS
+// Safari rasterises a scaled-down layer at its on-screen size, so shaving the
+// effective scale ~10% cuts composited pixels ~19% (fewer to paint every frame
+// during a spin) for a barely-perceptible loss of sharpness on a phone screen.
+const TOUCH = typeof window !== 'undefined' && window.matchMedia &&
+              window.matchMedia('(pointer: coarse)').matches;
+const RENDER_SCALE = TOUCH ? 0.9 : 1;
+
 /** Read the current safe-area insets (0 on desktop; non-zero on iOS with viewport-fit=cover). */
 function safeInsets() {
   const p = document.createElement('div');
@@ -47,7 +55,9 @@ export function fitScreen() {
   const availW = Math.max(1, window.innerWidth  - ins.l - ins.r - PAD * 2);
   const availH = Math.max(1, window.innerHeight - ins.t - ins.b - PAD * 2);
 
-  const scale = Math.min(availW / gw, availH / gh, 1);   // never upscale past natural
+  // Fit to the viewport (never upscale past natural), then apply the mobile
+  // render-scale trim so phones composite fewer pixels.
+  const scale = Math.min(availW / gw, availH / gh, 1) * RENDER_SCALE;
 
   // Always centre the game (fixed) inside the safe-area box so it has EQUAL
   // margins top & bottom and can never produce a scrollbar — even at natural
