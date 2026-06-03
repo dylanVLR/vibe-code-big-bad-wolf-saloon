@@ -1,7 +1,7 @@
 # ─────────────────────────────────────────────────────────────────────────
-#  Big Bad Wolf — keep the repo LEAN: track code/text only, never media.
-#  All the heavy stuff (images, video, audio) lives in assets/ and is
-#  regenerable, so it's intentionally NOT version-controlled.
+#  Big Bad Wolf — media is now version-controlled via Git LFS (see
+#  .gitattributes). The heavy stuff under assets/ (images, video, audio) is
+#  tracked as LFS objects so it can be synced between collaborators.
 # ─────────────────────────────────────────────────────────────────────────
 
 # OS / editor junk
@@ -16,43 +16,6 @@ Thumbs.db
 # Node
 node_modules/
 npm-debug.log*
-
-# ── Binary media — never tracked (these are what bloat a repo) ──
-# Images
-*.png
-*.jpg
-*.jpeg
-*.gif
-*.webp
-*.bmp
-*.tif
-*.tiff
-*.ico
-# Video
-*.mp4
-*.webm
-*.mov
-*.mkv
-*.avi
-# Audio
-*.mp3
-*.wav
-*.ogg
-*.m4a
-*.aac
-*.flac
-# Archives & other large blobs
-*.zip
-*.tar.gz
-*.tgz
-*.rar
-*.7z
-*.psd
-*.ai
-
-# Belt-and-suspenders: the whole media folder is off-limits, so nothing
-# under assets/ (any format) can ever be committed.
-assets/
 
 # Editor / agent config (local only)
 .claude/
