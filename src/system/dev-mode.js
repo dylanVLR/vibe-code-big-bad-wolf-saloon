@@ -25,7 +25,12 @@ function compute() {
   }
 }
 
-export const DEV_MODE = compute();
+// TEMPORARILY FORCED ON: dev/admin tools are available to everyone, on every
+// build (including web), with no ?dev=1 needed. The gated logic in compute() is
+// kept intact below — to restore it, change this line back to:
+//   export const DEV_MODE = compute();
+export const DEV_MODE = true;
+void compute;   // keep compute() referenced so the gate stays a one-line revert
 
 if (DEV_MODE) {
   document.body.classList.add('dev-mode');
