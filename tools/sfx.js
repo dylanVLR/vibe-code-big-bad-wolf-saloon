@@ -59,6 +59,11 @@ const SFX = {
   // ── train (the "Wanted Reward" reveal) ──
   train_whistle:{ d: 2.6, p: 'A classic Old-West steam locomotive whistle: a long, bright two-tone steam whistle blast with a hiss of escaping steam and a faint distant chuffing of the engine, triumphant and nostalgic American frontier railroad, no music, no voices.' },
 
+  // ── adaptive-score musical stingers (the Conductor fires these over the bed) ──
+  streak_step:    { d: 0.9, p: 'A short bright ascending musical pip marking a winning streak ticking up one notch: a quick three-note rising banjo-and-bell flourish, clean and celebratory, in a Western style, very short, no vocals.' },
+  deposit_flourish:{ d: 1.4, p: 'A quick celebratory cash deposit flourish: a bright ringing cash-register ding and a coin shimmer with a short rising banjo-and-bell sting, satisfying and warm, Western, short, no vocals.' },
+  music_riser:    { d: 2.6, p: 'A rising cinematic tension riser building suspense: swelling tremolo strings and a tightening snare-drum roll with a rising cymbal shimmer, building to the very edge then stopping unresolved, Western orchestral, no vocals, no melody resolution.' },
+
   // ── ui ──
   button_click: { d: 0.5, p: 'A chunky satisfying button or lever click: a wooden-and-brass mechanical click with a tiny spring, short, tactile, Western.' },
   bet_change:   { d: 0.5, p: 'A quick light UI tick for changing a bet value: a small bright mechanical click with a tiny coin ting, very short and clean.' },

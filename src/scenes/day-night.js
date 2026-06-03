@@ -13,6 +13,7 @@
 'use strict';
 
 import { playNoonStandoff } from './high-noon.js';
+import { bgm } from '../audio/sound.js';   // crossfade the day ⇄ night music bed
 
 const overlay = document.getElementById('day-night-overlay');
 const btnTime = document.getElementById('btn-time');
@@ -45,6 +46,9 @@ function apply(minutes) {
   if (overlay) overlay.style.opacity = darknessFor(minutes).toFixed(3);
   if (label) label.textContent = fmtTime(minutes);
   if (slider) slider.value = String(minutes);
+  // Tell the score whether it's night so it can crossfade day ⇄ night bed.
+  const light = (1 + Math.cos(((minutes / 60 - 12) / 24) * 2 * Math.PI)) / 2;
+  bgm.setNight(light < 0.45);
 }
 
 function nowMinutes() {

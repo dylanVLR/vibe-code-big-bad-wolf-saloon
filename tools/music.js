@@ -57,6 +57,71 @@ const TRACKS = {
       'slowly building suspense to a taut, swelling climax that hangs right on the edge, then cuts off sharply ' +
       'into silence. Atmospheric, cinematic, classic Wild West frontier mood.',
   },
+
+  /* ── ADAPTIVE SCORE LIBRARY (the Conductor blends these live) ──
+     COHESION RULE: every base-game cue is in A MINOR around 92 BPM, and every
+     bonus cue is in A MINOR around 120 BPM, so beds crossfade cleanly and the
+     energy layers sit on top of whichever bed is playing. Loops are kept short
+     (light to download, and they re-sync to the energy layer every loop). */
+
+  // BASE bed — daytime: warm, sunlit, hopeful. Low-to-mid energy.
+  base_day: {
+    file: 'bgm_base_day.mp3',
+    lengthMs: 40000,
+    prompt:
+      'A warm, hopeful Western cinematic score in A minor at a relaxed 92 BPM, fully instrumental with NO vocals. ' +
+      'Gentle fingerpicked acoustic guitar and soft banjo, warm sustained strings, a sweet harmonica and a touch of ' +
+      'tin whistle carrying a memorable melody, light brushed percussion. A golden sunlit frontier morning — cozy, ' +
+      'easygoing and content, low-to-mid energy. Smooth, even, and seamlessly loopable with a steady gentle pulse.',
+  },
+  // BASE bed — nighttime: sparse, moonlit, a touch of menace. Swapped via the time-of-day slider.
+  base_night: {
+    file: 'bgm_base_night.mp3',
+    lengthMs: 40000,
+    prompt:
+      'A sparse, moonlit lonesome Western night score in A minor at a slow 92 BPM, fully instrumental with NO vocals. ' +
+      'Slow lap-steel slide guitar, low sustained strings and soft upright bass, a distant lonely harmonica, a faint ' +
+      'far-off wolf howl and gentle night ambience. Mysterious, atmospheric, a little menacing but beautiful — low ' +
+      'energy. Same key and tempo as the daytime theme so they crossfade cleanly. Seamlessly loopable.',
+  },
+  // BASE energy LAYER — sits ON TOP of either base bed when the player heats up. Mostly rhythmic so it blends.
+  base_energy: {
+    file: 'bgm_base_energy.mp3',
+    lengthMs: 32000,
+    prompt:
+      'A driving rhythmic ENERGY LAYER meant to be mixed on top of a calm Western score, in A minor at 92 BPM, fully ' +
+      'instrumental with NO vocals. A galloping banjo ostinato, foot stomps and hand claps, punchy toms and ' +
+      'tambourine, and short stabbing brass accents building momentum and excitement. Mostly percussion and rhythm ' +
+      'with minimal sustained harmony so it layers cleanly over other music. Tight, propulsive, seamlessly loopable.',
+  },
+  // BONUS bed A — triumphant adventure (track 1 of the bonus playlist).
+  bonus_a: {
+    file: 'bgm_bonus_a.mp3',
+    lengthMs: 48000,
+    prompt:
+      'An epic, triumphant Western adventure score in A minor at 120 BPM, fully instrumental with NO vocals. Heroic ' +
+      'brass, a galloping fiddle-and-banjo motif, big taiko and timpani drums, soaring strings and grand cymbal ' +
+      'swells. Swashbuckling, celebratory and goosebump-inducing, full of momentum. Seamlessly loopable.',
+  },
+  // BONUS bed B — a contrasting variation so the bonus has a 2-track playlist (same key/tempo for clean crossfade).
+  bonus_b: {
+    file: 'bgm_bonus_b.mp3',
+    lengthMs: 48000,
+    prompt:
+      'A second triumphant Western bonus theme in A minor at 120 BPM, designed to pair and crossfade with the first. ' +
+      'Fully instrumental with NO vocals. A bolder, more driving hoedown-meets-orchestra variation: a relentless ' +
+      'stomping rhythm, dueling fiddle and brass trading the melody, whooping celebratory energy and a victorious ' +
+      'feel. Same key and tempo as the first bonus theme. Seamlessly loopable.',
+  },
+  // BONUS energy LAYER — peak-excitement overlay for big bonus moments.
+  bonus_energy: {
+    file: 'bgm_bonus_energy.mp3',
+    lengthMs: 32000,
+    prompt:
+      'A high-energy percussion-and-brass OVERLAY for an epic bonus, in A minor at 120 BPM, fully instrumental with ' +
+      'NO vocals. Thunderous war-drum toms, galloping snare, big cymbal swells and stabbing heroic brass hits, meant ' +
+      'to layer on top of a bonus theme for peak excitement. Mostly rhythmic so it blends. Seamlessly loopable.',
+  },
 };
 
 async function generate(key, attempt = 1) {
@@ -81,10 +146,14 @@ async function generate(key, attempt = 1) {
   }
 }
 
-const which = process.argv[2];
-const keys = which ? [which] : ['base', 'bonus'];
+// The 6-cue adaptive library the Conductor blends live.
+const ADAPTIVE = ['base_day', 'base_night', 'base_energy', 'bonus_a', 'bonus_b', 'bonus_energy'];
+
+let args = process.argv.slice(2);
+if (args.length === 1 && args[0] === 'adaptive') args = ADAPTIVE;   // group alias
+const keys = args.length ? args : ['base', 'bonus'];
 for (const k of keys) {
-  if (!TRACKS[k]) { console.error(`Unknown track "${k}" (use base|bonus)`); process.exit(1); }
+  if (!TRACKS[k]) { console.error(`Unknown track "${k}" (use base|bonus|showdown|adaptive|${ADAPTIVE.join('|')})`); process.exit(1); }
 }
 console.log(`Generating ${keys.length} track(s) → assets/audio/music/`);
 for (const k of keys) await generate(k);

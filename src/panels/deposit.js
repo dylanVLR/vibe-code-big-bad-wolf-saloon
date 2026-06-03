@@ -10,6 +10,7 @@ import { state } from '../core/state.js';
 import { updateDisplays } from '../render/readouts.js';
 import { fmt } from '../core/utils.js';
 import { synth } from '../audio/sound.js';
+import { conductor } from '../audio/conductor.js';
 
 const btnDeposit = document.getElementById('btn-deposit');
 const modal      = document.getElementById('deposit-modal');
@@ -33,6 +34,7 @@ if (btnDeposit && modal) {
       updateDisplays();   // update the CASH readout
       refresh();          // update the balance shown in the popup
       synth.coinClink();  // little feedback chime
+      conductor.onDeposit();   // celebratory musical flourish
     });
   });
 }

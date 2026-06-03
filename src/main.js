@@ -22,6 +22,7 @@ import { INITIAL_GRID, SYMBOLS } from './math/par-sheet.js';
 import { state } from './core/state.js';
 import { synth, bgm } from './audio/sound.js';
 import { narrator } from './audio/narrator.js';
+import './audio/conductor.js';   // adaptive-score brain: heat tracking + reactive cues
 import { renderReel } from './render/reels.js';
 import { startAmbientParticles } from './render/particles.js';
 import { updateDisplays, setStatus } from './render/readouts.js';

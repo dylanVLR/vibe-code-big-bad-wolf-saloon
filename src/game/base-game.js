@@ -21,6 +21,7 @@ import {
 } from '../render/particles.js';
 import { setStatus, updateDisplays, elWin, buttons, stopAuto } from '../render/readouts.js';
 import { startBonus, isBonusActive } from './bonus.js';
+import { conductor } from '../audio/conductor.js';   // adaptive-score brain (heat + stingers)
 
 const cabinet    = document.getElementById('cabinet');
 const winFlash   = document.getElementById('win-flash');
@@ -82,6 +83,7 @@ export function triggerSpin() {
   synth.startSpin();
   playSpinBadge();
   narrator.onSpin();
+  conductor.onSpin();         // cadence → music heat
   if (state.balance < bet * 3) narrator.onLowBalance();
 
   const targetGrid = generateGrid();
@@ -106,6 +108,7 @@ export function triggerSpin() {
 
   const anticipate = shouldAnticipate(targetGrid);
   const extremeAnticipate = shouldExtremeAnticipate(targetGrid);
+  if (anticipate) conductor.onAnticipation(extremeAnticipate);   // swell the tension
 
   let stopped = 0;
   for (let r = 0; r < 5; r++) {
@@ -149,6 +152,7 @@ async function finalizeSpin(targetGrid, bet) {
   }
 
   const { totalWin, winners } = evaluateGrid(targetGrid, bet);
+  conductor.onResult(totalWin, bet);     // streaks → heat + win stingers
 
   if (totalWin > 0) {
     highlightWinners(winners);

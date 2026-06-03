@@ -46,7 +46,9 @@ const WARM = [
   'assets/bonus_pig_straw.webp',
   'assets/bonus_pig_wood.webp',
   'assets/bonus_pig_brick.webp',
-  'assets/audio/music/bgm_bonus.mp3',
+  // warm the adaptive-score beds the player is most likely to hit next
+  'assets/audio/music/bgm_base_night.mp3',
+  'assets/audio/music/bgm_bonus_a.mp3',
 ];
 function warmExtras() {
   // the frame-morph clips (F1/F2/F3) are transparent → fetch the format this

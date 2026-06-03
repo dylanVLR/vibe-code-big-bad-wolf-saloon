@@ -7,6 +7,8 @@
  */
 'use strict';
 
+import { IS_MOBILE } from '../system/video-format.js';   // lighter adaptive score on phones
+
 // Touch devices (iPhone/Android) hitch when many `new Audio()` elements decode
 // the same clip at once — e.g. the rapid coin-ticks during a win count-up, or the
 // reel-stop cascade. On touch we reuse a tiny pool of pre-decoded elements per
@@ -143,6 +145,15 @@ class Synth {
   mansionFanfare() { this._oneShot('mansion_fanfare.mp3', 0.8); }
   trainWhistle()   { this._oneShot('train_whistle.mp3', 0.7); }
 
+  // ── adaptive-score stingers (fired by the Conductor over the music bed) ──
+  /** A streak step-up pip; pitch climbs with the streak length for a rising ladder. */
+  streakStep(step = 0) {
+    const a = this._oneShot('streak_step.mp3', 0.5);
+    if (a) { try { a.playbackRate = 1 + Math.min(step, 6) * 0.07; } catch (e) {} }
+  }
+  depositFlourish() { this._oneShot('deposit_flourish.mp3', 0.55); }
+  musicRiser()      { this._oneShot('music_riser.mp3', 0.5); }
+
   // ── coins ──
   coinTick() {
     if (!this.enabled) return;
@@ -178,118 +189,207 @@ class Synth {
   getVolume() { return this._volume; }
 }
 
-/* ── Background music ──
-   Two looping tracks that crossfade: a whimsical Western score for the base game
-   and a bigger, more epic cinematic piece during the bonus. The bonus feature
-   calls switchToBonus()/switchToBase(); everything else uses the same start/stop/
-   setVolume API as before. */
-class BGMusic {
+/* ── Background score — ADAPTIVE ────────────────────────────────────────────
+   The Conductor (src/audio/conductor.js) blends these cues live, so the music
+   grows with the game instead of a song starting and stopping:
+     • a day/night BASE bed (crossfaded via the time-of-day slider),
+     • a BONUS 2-track playlist (A ⇄ B so it never feels like one loop),
+     • additive ENERGY layers that swell with the player's "heat",
+     • subtle pitch-preserved tempo (desktop only — iOS time-stretch is poor),
+     • crossfades ONLY at context changes.
+
+   Public API is unchanged (start/stop/setVolume/getVolume/isPlaying/
+   switchToBonus/switchToBase/pauseForCutscene/resumeFromCutscene); the Conductor
+   drives the new dimensions via setHeat()/setNight().
+
+   These are HTMLAudio loops (chosen so pitch-preserved tempo works). The energy
+   layers are percussion-forward and mixed gently, so they blend without needing
+   sample-accurate beat-lock (which HTMLAudio can't provide). MOBILE stays light:
+   beds + energy + crossfades, but NO time-stretch and NO A/B playlist churn. */
+const MUSIC = 'assets/audio/music/';
+const LAYER_FILES = {
+  day:         'bgm_base_day.mp3',
+  night:       'bgm_base_night.mp3',
+  baseEnergy:  'bgm_base_energy.mp3',
+  bonusA:      'bgm_bonus_a.mp3',
+  bonusB:      'bgm_bonus_b.mp3',
+  bonusEnergy: 'bgm_bonus_energy.mp3',
+};
+const TEMPO_RANGE  = 0.08;   // up to +8% playbackRate at full heat (desktop only)
+const ENERGY_MAX   = 0.55;   // max energy-layer mix at full heat (kept subtle)
+const BONUS_ENERGY_FLOOR = 0.35;   // bonus always feels energetic, even at low heat
+
+class AdaptiveScore {
   constructor() {
-    this.tracks = {
-      base:  new Audio('assets/audio/music/bgm_base.mp3'),
-      bonus: new Audio('assets/audio/music/bgm_bonus.mp3'),
-    };
-    for (const a of Object.values(this.tracks)) { a.loop = true; a.volume = 0; }
-    // base music is wanted right away; the bonus track is rare — don't eager-load
-    // it (≈2.4 MB), it's warmed in the background by lazy-assets.js instead.
-    this.tracks.base.preload = 'auto';
-    this.tracks.bonus.preload = 'none';
-    this.current = 'base';
-    this.playing = false;
-    this._volume = 0.5;        // 0..1 (user-facing)
-    this._fadeTimer = null;
+    this._volume  = 0.5;        // user slider 0..1
+    this.playing  = false;
+    this.context  = 'base';     // 'base' | 'bonus'
+    this.night    = false;
+    this.heat     = 0;          // 0..1 (set by the Conductor)
+    this.rate     = 1;
+    this._els = {};             // name → HTMLAudioElement (lazy)
+    this._mix = {};             // name → { cur, target }  (eased by the ticker)
+    this._ticker = null;
+    this._playlistTimer = null;
+    this._bonusPick = 'bonusA';
+    for (const n of Object.keys(LAYER_FILES)) this._mix[n] = { cur: 0, target: 0 };
   }
 
-  get audio() { return this.tracks[this.current]; }   // back-compat accessor
+  _el(name) {
+    let a = this._els[name];
+    if (!a) {
+      a = new Audio(MUSIC + LAYER_FILES[name]);
+      a.loop = true; a.volume = 0; a.preload = 'none';
+      this._pitchLock(a);
+      this._els[name] = a;
+    }
+    return a;
+  }
+  _pitchLock(a) { try { a.preservesPitch = a.mozPreservesPitch = a.webkitPreservesPitch = true; } catch (e) {} }
+  _eff() { return Math.max(0, Math.min(1, this._volume * 0.5)); }   // music sits under SFX
+  _baseBed() { return this.night ? 'night' : 'day'; }
 
-  // 0.5 multiplier keeps music under the SFX
-  _effective() { return Math.max(0, Math.min(1, this._volume * 0.5)); }
-
-  /** Crossfade: ramp `targetName` up to volume, everything else down to 0. */
-  _fadeTo(targetName, ms = 800) {
-    if (this._fadeTimer) clearInterval(this._fadeTimer);
-    const target = this._effective();
-    const steps = Math.max(1, Math.round(ms / 40));
-    const start = {};
-    for (const [name, a] of Object.entries(this.tracks)) start[name] = a.volume;
-    let i = 0;
-    this._fadeTimer = setInterval(() => {
-      const t = ++i / steps;
-      for (const [name, a] of Object.entries(this.tracks))
-        a.volume = start[name] + ((name === targetName ? target : 0) - start[name]) * t;
-      if (i >= steps) {
-        clearInterval(this._fadeTimer); this._fadeTimer = null;
-        for (const [name, a] of Object.entries(this.tracks)) if (name !== targetName) a.pause();
+  // One easing ticker glides every layer's mix toward its target and writes the
+  // real element volume; it pauses silent layers and stops itself when idle.
+  _ensureTicker() {
+    if (this._ticker) return;
+    this._ticker = setInterval(() => {
+      const eff = this._eff();
+      let alive = false;
+      for (const [n, m] of Object.entries(this._mix)) {
+        if (m.cur !== m.target) {
+          m.cur += (m.target - m.cur) * 0.10;
+          if (Math.abs(m.cur - m.target) < 0.004) m.cur = m.target;
+        }
+        const a = this._els[n];
+        if (!a) continue;
+        if (m.cur < 0.004) { if (!a.paused) a.pause(); }
+        else { a.volume = eff * m.cur; alive = true; }
       }
-    }, 40);
+      if (!alive && !this.playing) { clearInterval(this._ticker); this._ticker = null; }
+    }, 50);
   }
 
-  /**
-   * Try to start playback of the current track.
-   * @returns {Promise<boolean>} true if it actually started, false if the
-   *   browser blocked autoplay (caller keeps the gesture fallback armed).
-   */
+  _fade(name, target) { this._mix[name].target = Math.max(0, Math.min(1, target)); }
+
+  async _play(name) {
+    const a = this._el(name);
+    if (a.paused) {
+      a.preload = 'auto';
+      this._pitchLock(a);
+      a.playbackRate = this.rate;
+      try { await a.play(); } catch (e) { return false; }
+    }
+    return true;
+  }
+
+  _applyRate() {
+    if (IS_MOBILE) return;            // iOS time-stretch is poor — keep rate at 1
+    for (const a of Object.values(this._els)) {
+      if (!a.paused) { this._pitchLock(a); try { a.playbackRate = this.rate; } catch (e) {} }
+    }
+  }
+
+  // Energy layer follows heat (ease-in curve). Bonus keeps an energetic floor.
+  _applyEnergy() {
+    if (this.context === 'bonus') {
+      const g = Math.max(BONUS_ENERGY_FLOOR, this.heat * this.heat * ENERGY_MAX);
+      this._fade('bonusEnergy', g);
+      if (g > 0.02 && this.playing) this._play('bonusEnergy');
+    } else {
+      const g = this.heat * this.heat * ENERGY_MAX;
+      this._fade('baseEnergy', g);
+      if (g > 0.02 && this.playing) this._play('baseEnergy');
+    }
+  }
+
+  // ── lifecycle (public, unchanged signatures) ──
   start() {
     if (this.playing) return Promise.resolve(true);
-    this.playing = true;                 // optimistic guard against re-entrancy
-    const a = this.tracks[this.current];
-    a.volume = 0;
-    const p = a.play();
-    if (p) {
-      return p.then(() => { this._fadeTo(this.current); return true; }).catch(err => {
-        console.warn('[BGM] Play blocked:', err.message, '— will retry on next interaction');
-        this.playing = false;
-        return false;
-      });
-    }
-    this._fadeTo(this.current);
-    return Promise.resolve(true);
+    this.playing = true;
+    this._ensureTicker();
+    const bed = this._baseBed();
+    return this._play(bed).then(ok => {
+      if (!ok) { this.playing = false; return false; }
+      this._fade(bed, 1);
+      return true;
+    });
   }
-
-  /** Crossfade to a different track (base ⇄ bonus). */
-  switchTo(name, ms = 1200) {
-    if (!this.tracks[name] || this.current === name) { this.current = name; return; }
-    this.current = name;
-    if (!this.playing) return;           // start() will pick up the new current track
-    const a = this.tracks[name];
-    try { a.currentTime = 0; } catch (e) {}
-    a.volume = 0;
-    a.play().catch(() => {});
-    this._fadeTo(name, ms);
-  }
-  switchToBonus(ms) { this.switchTo('bonus', ms); }
-  switchToBase(ms)  { this.switchTo('base', ms); }
-
-  /**
-   * Silence the music while a cutscene with its own audio plays (e.g. the bonus
-   * intro video), without forgetting that it was playing. A later switchTo()/
-   * start() resumes cleanly. If music was off (muted), this stays a no-op.
-   */
-  pauseForCutscene() {
-    if (this._fadeTimer) { clearInterval(this._fadeTimer); this._fadeTimer = null; }
-    for (const a of Object.values(this.tracks)) a.pause();   // `playing` stays as-is
-  }
-
-  /** Resume the current track after a cutscene that called pauseForCutscene(). */
-  resumeFromCutscene(ms = 600) {
-    if (!this.playing) return;            // music was off — leave it off
-    const a = this.tracks[this.current];
-    a.play().catch(() => {});
-    this._fadeTo(this.current, ms);
-  }
-
   stop() {
     this.playing = false;
-    if (this._fadeTimer) { clearInterval(this._fadeTimer); this._fadeTimer = null; }
-    for (const a of Object.values(this.tracks)) { a.pause(); a.currentTime = 0; a.volume = 0; }
+    if (this._playlistTimer) { clearInterval(this._playlistTimer); this._playlistTimer = null; }
+    for (const n of Object.keys(this._mix)) this._mix[n].target = 0;
+    for (const a of Object.values(this._els)) { try { a.pause(); a.currentTime = 0; a.volume = 0; } catch (e) {} }
+    if (this._ticker) { clearInterval(this._ticker); this._ticker = null; }
   }
-  setVolume(v) {
-    this._volume = Math.max(0, Math.min(1, v));
-    if (!this._fadeTimer && this.playing) this.tracks[this.current].volume = this._effective();
-  }
+  setVolume(v) { this._volume = Math.max(0, Math.min(1, v)); }   // ticker applies it
   getVolume() { return this._volume; }
   isPlaying() { return this.playing; }
+
+  // ── context switch: base ⇄ bonus (public) ──
+  switchToBonus() {
+    if (this.context === 'bonus') return;
+    this.context = 'bonus';
+    this._fade('day', 0); this._fade('night', 0); this._fade('baseEnergy', 0);
+    if (!this.playing) return;
+    this._bonusPick = 'bonusA';
+    this._play('bonusA').then(ok => { if (ok) this._fade('bonusA', 1); });
+    this._applyEnergy();
+    this._startPlaylist();
+  }
+  switchToBase() {
+    if (this.context === 'base') return;
+    this.context = 'base';
+    if (this._playlistTimer) { clearInterval(this._playlistTimer); this._playlistTimer = null; }
+    this._fade('bonusA', 0); this._fade('bonusB', 0); this._fade('bonusEnergy', 0);
+    if (!this.playing) return;
+    const bed = this._baseBed();
+    this._play(bed).then(ok => { if (ok) this._fade(bed, 1); });
+    this._applyEnergy();
+  }
+
+  // Alternate bonusA ⇄ bonusB so the bonus reads as a playlist, not one loop.
+  _startPlaylist() {
+    if (IS_MOBILE) return;            // keep mobile light: single bonus bed
+    if (this._playlistTimer) clearInterval(this._playlistTimer);
+    this._playlistTimer = setInterval(() => {
+      if (this.context !== 'bonus' || !this.playing) return;
+      const next = this._bonusPick === 'bonusA' ? 'bonusB' : 'bonusA';
+      this._play(next).then(ok => {
+        if (!ok) return;
+        this._fade(this._bonusPick, 0);
+        this._fade(next, 1);
+        this._bonusPick = next;
+      });
+    }, 44000);
+  }
+
+  // ── reactive dimensions (driven by the Conductor) ──
+  setHeat(h) {
+    this.heat = Math.max(0, Math.min(1, h));
+    this._applyEnergy();
+    if (!IS_MOBILE) { this.rate = 1 + this.heat * TEMPO_RANGE; this._applyRate(); }
+  }
+  setNight(isNight) {
+    isNight = !!isNight;
+    if (this.night === isNight) return;
+    this.night = isNight;
+    if (this.context !== 'base' || !this.playing) return;   // only swaps the visible base bed
+    const bed = this._baseBed(), other = isNight ? 'day' : 'night';
+    this._play(bed).then(ok => { if (ok) { this._fade(bed, 1); this._fade(other, 0); } });
+  }
+
+  // ── cutscene pause/resume (unchanged behaviour) ──
+  pauseForCutscene() {
+    if (this._playlistTimer) { clearInterval(this._playlistTimer); this._playlistTimer = null; }
+    for (const a of Object.values(this._els)) { try { a.pause(); } catch (e) {} }   // 'playing' stays true
+  }
+  resumeFromCutscene() {
+    if (!this.playing) return;
+    for (const [n, m] of Object.entries(this._mix)) if (m.target > 0.02) this._play(n);
+    if (this.context === 'bonus') this._startPlaylist();
+  }
 }
 
 export const synth = new Synth();
-export const bgm = new BGMusic();
+export const bgm = new AdaptiveScore();
