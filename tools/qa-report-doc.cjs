@@ -101,7 +101,7 @@ children.push(new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after:
 
 children.push(kvTable([
   ['Title', 'Big Bad Wolf Saloon'],
-  ['Build under test', 'Production build deployed to YOUR-PROJECT.vercel.app (commit 691d4f1 line)'],
+  ['Build under test', 'Production build deployed to vibe-code-big-bad-wolf-saloon-vlr-studios.vercel.app (commit 691d4f1 line)'],
   ['Test date', 'June 1, 2026'],
   ['Prepared by', 'QA pass (automated functional + headless browser + Monte-Carlo math verification)'],
   ['Game type', 'Free, virtual-credit casino-style slot — no real-money wagering'],

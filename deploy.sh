@@ -29,9 +29,15 @@ mkdir -p "$DEST"
 cp index.html app.js styles.css vercel.json manifest.json robots.txt sitemap.xml "$DEST/"
 rsync -a --delete --exclude='.DS_Store' assets/ "$DEST/assets/"
 find "$DEST" -name '.DS_Store' -delete
-echo "    $(find "$DEST" -type f | wc -l | tr -d ' ') files staged."
+# Carry the project link so this prebuilt folder deploys to the RIGHT Vercel project.
+# (Requires `vercel link` to have been run once in this repo — see setup above.)
+mkdir -p "$DEST/.vercel"
+cp .vercel/project.json "$DEST/.vercel/project.json"
+echo "    $(find "$DEST" -type f -not -path '*/.vercel/*' | wc -l | tr -d ' ') files staged."
 
 echo "→ [3/3] Deploying to Vercel (production) ..."
+# DEST has no package.json, so Vercel serves it as static — no remote build,
+# no LFS resolution needed: the real (LFS-smudged) assets are uploaded directly.
 vercel deploy "$DEST" --prod --yes
 
 echo "✓ Done. Live site updated."

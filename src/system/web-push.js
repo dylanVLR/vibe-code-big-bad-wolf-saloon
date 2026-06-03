@@ -19,7 +19,7 @@
 'use strict';
 
 // The current public deploy target. Keep in sync with deploy.sh.
-export const LIVE_URL = 'https://YOUR-PROJECT.vercel.app';
+export const LIVE_URL = 'https://vibe-code-big-bad-wolf-saloon-vlr-studios.vercel.app';
 
 const btn      = document.getElementById('btn-web-push');
 const modal    = document.getElementById('webpush-modal');

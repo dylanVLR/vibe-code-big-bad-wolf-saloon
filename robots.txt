@@ -3,4 +3,4 @@ Allow: /
 Disallow: /tools/
 Disallow: /docs/
 
-Sitemap: https://YOUR-PROJECT.vercel.app/sitemap.xml
+Sitemap: https://vibe-code-big-bad-wolf-saloon-vlr-studios.vercel.app/sitemap.xml
