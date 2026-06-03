@@ -22,6 +22,7 @@ const TICK_MS = 400;
 let heat = 0;                 // 0..1
 let streak = 0;               // consecutive winning spins
 let lastSpinAt = 0;
+let pendingPayoffAt = 0;      // a build was just armed → resolve it if the next spin wins
 
 const clamp01 = v => Math.max(0, Math.min(1, v));
 function bump(amount) { heat = clamp01(heat + amount * intensity); }
@@ -35,24 +36,31 @@ export const conductor = {
     bump(gap > 0 && gap < 1400 ? 0.14 : 0.06);
   },
 
-  /** Near-miss / bonus anticipation — swell the tension with a riser. */
+  /** Near-miss / bonus anticipation — a rising orchestral build; arms a payoff. */
   onAnticipation(extreme = false) {
     bump(extreme ? 0.26 : 0.14);
-    synth.musicRiser();
+    synth.bonusBuild();
+    pendingPayoffAt = Date.now();
   },
 
-  /** A base-game spin resolved — drives streaks, heat and win stingers. */
+  /** A base-game spin resolved — drives streaks, heat and the scored win cues. */
   onResult(win, bet) {
     if (win > 0) {
       streak++;
       const ratio = win / bet;
-      bump(ratio >= WIN_TIERS.big ? 0.30 : ratio >= WIN_TIERS.nice ? 0.12 : 0.06);
-      if (streak >= 3) synth.streakStep(streak - 3);   // a rising ladder from the 3rd win on
-      if (ratio >= WIN_TIERS.mega) synth.wolfHowl();    // the wolf howls on a really big hit
+      bump(ratio >= WIN_TIERS.big ? 0.34 : ratio >= WIN_TIERS.nice ? 0.14 : 0.07);
+      if (streak >= 3) synth.streakStep(streak - 3);          // rising ladder from the 3rd win on
+      const built = Date.now() - pendingPayoffAt < 4000;       // a build was set up moments ago
+      if (ratio >= WIN_TIERS.big || built) { synth.winSwell(); bgm.duck(0.5); }   // resolve the swell
+      if (ratio >= WIN_TIERS.mega) synth.wolfTheme();          // the hero leitmotif on a huge hit
     } else {
       streak = 0;
     }
+    pendingPayoffAt = 0;
   },
+
+  /** The bonus opens — state the heroic leitmotif over the entrance. */
+  onBonusEnter() { synth.wolfTheme(); bgm.duck(0.5); },
 
   /** Player added credit — a celebratory flourish + a touch of heat. */
   onDeposit() { synth.depositFlourish(); bump(0.05); },
@@ -73,5 +81,9 @@ if (typeof window !== 'undefined') {
     streak: () => streak,
     gain: (g) => { if (g != null) intensity = g; return intensity; },
     boost: (v = 0.4) => bump(v),
+    // audition the scored cues by hand
+    anticip: (extreme = true) => conductor.onAnticipation(extreme),
+    result: (win = 1000, bet = 1) => conductor.onResult(win, bet),
+    bonus: () => conductor.onBonusEnter(),
   };
 }

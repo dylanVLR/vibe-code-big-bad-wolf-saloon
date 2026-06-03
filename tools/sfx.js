@@ -64,6 +64,11 @@ const SFX = {
   deposit_flourish:{ d: 1.4, p: 'A quick celebratory cash deposit flourish: a bright ringing cash-register ding and a coin shimmer with a short rising banjo-and-bell sting, satisfying and warm, Western, short, no vocals.' },
   music_riser:    { d: 2.6, p: 'A rising cinematic tension riser building suspense: swelling tremolo strings and a tightening snare-drum roll with a rising cymbal shimmer, building to the very edge then stopping unresolved, Western orchestral, no vocals, no melody resolution.' },
 
+  // ── cinematic "scored to the moment" stingers (John Williams Western) ──
+  win_swell:   { d: 2.4, p: 'A soaring cinematic orchestral win swell that builds and resolves: rising strings and a heroic French-horn-and-trumpet fanfare crescendo arriving on a bright, satisfying triumphant major chord with a sparkle of bells and a cymbal shimmer. Uplifting and rewarding, grand sweeping cinematic adventure style, no vocals.' },
+  wolf_theme:  { d: 2.0, p: 'A short heroic French-horn leitmotif: a bold, noble four-note brass motif with a quick timpani hit and a touch of strings, like a hero\'s signature theme, confident, memorable and cinematic Western orchestral, very short, no vocals.' },
+  bonus_build: { d: 2.8, p: 'A rising cinematic orchestral build that ratchets up suspense and excitement: an accelerating timpani-and-snare roll under swelling strings and climbing heroic brass with a tightening tremolo, building higher and higher right to the edge of a huge payoff then holding, sweeping cinematic adventure style, no resolution, no vocals.' },
+
   // ── ui ──
   button_click: { d: 0.5, p: 'A chunky satisfying button or lever click: a wooden-and-brass mechanical click with a tiny spring, short, tactile, Western.' },
   bet_change:   { d: 0.5, p: 'A quick light UI tick for changing a bet value: a small bright mechanical click with a tiny coin ting, very short and clean.' },

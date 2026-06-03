@@ -153,6 +153,10 @@ class Synth {
   }
   depositFlourish() { this._oneShot('deposit_flourish.mp3', 0.55); }
   musicRiser()      { this._oneShot('music_riser.mp3', 0.5); }
+  // cinematic "scored to the moment" cues
+  winSwell()   { this._oneShot('win_swell.mp3', 0.7); }     // the orchestral payoff of a win
+  wolfTheme()  { this._oneShot('wolf_theme.mp3', 0.7); }    // the heroic horn leitmotif
+  bonusBuild() { this._oneShot('bonus_build.mp3', 0.6); }   // the rising anticipation build
 
   // ── coins ──
   coinTick() {
@@ -210,14 +214,21 @@ const MUSIC = 'assets/audio/music/';
 const LAYER_FILES = {
   day:         'bgm_base_day.mp3',
   night:       'bgm_base_night.mp3',
-  baseEnergy:  'bgm_base_energy.mp3',
+  baseSwell:   'bgm_base_swell.mp3',    // low-heat tier — emotional strings/horn lift
+  baseEnergy:  'bgm_base_energy.mp3',   // high-heat tier — galloping drive
   bonusA:      'bgm_bonus_a.mp3',
   bonusB:      'bgm_bonus_b.mp3',
   bonusEnergy: 'bgm_bonus_energy.mp3',
 };
-const TEMPO_RANGE  = 0.08;   // up to +8% playbackRate at full heat (desktop only)
-const ENERGY_MAX   = 0.55;   // max energy-layer mix at full heat (kept subtle)
+const TEMPO_RANGE  = 0.10;   // up to +10% playbackRate at full heat (desktop only)
+const SWELL_MAX    = 0.55;   // max strings-swell mix (first stage of the build)
+const ENERGY_MAX   = 0.62;   // max energy-layer mix at full heat (second stage)
 const BONUS_ENERGY_FLOOR = 0.35;   // bonus always feels energetic, even at low heat
+const FADE_FAST    = 0.12;   // energy/layer swells — responsive
+const FADE_SLOW    = 0.03;   // context / day-night / playlist — slow film-style dissolve (~3s)
+
+// Smooth ramp of x within [a,b] → 0..1 with eased ends (orchestral, not linear).
+function smooth(x, a, b) { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); }
 
 class AdaptiveScore {
   constructor() {
@@ -232,7 +243,8 @@ class AdaptiveScore {
     this._ticker = null;
     this._playlistTimer = null;
     this._bonusPick = 'bonusA';
-    for (const n of Object.keys(LAYER_FILES)) this._mix[n] = { cur: 0, target: 0 };
+    for (const n of Object.keys(LAYER_FILES)) this._mix[n] = { cur: 0, target: 0, rate: FADE_FAST };
+    this._duck = 1;            // momentary bed dip under big stingers (eased back to 1)
   }
 
   _el(name) {
@@ -255,22 +267,27 @@ class AdaptiveScore {
     if (this._ticker) return;
     this._ticker = setInterval(() => {
       const eff = this._eff();
+      if (this._duck < 0.999) this._duck += (1 - this._duck) * 0.06;   // ease the duck back up
       let alive = false;
       for (const [n, m] of Object.entries(this._mix)) {
         if (m.cur !== m.target) {
-          m.cur += (m.target - m.cur) * 0.10;
+          m.cur += (m.target - m.cur) * m.rate;                        // per-layer fade speed
           if (Math.abs(m.cur - m.target) < 0.004) m.cur = m.target;
         }
         const a = this._els[n];
         if (!a) continue;
         if (m.cur < 0.004) { if (!a.paused) a.pause(); }
-        else { a.volume = eff * m.cur; alive = true; }
+        else { a.volume = eff * m.cur * this._duck; alive = true; }
       }
       if (!alive && !this.playing) { clearInterval(this._ticker); this._ticker = null; }
     }, 50);
   }
 
-  _fade(name, target) { this._mix[name].target = Math.max(0, Math.min(1, target)); }
+  _fade(name, target, rate) {
+    const m = this._mix[name];
+    m.target = Math.max(0, Math.min(1, target));
+    if (rate != null) m.rate = rate;     // pick the fade speed per transition
+  }
 
   async _play(name) {
     const a = this._el(name);
@@ -290,16 +307,23 @@ class AdaptiveScore {
     }
   }
 
-  // Energy layer follows heat (ease-in curve). Bonus keeps an energetic floor.
+  // Two-stage orchestral build: a strings/horn SWELL lifts in first (low heat),
+  // then the galloping ENERGY layer drives in on top (high heat). Mobile keeps
+  // just the energy layer to stay light. Bonus keeps an energetic floor.
   _applyEnergy() {
     if (this.context === 'bonus') {
-      const g = Math.max(BONUS_ENERGY_FLOOR, this.heat * this.heat * ENERGY_MAX);
-      this._fade('bonusEnergy', g);
+      const g = Math.max(BONUS_ENERGY_FLOOR, smooth(this.heat, 0.05, 0.9) * ENERGY_MAX);
+      this._fade('bonusEnergy', g, FADE_FAST);
       if (g > 0.02 && this.playing) this._play('bonusEnergy');
-    } else {
-      const g = this.heat * this.heat * ENERGY_MAX;
-      this._fade('baseEnergy', g);
-      if (g > 0.02 && this.playing) this._play('baseEnergy');
+      return;
+    }
+    const energy = smooth(this.heat, 0.40, 1.0) * ENERGY_MAX;   // stage 2 — galloping drive
+    this._fade('baseEnergy', energy, FADE_FAST);
+    if (energy > 0.02 && this.playing) this._play('baseEnergy');
+    if (!IS_MOBILE) {
+      const swell = smooth(this.heat, 0.06, 0.5) * SWELL_MAX;   // stage 1 — emotional lift
+      this._fade('baseSwell', swell, FADE_FAST);
+      if (swell > 0.02 && this.playing) this._play('baseSwell');
     }
   }
 
@@ -330,10 +354,11 @@ class AdaptiveScore {
   switchToBonus() {
     if (this.context === 'bonus') return;
     this.context = 'bonus';
-    this._fade('day', 0); this._fade('night', 0); this._fade('baseEnergy', 0);
+    this._fade('day', 0, FADE_SLOW); this._fade('night', 0, FADE_SLOW);
+    this._fade('baseEnergy', 0, FADE_SLOW); this._fade('baseSwell', 0, FADE_SLOW);
     if (!this.playing) return;
     this._bonusPick = 'bonusA';
-    this._play('bonusA').then(ok => { if (ok) this._fade('bonusA', 1); });
+    this._play('bonusA').then(ok => { if (ok) this._fade('bonusA', 1, FADE_SLOW); });
     this._applyEnergy();
     this._startPlaylist();
   }
@@ -341,10 +366,10 @@ class AdaptiveScore {
     if (this.context === 'base') return;
     this.context = 'base';
     if (this._playlistTimer) { clearInterval(this._playlistTimer); this._playlistTimer = null; }
-    this._fade('bonusA', 0); this._fade('bonusB', 0); this._fade('bonusEnergy', 0);
+    this._fade('bonusA', 0, FADE_SLOW); this._fade('bonusB', 0, FADE_SLOW); this._fade('bonusEnergy', 0, FADE_SLOW);
     if (!this.playing) return;
     const bed = this._baseBed();
-    this._play(bed).then(ok => { if (ok) this._fade(bed, 1); });
+    this._play(bed).then(ok => { if (ok) this._fade(bed, 1, FADE_SLOW); });
     this._applyEnergy();
   }
 
@@ -357,8 +382,8 @@ class AdaptiveScore {
       const next = this._bonusPick === 'bonusA' ? 'bonusB' : 'bonusA';
       this._play(next).then(ok => {
         if (!ok) return;
-        this._fade(this._bonusPick, 0);
-        this._fade(next, 1);
+        this._fade(this._bonusPick, 0, FADE_SLOW);
+        this._fade(next, 1, FADE_SLOW);
         this._bonusPick = next;
       });
     }, 44000);
@@ -376,8 +401,11 @@ class AdaptiveScore {
     this.night = isNight;
     if (this.context !== 'base' || !this.playing) return;   // only swaps the visible base bed
     const bed = this._baseBed(), other = isNight ? 'day' : 'night';
-    this._play(bed).then(ok => { if (ok) { this._fade(bed, 1); this._fade(other, 0); } });
+    this._play(bed).then(ok => { if (ok) { this._fade(bed, 1, FADE_SLOW); this._fade(other, 0, FADE_SLOW); } });
   }
+
+  /** Momentarily dip the bed so a big stinger reads over it; it eases back up. */
+  duck(amount = 0.5) { this._duck = Math.max(0.15, Math.min(1, amount)); }
 
   // ── cutscene pause/resume (unchanged behaviour) ──
   pauseForCutscene() {

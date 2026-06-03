@@ -18,6 +18,7 @@ import { state } from '../core/state.js';
 import { sleep, fmt } from '../core/utils.js';
 import { synth, bgm } from '../audio/sound.js';
 import { narrator } from '../audio/narrator.js';
+import { conductor } from '../audio/conductor.js';   // leitmotif on bonus entry
 import { generateGrid, evaluateGrid, rollHouseAward, rollMansionAward, expandWilds } from '../math/mathcore.js';
 import { animateAllReels, highlightWinners, clearHighlights, animateWinCount, getReelStrips, expandWildReel } from '../render/reels.js';
 import {
@@ -152,6 +153,7 @@ export async function startBonus(bet, triggerGrid) {
 
   // music comes back right away (skip or finish) as the bigger, epic bonus score
   bgm.switchToBonus(700);
+  conductor.onBonusEnter();   // state the heroic leitmotif over the entrance
 
   // trigger hats become the first straw frames
   const triggerUpgrades = [];

@@ -64,63 +64,80 @@ const TRACKS = {
      energy layers sit on top of whichever bed is playing. Loops are kept short
      (light to download, and they re-sync to the energy layer every loop). */
 
-  // BASE bed — daytime: warm, sunlit, hopeful. Low-to-mid energy.
+  // BASE bed — daytime: the noble main theme (leitmotif), warm and adventurous.
   base_day: {
     file: 'bgm_base_day.mp3',
     lengthMs: 40000,
     prompt:
-      'A warm, hopeful Western cinematic score in A minor at a relaxed 92 BPM, fully instrumental with NO vocals. ' +
-      'Gentle fingerpicked acoustic guitar and soft banjo, warm sustained strings, a sweet harmonica and a touch of ' +
-      'tin whistle carrying a memorable melody, light brushed percussion. A golden sunlit frontier morning — cozy, ' +
-      'easygoing and content, low-to-mid energy. Smooth, even, and seamlessly loopable with a steady gentle pulse.',
+      'A sweeping cinematic orchestral Western main theme with the grand, adventurous sweep of a classic Hollywood film score, in A minor ' +
+      'at a relaxed 92 BPM, fully instrumental with NO vocals. A warm, noble, instantly-memorable melody carried by ' +
+      'French horns and soaring strings, with gentle acoustic guitar, banjo and harmonica adding frontier color, ' +
+      'soft timpani and delicate woodwind filigree. Hopeful, emotional and cinematic like a golden sunrise over the ' +
+      'wide-open West — intimate yet grand, with a clear hummable main theme. Seamlessly loopable with rich depth.',
   },
-  // BASE bed — nighttime: sparse, moonlit, a touch of menace. Swapped via the time-of-day slider.
+  // BASE bed — nighttime: the SAME theme reorchestrated as a lonesome nocturne.
   base_night: {
     file: 'bgm_base_night.mp3',
     lengthMs: 40000,
     prompt:
-      'A sparse, moonlit lonesome Western night score in A minor at a slow 92 BPM, fully instrumental with NO vocals. ' +
-      'Slow lap-steel slide guitar, low sustained strings and soft upright bass, a distant lonely harmonica, a faint ' +
-      'far-off wolf howl and gentle night ambience. Mysterious, atmospheric, a little menacing but beautiful — low ' +
-      'energy. Same key and tempo as the daytime theme so they crossfade cleanly. Seamlessly loopable.',
+      'A cinematic orchestral Western nocturne in the grand classic-Hollywood film-score tradition — the same noble main theme ' +
+      'reorchestrated for night — in A minor at a slow 92 BPM, fully instrumental with NO vocals. Sparse and ' +
+      'lonesome: a solo French horn and muted strings carry the melody over low cellos and double bass, a distant ' +
+      'lonely harmonica and a faint far-off wolf howl, soft harp and shimmering high strings. Moonlit, mysterious ' +
+      'and a touch melancholy yet beautiful. Same key and tempo as the daytime theme for a seamless crossfade. Loopable.',
   },
-  // BASE energy LAYER — sits ON TOP of either base bed when the player heats up. Mostly rhythmic so it blends.
+  // BASE SWELL LAYER — low-heat tier: pure harmonic lift (no rhythm) for the first stage of the build.
+  base_swell: {
+    file: 'bgm_base_swell.mp3',
+    lengthMs: 32000,
+    prompt:
+      'A lush sustained orchestral STRING-AND-HORN SWELL layer meant to be mixed gently on top of a calm Western ' +
+      'score, in A minor at 92 BPM, fully instrumental with NO vocals. Warm legato strings and noble French horns ' +
+      'holding and swelling rich cinematic harmony with a slow emotional rise and fall — soft, no rhythm and no ' +
+      'melody, pure harmonic lift that blends invisibly under other music. Smooth and seamlessly loopable.',
+  },
+  // BASE energy LAYER — high-heat tier: galloping orchestral drive that enters on top of the swell.
   base_energy: {
     file: 'bgm_base_energy.mp3',
     lengthMs: 32000,
     prompt:
-      'A driving rhythmic ENERGY LAYER meant to be mixed on top of a calm Western score, in A minor at 92 BPM, fully ' +
-      'instrumental with NO vocals. A galloping banjo ostinato, foot stomps and hand claps, punchy toms and ' +
-      'tambourine, and short stabbing brass accents building momentum and excitement. Mostly percussion and rhythm ' +
-      'with minimal sustained harmony so it layers cleanly over other music. Tight, propulsive, seamlessly loopable.',
+      'A driving cinematic orchestral ENERGY layer in an epic classic-Hollywood Western film-score style, to be mixed on top of a calm ' +
+      'score, in A minor at 92 BPM, fully instrumental with NO vocals. A galloping snare-and-timpani rhythm with ' +
+      'stomping low strings, heroic short French-horn and trumpet stabs, tambourine and a banjo gallop — propulsive ' +
+      'momentum and rising excitement. Mostly rhythmic and brassy with minimal sustained harmony so it layers ' +
+      'cleanly. Tight and seamlessly loopable.',
   },
-  // BONUS bed A — triumphant adventure (track 1 of the bonus playlist).
+  // BONUS bed A — the heroic theme blazing at full orchestral power.
   bonus_a: {
     file: 'bgm_bonus_a.mp3',
     lengthMs: 48000,
     prompt:
-      'An epic, triumphant Western adventure score in A minor at 120 BPM, fully instrumental with NO vocals. Heroic ' +
-      'brass, a galloping fiddle-and-banjo motif, big taiko and timpani drums, soaring strings and grand cymbal ' +
-      'swells. Swashbuckling, celebratory and goosebump-inducing, full of momentum. Seamlessly loopable.',
+      'An epic, triumphant cinematic orchestral Western theme in a grand classic-Hollywood blockbuster film-score style, in A ' +
+      'minor at 120 BPM, fully instrumental with NO vocals. A soaring, heroic, instantly-memorable main theme ' +
+      'blazing on full French horns and trumpets over galloping strings, thunderous timpani and taiko, cymbal ' +
+      'swells and a noble Western fiddle-and-banjo countermelody. Goosebump-inducing adventure and victory, full ' +
+      'orchestral power with big dynamic swells. Seamlessly loopable.',
   },
-  // BONUS bed B — a contrasting variation so the bonus has a 2-track playlist (same key/tempo for clean crossfade).
+  // BONUS bed B — a triumphant development of the theme (pairs/crossfades with A).
   bonus_b: {
     file: 'bgm_bonus_b.mp3',
     lengthMs: 48000,
     prompt:
-      'A second triumphant Western bonus theme in A minor at 120 BPM, designed to pair and crossfade with the first. ' +
-      'Fully instrumental with NO vocals. A bolder, more driving hoedown-meets-orchestra variation: a relentless ' +
-      'stomping rhythm, dueling fiddle and brass trading the melody, whooping celebratory energy and a victorious ' +
-      'feel. Same key and tempo as the first bonus theme. Seamlessly loopable.',
+      'A triumphant cinematic development of the heroic Western theme, in A minor at 120 BPM to pair and crossfade ' +
+      'with the first, in a grand cinematic film-score style, fully instrumental with NO vocals. The same main theme ' +
+      'reharmonized and pushed higher — bolder brass fanfares, dueling fiddle and trumpet trading the melody, a ' +
+      'relentless galloping rhythm and grand cymbal swells building to even greater triumph. Same key and tempo. ' +
+      'Seamlessly loopable.',
   },
-  // BONUS energy LAYER — peak-excitement overlay for big bonus moments.
+  // BONUS energy LAYER — peak-climax overlay for the biggest bonus moments.
   bonus_energy: {
     file: 'bgm_bonus_energy.mp3',
     lengthMs: 32000,
     prompt:
-      'A high-energy percussion-and-brass OVERLAY for an epic bonus, in A minor at 120 BPM, fully instrumental with ' +
-      'NO vocals. Thunderous war-drum toms, galloping snare, big cymbal swells and stabbing heroic brass hits, meant ' +
-      'to layer on top of a bonus theme for peak excitement. Mostly rhythmic so it blends. Seamlessly loopable.',
+      'A high-energy cinematic orchestral OVERLAY for an epic bonus climax, epic classic-Hollywood Western film-score style, in A minor ' +
+      'at 120 BPM, fully instrumental with NO vocals. Thunderous war-drum toms and timpani, galloping snare, soaring ' +
+      'cymbal swells and stabbing heroic brass fanfares meant to layer on top of a full orchestral theme for peak ' +
+      'excitement. Mostly rhythmic and brassy so it blends. Seamlessly loopable.',
   },
 };
 
@@ -147,7 +164,7 @@ async function generate(key, attempt = 1) {
 }
 
 // The 6-cue adaptive library the Conductor blends live.
-const ADAPTIVE = ['base_day', 'base_night', 'base_energy', 'bonus_a', 'bonus_b', 'bonus_energy'];
+const ADAPTIVE = ['base_day', 'base_night', 'base_swell', 'base_energy', 'bonus_a', 'bonus_b', 'bonus_energy'];
 
 let args = process.argv.slice(2);
 if (args.length === 1 && args[0] === 'adaptive') args = ADAPTIVE;   // group alias

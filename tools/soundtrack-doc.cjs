@@ -27,8 +27,10 @@ const TRACKS = [
     char: 'Warm, sunlit, hopeful frontier morning — fingerpicked guitar, soft banjo, harmonica, light strings. Low-to-mid energy.' },
   { name: 'Night Bed',      file: 'bgm_base_night.mp3',  ctx: 'Base · bed',     len: '40s', kt: 'A min · ~92',
     char: 'Sparse, moonlit and lonesome — slide guitar, low strings, distant harmonica and a faint wolf howl. A touch of menace.' },
+  { name: 'Base Swell',     file: 'bgm_base_swell.mp3',  ctx: 'Base · layer',   len: '32s', kt: 'A min · 92',
+    char: 'Stage 1 of the build &mdash; lush legato strings &amp; French horns, pure harmonic lift, no rhythm. Eases in at low heat.' },
   { name: 'Base Energy',    file: 'bgm_base_energy.mp3', ctx: 'Base · layer',   len: '32s', kt: 'A min · 92',
-    char: 'Additive percussion layer — galloping banjo, stomps & claps, toms, brass stabs. Fades IN on top of the bed as heat rises.' },
+    char: 'Stage 2 of the build &mdash; galloping snare/timpani, stomping low strings, heroic brass stabs. Drives in on top at high heat.' },
   { name: 'Bonus Theme A',  file: 'bgm_bonus_a.mp3',     ctx: 'Bonus · bed',    len: '48s', kt: 'A min · 120',
     char: 'Epic, triumphant Western adventure — heroic brass, galloping fiddle & banjo, big drums. Track 1 of the bonus playlist.' },
   { name: 'Bonus Theme B',  file: 'bgm_bonus_b.mp3',     ctx: 'Bonus · bed',    len: '48s', kt: 'A min · 120',
@@ -39,23 +41,24 @@ const TRACKS = [
 
 // ── Reactive triggers — the "heat" map (matches conductor.js + sound.js) ──
 const TRIGGERS = [
-  ['Fast / repeated spinning', 'Heat &uarr; &rarr; the energy layer swells in and (desktop) the tempo leans forward up to +8%.'],
-  ['A win lands', 'Heat &uarr;, scaled by size: a small win nudges it, a big win spikes it.'],
+  ['Fast / repeated spinning', 'Heat &uarr; &rarr; a two-stage build: the strings swell lifts in first, then the galloping energy layer drives on top; (desktop) tempo leans forward up to +10%.'],
+  ['A win lands', 'Heat &uarr;, scaled by size. Big wins (and any win right after a build) resolve with a soaring orchestral <b>win swell</b>, and the bed briefly ducks so it lands.'],
   ['Win streak (3+ in a row)', 'A rising stinger ladder &mdash; each consecutive win plays a pip a step higher in pitch.'],
-  ['A really big win (25&times;+)', 'The wolf-howl motif punctuates the moment over the music.'],
-  ['Near-miss / bonus anticipation', 'A tension riser swells under the reels as they slow.'],
-  ['Bonus enter / exit', 'Crossfade to the bonus playlist (and back). The bonus keeps an energetic floor so it always feels big.'],
-  ['Time-of-day slider', 'The base bed crossfades Day &harr; Night as it crosses dusk/dawn.'],
+  ['A huge win (25&times;+)', 'The heroic <b>wolf-theme leitmotif</b> (French horns) states itself over the music.'],
+  ['Near-miss / bonus anticipation', 'A rising orchestral <b>build</b> ratchets tension under the slowing reels &mdash; and if that spin wins, it pays off into the win swell.'],
+  ['Bonus enter / exit', 'Slow film-style crossfade to the bonus playlist (and back); the leitmotif states on entry; the bonus keeps an energetic floor so it always feels big.'],
+  ['Time-of-day slider', 'The base bed crossfades Day &harr; Night (a slow ~3s dissolve) as it crosses dusk/dawn.'],
   ['Player adds credit', 'A short celebratory deposit flourish + a touch of heat.'],
-  ['Player idles', 'Heat decays steadily &mdash; the energy layer melts away and the score relaxes back to the bed.'],
+  ['Player idles', 'Heat decays steadily &mdash; the energy and swell layers melt away and the score relaxes back to the bed.'],
 ];
 
 // ── Musical stingers fired over the bed ──
 const STINGERS = [
+  ['Win swell', 'win_swell.mp3', 'A big win, or any win that pays off a preceding build &mdash; a rising horn/string fanfare resolving on a triumphant chord.'],
+  ['Wolf-theme leitmotif', 'wolf_theme.mp3', 'A huge win (25&times;+) and the bonus entrance &mdash; the hero\'s signature horn motif.'],
+  ['Anticipation build', 'bonus_build.mp3', 'Reels slow into a near-miss / possible bonus &mdash; an accelerating build that holds on the edge.'],
   ['Streak step', 'streak_step.mp3', 'Each win from the 3rd in a row; pitch climbs with the streak length.'],
-  ['Big-win howl', 'wolf_howl.mp3', 'A 25&times;+ win &mdash; the wolf howls.'],
   ['Deposit flourish', 'deposit_flourish.mp3', 'Player adds credit.'],
-  ['Tension riser', 'music_riser.mp3', 'Reel anticipation / near-miss.'],
 ];
 
 const CSS = `
@@ -140,10 +143,12 @@ function body() {
 
   <h1>How the Blend Works</h1>
   <ul>
-    <li><b>Beds are continuous</b> &mdash; the base bed (or bonus bed) never stops; we add and remove layers on top of it.</li>
-    <li><b>Energy layers are additive</b> &mdash; percussion-forward, mixed gently, swelling in with heat and melting out when it cools.</li>
-    <li><b>Crossfades only at context changes</b> &mdash; day&harr;night and base&harr;bonus dissolve smoothly; nothing else hard-cuts.</li>
-    <li><b>Subtle dynamic tempo</b> &mdash; the score speeds up to about +8% at peak heat, pitch-preserved so it never sounds sped-up.</li>
+    <li><b>Beds are continuous</b> &mdash; the base bed (or bonus bed) never stops; everything else is layered on top.</li>
+    <li><b>A two-stage orchestral build</b> &mdash; as heat climbs, the emotional strings swell lifts in first, then the galloping energy layer drives on top, like an orchestra adding sections.</li>
+    <li><b>Tension that resolves</b> &mdash; the anticipation build sets up the moment and the win swell pays it off, with the bed ducking under the hit like a real film mix.</li>
+    <li><b>A recurring leitmotif</b> &mdash; the wolf's heroic horn theme returns at the biggest moments, giving the score an identity.</li>
+    <li><b>Crossfades only at context changes</b> &mdash; day&harr;night and base&harr;bonus use slow ~3s film-style dissolves; nothing else hard-cuts.</li>
+    <li><b>Subtle dynamic tempo</b> &mdash; the score leans forward to about +10% at peak heat, pitch-preserved so it never sounds sped-up.</li>
     <li><b>The bonus is a mini-playlist</b> &mdash; Theme&nbsp;A and Theme&nbsp;B trade off so a long bonus never feels like one loop.</li>
   </ul>
 
