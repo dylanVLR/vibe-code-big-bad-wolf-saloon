@@ -1,17 +1,12 @@
 /**
  * @module web-push
- * @description Dev-only "🔔 Web Push" button (hidden on the public build).
+ * @description Dev-only "🔔 Live Site" button (hidden on the public build).
  *
- * Opens a styled popup (matching the other modals) that:
- *   • shows where the game is deployed live, with COPY LINK / OPEN SITE actions, and
- *   • offers a "🚀 PUSH TO WEB" button that builds + deploys your current local
- *     version straight to the live site.
+ * Opens a styled popup (matching the other modals) that shows where the game is
+ * deployed live, with COPY LINK / OPEN SITE actions so you can share it.
  *
- * A browser page can't run a shell command on its own, so the push works via a
- * tiny hook on the LOCAL dev server (tools/serve.js → POST /__deploy, which runs
- * ./deploy.sh). That hook only exists locally — on the live site (or file://)
- * the capability ping fails and the button stays disabled. So you can push from
- * here while developing, but the public/client site can never trigger a deploy.
+ * Deploys are done from the terminal with ./deploy.sh — there is no in-app
+ * deploy trigger.
  *
  * When the deploy target changes, update LIVE_URL below (and the same URL in
  * deploy.sh).
@@ -29,14 +24,11 @@ const urlText  = document.getElementById('webpush-url-text');
 const statusEl = document.getElementById('webpush-status');
 const copyBtn  = document.getElementById('btn-webpush-copy');
 const openBtn  = document.getElementById('btn-webpush-open');
-const pushBtn  = document.getElementById('btn-webpush-push');
 
 if (btn && modal) {
   // Fill in the link once (strip the protocol for a cleaner display).
   if (linkEl)  linkEl.href = LIVE_URL;
   if (urlText) urlText.textContent = LIVE_URL.replace(/^https?:\/\//, '');
-
-  let canDeploy = false;
 
   function setStatus(msg, kind) {
     if (!statusEl) return;
@@ -48,22 +40,7 @@ if (btn && modal) {
   }
   function clearStatus() { if (statusEl) { statusEl.innerHTML = '&nbsp;'; statusEl.style.color = ''; } }
 
-  // Ask the local dev server whether it can deploy (only tools/serve.js answers).
-  async function checkCapability() {
-    if (!pushBtn) return;
-    try {
-      const res = await fetch('/__deploy', { method: 'GET' });
-      if (!res.ok) throw 0;
-      const data = await res.json();
-      canDeploy = !!data.capable;
-    } catch (e) { canDeploy = false; }
-    pushBtn.disabled = !canDeploy;
-    pushBtn.title = canDeploy
-      ? 'Build and deploy your current local version to the live site'
-      : 'Only works on the local dev server (node tools/serve.js)';
-  }
-
-  const openModal  = () => { clearStatus(); modal.classList.remove('hidden'); checkCapability(); };
+  const openModal  = () => { clearStatus(); modal.classList.remove('hidden'); };
   const closeModal = () => modal.classList.add('hidden');
 
   btn.addEventListener('click', openModal);
@@ -80,29 +57,5 @@ if (btn && modal) {
       setStatus('Copy failed — long-press the link to copy', 'err');
     }
     setTimeout(clearStatus, 1800);
-  });
-
-  if (pushBtn) pushBtn.addEventListener('click', async () => {
-    if (pushBtn.disabled) return;
-    pushBtn.disabled = true;
-    pushBtn.classList.add('deploying');
-    const label = pushBtn.textContent;
-    pushBtn.textContent = '⏳ DEPLOYING…';
-    setStatus('Building & uploading to Vercel… (~20–40s)', 'info');
-    try {
-      const res = await fetch('/__deploy', { method: 'POST' });
-      const data = await res.json();
-      if (data.ok) {
-        setStatus(`✓ Pushed live! (${Math.round((data.durationMs || 0) / 1000)}s)`, 'ok');
-      } else {
-        setStatus(`✗ Deploy failed${data.code != null ? ` (exit ${data.code})` : ''} — check the terminal.`, 'err');
-      }
-    } catch (e) {
-      setStatus('✗ Couldn’t reach the local deploy server.', 'err');
-    } finally {
-      pushBtn.textContent = label;
-      pushBtn.classList.remove('deploying');
-      pushBtn.disabled = !canDeploy;
-    }
   });
 }
