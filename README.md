@@ -78,7 +78,7 @@ build works* below.
 │   ├── Math_Overview_85%_RTP.pdf
 │   ├── QA_Report.pdf · Would_This_Game_Pass_GLI_Certification.pdf
 │   ├── Wolf_Voiceover_Script.pdf · Adaptive_Soundtrack_Guide.pdf
-│   ├── Keyboard_Shortcuts.pdf
+│   ├── Keyboard_Shortcuts.pdf · Flow_Chart_Claude.pdf
 │   └── API_*.pdf                   integration references (Relax, Slack, GitHub …)
 │
 └── assets/                Media (images, video, audio) — gitignored, not in version control.
