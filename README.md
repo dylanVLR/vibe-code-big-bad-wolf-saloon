@@ -37,7 +37,7 @@ build works* below.
 ├── index.html             The page. Loads app.js + styles.css.
 ├── app.js                 GENERATED bundle of src/ — the only script the page loads.
 ├── styles.css             All styling.
-├── netlify.toml           Deploy config: blocks local-only files from being served.
+├── vercel.json            Deploy config: security headers for the published site.
 ├── README.md              You are here.
 │
 ├── src/                   ── ALL SOURCE (ES modules, bundled into app.js) ──
@@ -191,9 +191,10 @@ huff-and-puff act" roast pool is **off by default**; enable with
 
 ## Deploying
 
-Drag the folder to a static host (e.g. Netlify) or connect the repo. `netlify.toml`
-adds defense-in-depth: it returns 404 for `/.env`, `/tools/*`, `/.git/*`, etc., so
-nothing local-only is ever served even if the whole folder is uploaded. The
-media in `assets/` is gitignored — re-upload it with the deploy.
+Run `./deploy.sh` to build and publish to Vercel (first time: `vercel login` then
+`vercel link`). The script bundles a clean, secrets-free folder — only the files
+the browser needs (index.html, app.js, styles.css, vercel.json, assets/) — so
+nothing local-only is ever served. `vercel.json` adds security headers on top.
+The media in `assets/` is gitignored — re-upload it with the deploy.
 
 There's also a hidden surprise at exactly 12:00 PM local time. 🤠

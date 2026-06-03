@@ -20,8 +20,8 @@ npm-debug.log*
 # Editor / agent config (local only)
 .claude/
 
-# Netlify CLI local link state
-.netlify/
+# Vercel CLI local link state
+.vercel/
 
 # Wolf VO incremental generation cache
 .vo-cache.json

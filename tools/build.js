@@ -42,7 +42,7 @@ function categoryOf(name) {
  * "player" = files the browser actually loads at runtime (what ships to players):
  * index.html, the bundled app.js, styles.css and everything in assets/.
  * "dev" = source + tooling + docs only needed while developing / in gaff mode
- * (src/, tools/ incl. the simulator, docs/, README, package.json, netlify.toml…).
+ * (src/, tools/ incl. the simulator, docs/, README, package.json, vercel.json…).
  */
 function scopeOf(relPath) {
   const p = relPath.split('\\').join('/');

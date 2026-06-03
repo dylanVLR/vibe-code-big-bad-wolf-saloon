@@ -19,7 +19,7 @@
 'use strict';
 
 // The current public deploy target. Keep in sync with deploy.sh.
-export const LIVE_URL = 'https://super-lolly-c99fd8.netlify.app';
+export const LIVE_URL = 'https://YOUR-PROJECT.vercel.app';
 
 const btn      = document.getElementById('btn-web-push');
 const modal    = document.getElementById('webpush-modal');
@@ -88,7 +88,7 @@ if (btn && modal) {
     pushBtn.classList.add('deploying');
     const label = pushBtn.textContent;
     pushBtn.textContent = '⏳ DEPLOYING…';
-    setStatus('Building & uploading to Netlify… (~20–40s)', 'info');
+    setStatus('Building & uploading to Vercel… (~20–40s)', 'info');
     try {
       const res = await fetch('/__deploy', { method: 'POST' });
       const data = await res.json();
