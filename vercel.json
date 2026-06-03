@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "",
+  "buildCommand": "git lfs install && git lfs pull",
   "outputDirectory": ".",
   "headers": [
     {
