@@ -1,0 +1,16 @@
+# app.js is pre-bundled from src/ and committed, so Vercel needs no build step.
+# Deploy only the static files the browser actually loads (index.html, app.js,
+# styles.css, manifest.json, robots.txt, sitemap.xml, assets/). Everything below
+# is build tooling, source, or files that don't belong on the public site.
+
+# Build tooling & ES-module sources (already bundled into app.js)
+src/
+tools/
+package.json
+
+# Not part of the playable site
+api/
+docs/
+README.md
+deploy.sh
+.env.example
