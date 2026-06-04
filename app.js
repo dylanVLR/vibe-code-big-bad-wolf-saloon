@@ -7249,7 +7249,7 @@ Object.assign(exports, { IS_IOS, IS_MOBILE, USE_HEVC_ALPHA, alphaSrc, initAlphaV
  */
 
 // The current public deploy target. Keep in sync with deploy.sh.
-const LIVE_URL = 'https://vibe-code-big-bad-wolf-saloon-vlr-studios.vercel.app';
+const LIVE_URL = 'https://vibe-code-big-bad-wolf-saloon.vercel.app';
 
 const btn      = document.getElementById('btn-web-push');
 const modal    = document.getElementById('webpush-modal');
