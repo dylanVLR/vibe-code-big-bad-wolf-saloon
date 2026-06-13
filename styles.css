@@ -1517,13 +1517,18 @@ body.pre-reveal #bg-video { opacity: 1; }   /* full, undimmed background during 
   width: 60%;
   height: 200%;
   background: linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent);
-  animation: bigwin-shimmer 1.5s ease-in-out infinite;
+  animation: bigwin-sweep 1.5s ease-in-out infinite;
   pointer-events: none;
+  will-change: transform;
 }
 
-@keyframes bigwin-shimmer {
-  0%   { left: -100%; }
-  100% { left: 200%; }
+/* Sweep with transform (GPU-composited) instead of `left`, which forces a full
+   layout + repaint every frame. The element is 60% of its parent wide, so
+   translateX(500%) of its own width === 300% of the parent — exactly the old
+   left:-100%→200% sweep, now essentially free. */
+@keyframes bigwin-sweep {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(500%); }
 }
 
 @keyframes big-win-pop {
@@ -2769,8 +2774,15 @@ body.pre-reveal #bg-video { opacity: 1; }   /* full, undimmed background during 
   width: 50%;
   height: 200%;
   background: linear-gradient(90deg, transparent, rgba(46,232,90,0.08), transparent);
-  animation: bigwin-shimmer 2s ease-in-out infinite;
+  animation: bonus-sweep 2s ease-in-out infinite;
   pointer-events: none;
+  will-change: transform;
+}
+
+/* 50%-wide element → translateX(600%) of its own width === 300% of the parent. */
+@keyframes bonus-sweep {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(600%); }
 }
 
 @keyframes pop-in {
@@ -4041,6 +4053,29 @@ button, .drawer-btn, .rtp-option, .modal-overlay, #spin-video, .sym-cell {
   .win-glow { text-shadow: none !important; animation: none !important; }
   .counting { animation: none !important; }
   .sym-cell, .sym-cell svg, .sym-cell .sym-img, .reel-col { box-shadow: none !important; }
+
+  /* ── Big-win celebration FX: keep the motion, drop the per-frame repaint ──
+     The tiered big-win labels animate large multi-layer text-shadows (up to a
+     170px blur radius) every frame, and the COLOSSAL tier also runs an animated
+     filter: hue-rotate. On iOS that re-rasterises a huge glow region 60×/sec —
+     and it fires exactly when the coin shower is also spawning, so it's the
+     single worst win-time hitch on a phone. Keep the scale pulse (transform is
+     GPU-composited and free) and one fixed glow; drop the animated shadow + hue.
+     Tier colours (red mega / white epic+colossal) still come through via each
+     rule's own `color`, so the celebration still reads distinctly per tier. */
+  #big-win-label,
+  #big-win-label.mega-win,
+  #big-win-label.epic-win,
+  #big-win-label.colossal-win {
+    animation: bigwin-pulse-lite 0.6s ease-in-out infinite alternate !important;
+    text-shadow: 0 0 22px rgba(255,210,90,0.9), 0 4px 0 #7A4400;
+  }
+}
+
+/* Mobile-light pulse: scale only — no shadow or filter animation to re-raster. */
+@keyframes bigwin-pulse-lite {
+  from { transform: scale(1); }
+  to   { transform: scale(1.06); }
 }
 
 /* ── Fit-to-screen mode (set by fit-screen.js when the game can't fit natural size) ── */
