@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "git lfs install && git config lfs.url https://github.com/dylanVLR/vibe-code-big-bad-wolf-saloon.git/info/lfs && git lfs pull",
+  "buildCommand": "git lfs install && git config lfs.url https://github.com/dylanVLR/big-bad-wolf-html.git/info/lfs && git lfs pull",
   "outputDirectory": ".",
   "headers": [
     {
