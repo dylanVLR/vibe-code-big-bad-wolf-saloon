@@ -1,6 +1,6 @@
 # 🐺 Big Bad Wolf — Slot Machine
 
-A browser-based, cowboy-themed slot machine inspired by the "huff-and-puff"
+A browser-based, westernthemed slot machine inspired by the "huff-and-puff"
 genre: a 5×3, **243-ways** game with a Hard-Hat Free-Spins bonus where the Big
 Bad Wolf blows down straw / stick / brick houses for prizes, plus a Mansion
 Jackpot. Pure vanilla HTML/CSS/JS — no framework, no runtime dependencies.
